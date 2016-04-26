@@ -1,3 +1,8 @@
+srcs-y += tee_tui.c
+srcs-y += tui_pta.c
+srcs-y += tui_widget.c
+srcs-y += tui_keyboard.c
+srcs-y += tui_entry.c
 srcs-y += utf8.c
 srcs-y += image.c
 srcs-y += image_png.c

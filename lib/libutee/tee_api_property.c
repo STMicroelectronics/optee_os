@@ -12,6 +12,7 @@
 #include <tee_api.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
+#include <tee_tui_api_types.h>
 #include <tee_arith_internal.h>
 #include <tee_internal_api_extensions.h>
 #include <tee_isocket.h>
@@ -47,9 +48,14 @@ const struct user_ta_property tee_props[] = {
 		&(const uint32_t){TEE_ISOCKET_VERSION}
 	},
 	{
-		"gpd.tee.internalCore.version",
+		"gpd.tee.tui.languages",
+		USER_TA_PROP_TYPE_STRING,
+		"en"
+	},
+	{
+		"gpd.tee.tui.orientation",
 		USER_TA_PROP_TYPE_U32,
-		&(const uint32_t){TEE_CORE_API_VERSION}
+		&(const uint32_t){1 << TEE_TUI_LANDSCAPE}
 	},
 };
 
