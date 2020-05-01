@@ -34,7 +34,11 @@
 struct sm_pm_ctx {
 	uint32_t sp;
 	paddr_t cpu_resume_addr;
+#ifdef CFG_WITH_LPAE
+	uint32_t suspend_regs[18];
+#else
 	uint32_t suspend_regs[16];
+#endif
 };
 
 /* suspend/resume core functions */

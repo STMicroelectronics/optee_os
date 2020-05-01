@@ -68,25 +68,30 @@ a9_suspend:
 a5_a7_suspend:
 	read_fcseidr r4
 	read_tpidruro r5
-	stmia	r0!, {r4 - r5}
-	read_dacr r4
+	read_dacr r6
+	stmia	r0!, {r4 - r6}
 #ifdef CFG_WITH_LPAE
-#error "Not supported"
+	read_ttbr0_64bit r4, r5
+	read_ttbr1_64bit r6, r7
+	read_mair0 r8
+	read_mair1 r9
+	stmia	r0!, {r4 - r9}
 #else
-	read_ttbr0 r5
-	read_ttbr1 r6
-	read_ttbcr r7
+	read_ttbr0 r4
+	read_ttbr1 r5
+	read_prrr r6
+	read_nmrr r7
+	stmia	r0!, {r4 - r7}
 #endif
-	read_sctlr r8
-	read_actlr r9
-	read_cpacr r10
-	read_mvbar r11
-	stmia	r0!, {r4 - r11}
-	read_prrr r4
-	read_nmrr r5
-	read_vbar r6
-	read_nsacr r7
-	stmia	r0, {r4 - r7}
+	read_ttbcr r4
+	read_actlr r5
+	read_cpacr r6
+	read_mvbar r7
+	read_vbar r8
+	read_nsacr r9
+	read_sctlr r10
+	stmia	r0, {r4 - r10}
+
 	pop	{r4 - r11}
 	bx	lr
 END_FUNC sm_pm_cpu_do_suspend
@@ -154,50 +159,51 @@ UNWIND(	.cantunwind)
 	cmp	r5, r4
 	beq	a5_a7_resume
 
-	/*
-	 * A9 needs PCR/DIAG
-	 */
+	/* A9 needs PCR/DIAG */
 	ldmia   r0!, {r4 - r5}
 	write_pcr r4
 	write_diag r5
 
 a5_a7_resume:
-	/* v7 resume */
+	/* Armv7 generic resume */
 	mov	ip, #0
 	/* Invalidate icache to PoU */
 	write_iciallu
 	/* set reserved context */
 	write_contextidr ip
-	ldmia	r0!, {r4 - r5}
+	ldmia	r0!, {r4 - r6}
 	write_fcseidr r4
 	write_tpidruro r5
-	ldmia	r0!, {r4 - r11}
 	/* Invalidate entire TLB */
 	write_tlbiall
-	write_dacr r4
+	write_dacr r6
 #ifdef CFG_WITH_LPAE
-#error "Not supported -"
+	ldmia	r0!, {r4 - r9}
+	write_ttbr0_64bit r4, r5
+	write_ttbr1_64bit r6, r7
+	write_mair0 r8
+	write_mair1 r9
 #else
-	write_ttbr0 r5
-	write_ttbr1 r6
-	write_ttbcr r7
+	ldmia	r0!, {r4 - r7}
+	write_ttbr0 r4
+	write_ttbr1 r5
+	write_prrr r6
+	write_nmrr r7
 #endif
-
-	ldmia	r0, {r4 - r7}
-	write_prrr r4
-	write_nmrr r5
-	write_vbar r6
-	write_nsacr r7
-
-	write_actlr r9
-	write_cpacr r10
-	write_mvbar r11
+	ldmia	r0!, {r4 - r10}
+	write_ttbcr r4
+	write_actlr r5
+	write_cpacr r6
+	write_mvbar r7
+	write_vbar r8
+	write_nsacr r9
 	write_bpiall
 	isb
 	dsb
 	/* MMU will be enabled here */
-	write_sctlr r8
+	write_sctlr r10
 	isb
+
 	mov	r0, #0
 	b	suspend_return
 END_FUNC sm_pm_cpu_do_resume
