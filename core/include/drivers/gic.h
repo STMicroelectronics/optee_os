@@ -9,6 +9,13 @@
 #include <types_ext.h>
 #include <kernel/interrupt.h>
 
+/* Constants to categorize priorities */
+#define GIC_HIGHEST_SEC_PRIORITY	0x0U
+#define GIC_LOWEST_SEC_PRIORITY		0x7fU
+#define GIC_HIGHEST_NS_PRIORITY		0x80U
+#define GIC_LOWEST_NS_PRIORITY		0xfeU
+/* 0xff would disable all interrupts */
+
 #if defined(CFG_ARM_GICV3)
 #define GIC_DIST_REG_SIZE	0x10000
 #define GIC_CPU_REG_SIZE	0x10000
