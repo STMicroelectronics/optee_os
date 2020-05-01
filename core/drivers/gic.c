@@ -615,13 +615,9 @@ static void gic_init_base_addr(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 	gic_pm_register(gd);
 }
 
-void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
-		 paddr_t gicr_base_pa)
+static void gic_setup_clear_it(struct gic_data __maybe_unused *gd)
 {
-	struct gic_data __maybe_unused *gd = &gic_data;
 	size_t __maybe_unused n = 0;
-
-	gic_init_base_addr(gicc_base_pa, gicd_base_pa, gicr_base_pa);
 
 #if defined(CFG_WITH_ARM_TRUSTED_FW)
 	/* GIC configuration is initialized from TF-A when embedded */
@@ -657,7 +653,17 @@ void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 
 		/* Make interrupts non-pending */
 		io_write32(gd->gicd_base + GICD_ICPENDR(n), 0xffffffff);
+	}
+#endif
+}
 
+static void gic_init_setup(struct gic_data __maybe_unused *gd)
+{
+	size_t __maybe_unused n = 0;
+
+	/* GIC configuration is initialized from TF-A when embedded */
+#ifndef CFG_WITH_ARM_TRUSTED_FW
+	for (n = 0; n <= gd->max_it / NUM_INTS_PER_REG; n++) {
 		/* Mark interrupts non-secure */
 		if (n == 0) {
 			/* per-CPU inerrupts config:
@@ -691,7 +697,14 @@ void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
 		     GICD_CTLR_ENABLEGRP0 | GICD_CTLR_ENABLEGRP1NS);
 #endif
 #endif /*!CFG_WITH_ARM_TRUSTED_FW*/
+}
 
+void gic_init_v3(paddr_t gicc_base_pa, paddr_t gicd_base_pa,
+		 paddr_t gicr_base_pa)
+{
+	gic_init_base_addr(gicc_base_pa, gicd_base_pa, gicr_base_pa);
+	gic_setup_clear_it(&gic_data);
+	gic_init_setup(&gic_data);
 	interrupt_main_init(&gic_data.chip);
 }
 
@@ -1223,12 +1236,10 @@ static void gic_save_it(struct gic_data *gd, struct gic_it_pm *pm)
 static void gic_restore_it(struct gic_data *gd, struct gic_it_pm *pm)
 {
 	unsigned int it = pm->it;
-	size_t idx = 0;
+	size_t idx = it / NUM_INTS_PER_REG;
 	uint32_t mask = BIT(it % NUM_INTS_PER_REG);
 	uint32_t shift2 = it % (NUM_INTS_PER_REG / 2) * 2;
 	uint32_t shift8 = it % (NUM_INTS_PER_REG / 8) * 8;
-
-	idx = it / NUM_INTS_PER_REG;
 
 	io_mask32(gd->gicd_base + GICD_IGROUPR(idx),
 		  (pm->flags & IT_PM_GPOUP1_BIT) ? mask : 0, mask);
@@ -1265,11 +1276,12 @@ static TEE_Result gic_pm(enum pm_op op, unsigned int pm_hint __unused,
 	struct gic_data *gd = (struct gic_data *)PM_CALLBACK_GET_HANDLE(handle);
 	struct gic_pm *pm = &gd->pm;
 
-	if (op == PM_OP_SUSPEND)
+	if (op == PM_OP_SUSPEND) {
 		sequence = gic_save_it;
-	else
+	} else {
+		gic_init_setup(gd);
 		sequence = gic_restore_it;
-
+	}
 	for (n = 0, cfg = pm->pm_cfg; n < pm->count; n++, cfg++)
 		sequence(gd, cfg);
 
