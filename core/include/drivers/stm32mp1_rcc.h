@@ -6,8 +6,6 @@
 #ifndef __DRIVERS_STM32MP1_RCC_H__
 #define __DRIVERS_STM32MP1_RCC_H__
 
-#include <io.h>
-#include <stdbool.h>
 #include <util.h>
 
 #define RCC_TZCR			0x00
@@ -550,6 +548,8 @@
 #define DT_RCC_SECURE_CLK_COMPAT	"st,stm32mp1-rcc-secure"
 
 #ifndef __ASSEMBLER__
+#include <io.h>
+#include <stdbool.h>
 #include <stm32_util.h>
 
 static inline bool stm32_rcc_is_secure(void)
