@@ -38,84 +38,196 @@ properties:
       - description: CK_SCMI_MSI Low Power Internal oscillator (~ 4 MHz or ~ 16 MHz)
       - description: CK_SCMI_LSE Low Speed External oscillator (32 KHz)
       - description: CK_SCMI_LSI Low Speed Internal oscillator (~ 32 KHz)
-      - description: CK_SCMI_HSE_DIV2 CK_SCMI_HSE divided by 2 (could be gated)
-      - description: CK_SCMI_ICN_HS_MCU High Speed interconnect bus clock
-      - description: CK_SCMI_ICN_LS_MCU Low Speed interconnect bus clock
-      - description: CK_SCMI_ICN_SDMMC SDMMC interconnect bus clock
-      - description: CK_SCMI_ICN_DDR DDR interconnect bus clock
-      - description: CK_SCMI_ICN_DISPLAY Display interconnect bus clock
-      - description: CK_SCMI_ICN_HSL HSL interconnect bus clock
-      - description: CK_SCMI_ICN_NIC NIC interconnect bus clock
-      - description: CK_SCMI_ICN_VID Video interconnect bus clock
-      - description: CK_SCMI_FLEXGEN_07 flexgen clock 7
-      - description: CK_SCMI_FLEXGEN_08 flexgen clock 8
-      - description: CK_SCMI_FLEXGEN_09 flexgen clock 9
-      - description: CK_SCMI_FLEXGEN_10 flexgen clock 10
-      - description: CK_SCMI_FLEXGEN_11 flexgen clock 11
-      - description: CK_SCMI_FLEXGEN_12 flexgen clock 12
-      - description: CK_SCMI_FLEXGEN_13 flexgen clock 13
-      - description: CK_SCMI_FLEXGEN_14 flexgen clock 14
-      - description: CK_SCMI_FLEXGEN_15 flexgen clock 15
-      - description: CK_SCMI_FLEXGEN_16 flexgen clock 16
-      - description: CK_SCMI_FLEXGEN_17 flexgen clock 17
-      - description: CK_SCMI_FLEXGEN_18 flexgen clock 18
-      - description: CK_SCMI_FLEXGEN_19 flexgen clock 19
-      - description: CK_SCMI_FLEXGEN_20 flexgen clock 20
-      - description: CK_SCMI_FLEXGEN_21 flexgen clock 21
-      - description: CK_SCMI_FLEXGEN_22 flexgen clock 22
-      - description: CK_SCMI_FLEXGEN_23 flexgen clock 23
-      - description: CK_SCMI_FLEXGEN_24 flexgen clock 24
-      - description: CK_SCMI_FLEXGEN_25 flexgen clock 25
-      - description: CK_SCMI_FLEXGEN_26 flexgen clock 26
-      - description: CK_SCMI_FLEXGEN_27 flexgen clock 27
-      - description: CK_SCMI_FLEXGEN_28 flexgen clock 28
-      - description: CK_SCMI_FLEXGEN_29 flexgen clock 29
-      - description: CK_SCMI_FLEXGEN_30 flexgen clock 30
-      - description: CK_SCMI_FLEXGEN_31 flexgen clock 31
-      - description: CK_SCMI_FLEXGEN_32 flexgen clock 32
-      - description: CK_SCMI_FLEXGEN_33 flexgen clock 33
-      - description: CK_SCMI_FLEXGEN_34 flexgen clock 34
-      - description: CK_SCMI_FLEXGEN_35 flexgen clock 35
-      - description: CK_SCMI_FLEXGEN_36 flexgen clock 36
-      - description: CK_SCMI_FLEXGEN_37 flexgen clock 37
-      - description: CK_SCMI_FLEXGEN_38 flexgen clock 38
-      - description: CK_SCMI_FLEXGEN_39 flexgen clock 39
-      - description: CK_SCMI_FLEXGEN_40 flexgen clock 40
-      - description: CK_SCMI_FLEXGEN_41 flexgen clock 41
-      - description: CK_SCMI_FLEXGEN_42 flexgen clock 42
-      - description: CK_SCMI_FLEXGEN_43 flexgen clock 43
-      - description: CK_SCMI_FLEXGEN_44 flexgen clock 44
-      - description: CK_SCMI_FLEXGEN_45 flexgen clock 45
-      - description: CK_SCMI_FLEXGEN_46 flexgen clock 46
-      - description: CK_SCMI_FLEXGEN_47 flexgen clock 47
-      - description: CK_SCMI_FLEXGEN_48 flexgen clock 48
-      - description: CK_SCMI_FLEXGEN_49 flexgen clock 49
-      - description: CK_SCMI_FLEXGEN_50 flexgen clock 50
-      - description: CK_SCMI_FLEXGEN_51 flexgen clock 51
-      - description: CK_SCMI_FLEXGEN_52 flexgen clock 52
-      - description: CK_SCMI_FLEXGEN_53 flexgen clock 53
-      - description: CK_SCMI_FLEXGEN_54 flexgen clock 54
-      - description: CK_SCMI_FLEXGEN_55 flexgen clock 55
-      - description: CK_SCMI_FLEXGEN_56 flexgen clock 56
-      - description: CK_SCMI_FLEXGEN_57 flexgen clock 57
-      - description: CK_SCMI_FLEXGEN_58 flexgen clock 58
-      - description: CK_SCMI_FLEXGEN_59 flexgen clock 59
-      - description: CK_SCMI_FLEXGEN_60 flexgen clock 60
-      - description: CK_SCMI_FLEXGEN_61 flexgen clock 61
-      - description: CK_SCMI_FLEXGEN_62 flexgen clock 62
-      - description: CK_SCMI_FLEXGEN_63 flexgen clock 63
-      - description: CK_SCMI_ICN_APB1 Peripheral bridge 1
-      - description: CK_SCMI_ICN_APB2 Peripheral bridge 2
-      - description: CK_SCMI_ICN_APB3 Peripheral bridge 3
-      - description: CK_SCMI_ICN_APB4 Peripheral bridge 4
-      - description: CK_SCMI_ICN_APBDBG Peripheral bridge for debug
-      - description: CK_SCMI_TIMG1 Peripheral bridge for timer1
-      - description: CK_SCMI_TIMG2 Peripheral bridge for timer2
-      - description: CK_SCMI_PLL3 PLL3 clock
-      - description: clk_dsi_txbyte DSI byte clock
+
+  clock-names:
+    items:
+      - const: hse
+      - const: hsi
+      - const: msi
+      - const: lse
+      - const: lsi
 
   access-controllers:
     maxItems: 1
+
+  interrupts:
+    description: contains the general interrupt line (for HSI calibration).
+    maxItems: 1
+
+  st,c1msrd:
+    description: |
+        - It defines the minimum duration (in ms) of the low level pulse on
+        NRSTC1MS pad when C1MSRST is high (see ref manual for details)
+    minItems: 1
+
+  st,flexgen:
+    description: |
+        - Used to configure the flexgen clock selection.
+        The property is a list of flex clock source identifiers defined
+        by macros as defined by header file dt-bindings/clock/stm32mp25-clksrc.h:
+          - FLEXGEN_CFG(chanel, XBAR_SRC_<PARENT-CLOCK>, pre_div, final_div)
+            - pre_div
+                0x0: not divided
+                0x1: division by 2
+                0x3: division by 4
+                0x3ff: division by 1024
+            - final_div
+                0x0: not divided
+                0x1: division by 2
+                0x2: division by 3
+                ...
+                0x3f: division by 64
+        - Property can be used to configure the clock distribution tree:
+            st,flexgen = <
+                    FLEXGEN_CFG(0, XBAR_SRC_PLL4, 0, 2)
+                    FLEXGEN_CFG(2, XBAR_SRC_PLL4, 0, 1)
+                    FLEXGEN_CFG(3, XBAR_SRC_PLL4, 0, 2)
+                    FLEXGEN_CFG(4, XBAR_SRC_PLL4, 0, 3)
+                    FLEXGEN_CFG(5, XBAR_SRC_PLL4, 0, 2)
+                    FLEXGEN_CFG(6, XBAR_SRC_PLL4, 0, 1)
+                    FLEXGEN_CFG(7, XBAR_SRC_PLL4, 0, 11)
+                    ...
+                    FLEXGEN_CFG(59, XBAR_SRC_PLL4, 0, 1)
+                    FLEXGEN_CFG(60, XBAR_SRC_PLL6, 0, 3)
+                    FLEXGEN_CFG(61, XBAR_SRC_PLL4, 0, 7)
+                    FLEXGEN_CFG(62, XBAR_SRC_PLL4, 0, 7)
+                    FLEXGEN_CFG(63, XBAR_SRC_PLL4, 0, 2)
+            >;
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+
+  st,busclk:
+    description: |
+      - The property is a list of dividers defined by macros DIV(DIV_<DIV-CLOCK>,
+        value) as defined by header file dt-bindings/clock/stm32mp25-clksrc.h.
+      - For the STM32MP25 family there are 8 dividers values expected:
+        LSMCU APB1 APB2 APB3 APB4 DIV_APBDBG
+      - Each divider value uses the DIV coding defined in RCC associated register
+        RCC_xxxDIVR. In most cases, it is:
+          0x0: not divided
+          0x1: division by 2
+          0x2: division by 4
+          0x3: division by 8
+          ...
+      - Property can be used to configure the clock main dividers value:
+          st,busclk = <
+            DIV(DIV_LSMCU, 1)
+            DIV(DIV_APB1, 0)
+            DIV(DIV_APB2, 0)
+            DIV(DIV_APB3, 0)
+            DIV(DIV_APB4, 0)
+            DIV(DIV_APBDBG, 0)
+          >;
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+
+  st,kerclk:
+    description: |
+        - used to configure the peripherals kernel clock selection.
+        The property is a list of peripheral kernel clock source identifiers defined
+        by macros as defined by header file dt-bindings/clock/stm32mp25-clksrc.h:
+          - DIV(DIV_<DIV-CLOCK>, value)
+          - MUX_CFG(MUX_<KERNEL-CLOCK>, MUX<KERNEL-CLOCK>_<PARENT-CLOCK>
+          - MCO_CFG(MCO_CLOCK, MUX_<MCO-CLOCK>_<PARENT-CLOCK>, ON / OFF)
+        - st,kerclk may not list all the kernel clocks and has no ordering requirements.
+        - Property can be used to configure the clock distribution tree:
+            st,kerclk = <
+                    DIV_CFG(DIV_RTC, 23)
+                    MUX_CFG(MUX_ADC12, MUX_ADC12_FLEX46)
+                    MUX_CFG(MUX_ADC3, MUX_ADC3_FLEX47)
+                    MUX_CFG(MUX_USB2PHY1, MUX_USB2PHY1_FLEX57)
+                    MUX_CFG(MUX_USB2PHY2, MUX_USB2PHY2_FLEX58)
+                    MUX_CFG(MUX_USB3PCIEPHY, MUX_USB3PCIEPHY_FLEX34)
+                    MUX_CFG(MUX_DSIPHY, MUX_DSIPHY_FLEX28)
+                    MUX_CFG(MUX_DSIBLANE, MUX_DSIBLANE_DSIPHY)
+                    MUX_CFG(MUX_LVDSPHY, MUX_LVDSPHY_FLEX32)
+                    MUX_CFG(MUX_DTS, MUX_DTS_HSE)
+                    MUX_CFG(MUX_RTC, MUX_RTC_HSE)
+                    MUX_CFG(MUX_D3PER, MUX_D3PER_LSE)
+                    MCO_CFG(MCO2, MUX_MCO2_FLEX62, MCO_OFF)
+            >;
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+
+patternProperties:
+  '^st,pll-[1-8]$':
+    description:
+      Each PLL children node for PLL1 to PLL8 (see ref manual for details).
+      PLL3..PLL8 are off when their associated nodes are absent or deactivated.
+    type: object
+    properties:
+      st,pll:
+        description:
+          Phandle of the default pll configuration.
+          A pll could have several configuration (5 max) and should be described in a subnode
+          just below.
+        $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    patternProperties:
+      '^pll[1-8]_cfg[0-9]*$':
+        type: object
+        properties:
+          cfg:
+             $ref: "/schemas/types.yaml#/definitions/uint32-array"
+             description:
+              The parameters for PLL frequency configuration in the following order
+              <FBDIV FREFDIV POSTDIV1 POSTDIV2>
+              FREF * (FBDIV / FREFDIV) / POSTDIV1 / POSTDIV2
+              POSTDIVx
+                0x0: not applicable
+                0x1: division by 1
+                ...
+                0x7: division by 7
+              (see ref manual for details)
+            minItems: 1
+          src:
+            description:
+              Clock source configuration values are defined by macros MUX_CFG(MUX_<NAME>_<SOURCE>)
+              from dt-bindings/clock/stm32mp25-clksrc.h.
+            minItems: 1
+          frac:
+            description:
+              Fractional part of the multiplication factor
+              (optional, PLL is in integer mode when absent).
+            minItems: 1
+          csg:
+            description: |
+              Clock Spreading Generator (optional) with parameters in the
+              following order: MOD_PER INC_STEP SSCG_MODE.
+              MOD_PER: Modulation Period Adjustment
+              INC_STEP: Modulation Depth Adjustment
+              SSCG_MODE: Spread spectrum clock generator mode, with associated
+              defines from stm32mp25-clksrc.h:
+              - SSCG_MODE_CENTER_SPREAD = 0
+              - SSCG_MODE_DOWN_SPREAD = 1
+            minItems: 1
+    additionalProperties: false
+
+  '^st,clk_opp':
+    description: |
+      This node will contain all operating point configurations. The OPP
+      configuration will be applied at the run-time and will override the clock tree
+      configuration.
+      Each node will contain a list of operating point configurations (cfg_1, cfg_2...)
+    type: object
+    patternProperties:
+      '^st,ck_cpu1$':
+        type: object
+        description: |
+          Supported operating points for associated device: st,ck_cpu1.
+        patternProperties:
+          'cfg_[0-9]*$':
+            type: object
+            description: list of operating point configuration.
+            properties:
+              hz:
+                description: Operating point frequency in hertz
+                minItems: 1
+              st,pll:
+                description: Phandle of the pll configuration (See description of 'pllx_cfgx' node)
+                $ref: "/schemas/types.yaml#/definitions/phandle-array"
+                minItems: 1
+            required:
+              - hz
+              - st,pll
+            additionalProperties: false
+    additionalProperties: false
 
 required:
   - compatible
@@ -123,6 +235,8 @@ required:
   - '#clock-cells'
   - '#reset-cells'
   - clocks
+  - clock-names
+  - interrupts
 
 additionalProperties: false
 
@@ -130,90 +244,240 @@ examples:
   - |
     #include <dt-bindings/clock/st,stm32mp25-rcc.h>
 
+    clocks {
+      clk_hse: clk-hse {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <24000000>;
+      };
+
+      clk_hsi: clk-hsi {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <64000000>;
+      };
+
+      clk_lse: clk-lse {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <32768>;
+      };
+
+      clk_lsi: clk-lsi {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <32000>;
+      };
+
+      clk_msi: clk-msi {
+        #clock-cells = <0>;
+        compatible = "fixed-clock";
+        clock-frequency = <4000000>;
+      };
+    };
+
     clock-controller@44200000 {
         compatible = "st,stm32mp25-rcc";
         reg = <0x44200000 0x10000>;
         #clock-cells = <1>;
         #reset-cells = <1>;
-        clocks =  <&scmi_clk CK_SCMI_HSE>,
-                  <&scmi_clk CK_SCMI_HSI>,
-                  <&scmi_clk CK_SCMI_MSI>,
-                  <&scmi_clk CK_SCMI_LSE>,
-                  <&scmi_clk CK_SCMI_LSI>,
-                  <&scmi_clk CK_SCMI_HSE_DIV2>,
-                  <&scmi_clk CK_SCMI_ICN_HS_MCU>,
-                  <&scmi_clk CK_SCMI_ICN_LS_MCU>,
-                  <&scmi_clk CK_SCMI_ICN_SDMMC>,
-                  <&scmi_clk CK_SCMI_ICN_DDR>,
-                  <&scmi_clk CK_SCMI_ICN_DISPLAY>,
-                  <&scmi_clk CK_SCMI_ICN_HSL>,
-                  <&scmi_clk CK_SCMI_ICN_NIC>,
-                  <&scmi_clk CK_SCMI_ICN_VID>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_07>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_08>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_09>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_10>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_11>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_12>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_13>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_14>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_15>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_16>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_17>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_18>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_19>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_20>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_21>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_22>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_23>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_24>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_25>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_26>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_27>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_28>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_29>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_30>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_31>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_32>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_33>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_34>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_35>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_36>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_37>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_38>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_39>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_40>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_41>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_42>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_43>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_44>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_45>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_46>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_47>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_48>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_49>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_50>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_51>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_52>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_53>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_54>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_55>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_56>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_57>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_58>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_59>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_60>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_61>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_62>,
-                  <&scmi_clk CK_SCMI_FLEXGEN_63>,
-                  <&scmi_clk CK_SCMI_ICN_APB1>,
-                  <&scmi_clk CK_SCMI_ICN_APB2>,
-                  <&scmi_clk CK_SCMI_ICN_APB3>,
-                  <&scmi_clk CK_SCMI_ICN_APB4>,
-                  <&scmi_clk CK_SCMI_ICN_APBDBG>,
-                  <&scmi_clk CK_SCMI_TIMG1>,
-                  <&scmi_clk CK_SCMI_TIMG2>,
-                  <&scmi_clk CK_SCMI_PLL3>,
-                  <&clk_dsi_txbyte>;
+        clock-names = "hse", "hsi", "msi", "lse", "lsi";
+        clocks = <&hse>,
+                 <&hsi>,
+                 <&msi>,
+                 <&lse>,
+                 <&lsi>;
+
+        interrupts = <GIC_SPI 259 IRQ_TYPE_LEVEL_HIGH>;
+
+        st,c1msrd = <31>;
+        st,flexgen = <
+                FLEXGEN_CFG(0, XBAR_SRC_PLL4, 0, 2)
+                FLEXGEN_CFG((1, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((2, XBAR_SRC_PLL4, 0, 1)
+                FLEXGEN_CFG((3, XBAR_SRC_PLL4, 0, 2)
+                FLEXGEN_CFG((4, XBAR_SRC_PLL4, 0, 3)
+                FLEXGEN_CFG((5, XBAR_SRC_PLL4, 0, 2)
+                FLEXGEN_CFG((6, XBAR_SRC_PLL4, 0, 1)
+                FLEXGEN_CFG((7, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((8, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((9, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((10, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((11, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((12, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((13, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((14, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((15, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((16, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((17, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((18, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((19, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((20, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((21, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((22, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((23, XBAR_SRC_PLL7, 0, 16)
+                FLEXGEN_CFG((24, XBAR_SRC_PLL7, 0, 16)
+                FLEXGEN_CFG((25, XBAR_SRC_PLL7, 0, 16)
+                FLEXGEN_CFG((26, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((27, XBAR_SRC_PLL8, 0, 3)
+                FLEXGEN_CFG((28, XBAR_SRC_PLL8, 0, 21)
+                FLEXGEN_CFG((29, XBAR_SRC_PLL5, 0, 1)
+                FLEXGEN_CFG((30, XBAR_SRC_HSE, 0, 1)
+                FLEXGEN_CFG((31, XBAR_SRC_PLL5, 0, 19)
+                FLEXGEN_CFG((32, XBAR_SRC_PLL5, 0, 19)
+                FLEXGEN_CFG((33, XBAR_SRC_PLL4, 0, 23)
+                FLEXGEN_CFG((34, XBAR_SRC_PLL4, 0, 59)
+                FLEXGEN_CFG((35, XBAR_SRC_HSI, 0, 3)
+                FLEXGEN_CFG((36, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((37, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((38, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((39, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((40, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((41, XBAR_SRC_PLL4, 0, 11)
+                FLEXGEN_CFG((42, XBAR_SRC_PLL7, 0, 6)
+                FLEXGEN_CFG((43, XBAR_SRC_PLL4, 0, 23)
+                FLEXGEN_CFG((44, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((45, XBAR_SRC_PLL4, 0, 2)
+                FLEXGEN_CFG((46, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((47, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((48, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((49, XBAR_SRC_PLL5, 0, 3)
+                FLEXGEN_CFG((50, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((51, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((52, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((53, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((54, XBAR_SRC_PLL6, 0, 3)
+                FLEXGEN_CFG((55, XBAR_SRC_PLL6, 0, 3)
+                FLEXGEN_CFG((56, XBAR_SRC_PLL4, 0, 5)
+                FLEXGEN_CFG((57, XBAR_SRC_HSE, 0, 1)
+                FLEXGEN_CFG((58, XBAR_SRC_HSE, 0, 1)
+                FLEXGEN_CFG((59, XBAR_SRC_PLL4, 0, 1)
+                FLEXGEN_CFG((60, XBAR_SRC_PLL6, 0, 3)
+                FLEXGEN_CFG((61, XBAR_SRC_PLL4, 0, 7)
+                FLEXGEN_CFG((62, XBAR_SRC_PLL4, 0, 7)
+                FLEXGEN_CFG((63, XBAR_SRC_PLL4, 0, 2)
+        >;
+
+        st,busclk = <
+                DIV_CFG(DIV_LSMCU, 1)
+                DIV_CFG(DIV_APB1, 0)
+                DIV_CFG(DIV_APB2, 0)
+                DIV_CFG(DIV_APB3, 0)
+                DIV_CFG(DIV_APB4, 0)
+                DIV_CFG(DIV_APBDBG, 0)
+        >;
+
+        st,kerclk = <
+                DIV_CFG(DIV_RTC, 23)
+                MUX_CFG(MUX_ADC12, MUX_ADC12_FLEX46)
+                MUX_CFG(MUX_ADC3, MUX_ADC3_FLEX47)
+                MUX_CFG(MUX_USB2PHY1, MUX_USB2PHY1_FLEX57)
+                MUX_CFG(MUX_USB2PHY2, MUX_USB2PHY2_FLEX58)
+                MUX_CFG(MUX_USB3PCIEPHY, MUX_USB3PCIEPHY_FLEX34)
+                MUX_CFG(MUX_DSIPHY, MUX_DSIPHY_FLEX28)
+                MUX_CFG(MUX_DSIBLANE, MUX_DSIBLANE_DSIPHY)
+                MUX_CFG(MUX_LVDSPHY, MUX_LVDSPHY_FLEX32)
+                MUX_CFG(MUX_DTS, MUX_DTS_HSE)
+                MUX_CFG(MUX_RTC, MUX_RTC_HSE)
+                MUX_CFG(MUX_D3PER, MUX_D3PER_LSE)
+                MCO_CFG(MCO1, MUX_MCO1_FLEX61, MCO_OFF)
+                MCO_CFG(MCO2, MUX_MCO2_FLEX62, MCO_OFF)
+        >;
+
+        pll1: st,pll-1 {
+                st,pll = <&pll1_cfg_1200Mhz>;
+
+                pll1_cfg_1200Mhz: pll1-cfg-1200Mhz {
+                  cfg = < 30 1 1 1 >;
+                  src = < MUX_CFG(MUX_MUXSEL5, MUXSEL_HSE) >;
+                };
+
+                pll1_cfg_1500Mhz: pll1-cfg-1500Mhz {
+                  cfg = < 75 2 1 1 >;
+                  src = < MUX_CFG(MUX_MUXSEL5, MUXSEL_HSE) >;
+                };
+        };
+
+        pll2: st,pll-2 {
+                st,pll = <&pll2_cfg_600Mhz>;
+
+                pll2_cfg_600Mhz: pll2-cfg-600Mhz {
+                  cfg = < 30 1 1 2 >;
+                  src = < MUX_CFG(MUX_MUXSEL6, MUXSEL_HSE) >;
+                };
+              };
+
+        pll3: st,pll-3 {
+              st,pll = <&pll3_cfg_800Mhz>;
+
+              pll3_cfg_800Mhz: pll3-cfg-800Mhz {
+                cfg = < 20 1 1 1 >;
+                src = < MUX_CFG(MUX_MUXSEL7, MUXSEL_HSE) >;
+              };
+
+              pll3_cfg_900Mhz: pll3-cfg-900Mhz {
+                cfg = < 45 2 1 1 >;
+                src = < MUX_CFG(MUX_MUXSEL7, MUXSEL_HSE) >;
+              };
+        };
+
+        pll4: st,pll-4 {
+              st,pll = <&pll4_cfg_1200Mhz>;
+
+              pll4_cfg_1200Mhz: pll4-cfg-1200Mhz {
+                cfg = < 30 1 1 1 >;
+                src = < MUX_CFG(MUX_MUXSEL0, MUXSEL_HSE) >;
+              };
+        };
+
+        pll5: st,pll-5 {
+              st,pll = <&pll5_cfg_532Mhz>;
+
+              pll5_cfg_532Mhz: pll5-cfg-532Mhz {
+                cfg = < 133 5 1 2 >;
+                src = < MUX_CFG(MUX_MUXSEL1, MUXSEL_HSE) >;
+              };
+        };
+
+        pll6: st,pll-6 {
+              st,pll = <&pll6_cfg_500Mhz>;
+
+              pll6_cfg_500Mhz: pll6-cfg-500Mhz {
+                cfg = < 25 1 1 2 >;
+                src = < MUX_CFG(MUX_MUXSEL2, MUXSEL_HSE) >;
+              };
+        };
+
+        pll7: st,pll-7 {
+              st,pll = <&pll7_cfg_835_51172Mhz>;
+
+              pll7_cfg_835_51172Mhz: pll7-cfg-835-51172Mhz {
+                cfg = < 167 4 1 2 >;
+                src = < MUX_CFG(MUX_MUXSEL3, MUXSEL_HSE) >;
+                frac = < 0x1A3337 >;
+              };
+        };
+
+        pll8: st,pll-8 {
+          st,pll = <&pll8_cfg_594Mhz>;
+
+          pll8_cfg_594Mhz: pll8-cfg-594Mhz {
+                cfg = < 297 5 1 4 >;
+                src = < MUX_CFG(MUX_MUXSEL4, MUXSEL_HSE) >;
+              };
+        };
+
+        st,clk_opp {
+                st,ck_cpu1 {
+                    cfg_1 {
+                        hz = < 1500000000 >;
+                        st,pll = <&pll1_cfg_1500Mhz>;
+                    };
+                    cfg_2 {
+                        hz = < 1200000000 >;
+                        st,pll = <&pll1_cfg_1200Mhz>;
+                    };
+                };
+        };
     };
 ...
