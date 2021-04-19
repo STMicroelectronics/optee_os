@@ -426,6 +426,13 @@
  */
 #define OPTEE_RPC_SUPP_PLUGIN_INVOKE	U(0)
 
+/*
+ * With Ocall2 protocol, the output fist parameter value 0 is reserved for
+ * error report of the RPC Ocall command from TEE service to its caller
+ * client.
+ */
+#define OPTEE_RPC_OCALL2_OUT_PARAM1_ERROR	0
+
 /* End of definition of protocol for command OPTEE_RPC_CMD_SUPP_PLUGIN */
 
 #endif /*__OPTEE_RPC_CMD_H*/

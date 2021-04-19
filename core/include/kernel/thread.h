@@ -337,6 +337,16 @@ struct thread_param {
 	}
 
 /**
+ * Does an Ocall2 RPC using only 2 in/out parameters passed with CPU registers
+ * @param1: in/out first parameter
+ * @param2: in/out second parameter
+ * @returns 0 upon success, 1 upon failure
+ *
+ * Upon failure first parameter value is 0 (OPTEE_RPC_OCALL2_OUT_PARAM1_ERROR).
+ */
+uint32_t thread_rpc_ocall2_cmd(uint32_t param[2]);
+
+/**
  * Does an RPC using a preallocated argument buffer
  * @cmd: RPC cmd
  * @num_params: number of parameters

@@ -580,6 +580,24 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	return get_rpc_arg_res(arg, num_params, params);
 }
 
+uint32_t thread_rpc_ocall2_cmd(uint32_t param[2])
+{
+	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {
+		OPTEE_SMC_RETURN_RPC_OCALL2,
+		param[0], param[1],
+	};
+
+	thread_rpc(rpc_args);
+
+	param[0] = rpc_args[0];
+	param[1] = rpc_args[1];
+
+	if (rpc_args[0] == OPTEE_RPC_OCALL2_OUT_PARAM1_ERROR)
+		return 1;
+	else
+		return 0;
+}
+
 /**
  * Free physical memory previously allocated with thread_rpc_alloc()
  *

@@ -2197,6 +2197,11 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	return get_rpc_arg_res(arg, num_params, params);
 }
 
+uint32_t thread_rpc_ocall2_cmd(uint32_t param[2] __unused)
+{
+	return 1;
+}
+
 static void thread_rpc_free(unsigned int bt, uint64_t cookie, struct mobj *mobj)
 {
 	struct thread_rpc_arg rpc_arg = { .call = {
