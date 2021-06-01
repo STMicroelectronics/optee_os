@@ -8,6 +8,7 @@ try:
     from elftools.elf.elffile import ELFFile
     from elftools.elf.sections import SymbolTableSection
     from elftools.elf.enums import ENUM_P_TYPE_BASE
+    from elftools.elf.enums import ENUM_P_TYPE_ARM
     from elftools.elf.enums import *
 except ImportError:
     print("""
@@ -118,13 +119,18 @@ class SegmentHash(object):
             h = SHA256.new()
             segment = self.img.get_segment(i)
             seg.header = self.img.get_segment(i).header
+            machine = self.img.get_machine_arch()
             logging.debug("compute hash for segment offset %s" % seg.header)
             h.update(segment.data())
             seg.hash = h.digest()
             logging.debug("hash computed: %s" % seg.hash)
             del h
-            struct.pack_into('<I', self._bufview_, self._offset,
-                             ENUM_P_TYPE_BASE[seg.header.p_type])
+            if machine == "ARM":
+                struct.pack_into('<I', self._bufview_, self._offset,
+                                 ENUM_P_TYPE_ARM[seg.header.p_type])
+            else:
+                struct.pack_into('<I', self._bufview_, self._offset,
+                                 ENUM_P_TYPE_BASE[seg.header.p_type])
             self._offset += 4
             struct.pack_into('<7I', self._bufview_, self._offset,
                              seg.header.p_offset, seg.header.p_vaddr,
