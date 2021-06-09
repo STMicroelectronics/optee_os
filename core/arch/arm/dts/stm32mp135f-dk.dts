@@ -370,6 +370,13 @@
 	status = "okay";
 };
 
+&ltdc {
+	pinctrl-0 = <&ltdc_pins_a>;
+	access-controllers-conf-nsec = <&etzpc DECPROT(STM32MP1_ETZPC_LTDC_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>;
+	access-controllers-conf-sec = <&etzpc DECPROT(STM32MP1_ETZPC_LTDC_ID, DECPROT_S_RW, DECPROT_UNLOCK)>;
+	status = "okay";
+};
+
 &lptimer3 {
 	status = "okay";
 
