@@ -184,7 +184,7 @@ include mk/lib.mk
 
 ifeq ($(CFG_ZLIB),y)
 libname = zlib
-libdir = core/lib/zlib
+libdir = lib/libzlib
 include mk/lib.mk
 endif
 

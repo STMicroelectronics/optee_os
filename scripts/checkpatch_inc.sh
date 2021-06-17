@@ -5,7 +5,7 @@ CHECKPATCH_OPT="${CHECKPATCH_OPT:-}"
 # checkpatch.pl will ignore the following paths
 CHECKPATCH_IGNORE=$(echo \
 		core/include/gen-asm-defines.h \
-		core/lib/lib{fdt,tomcrypt} core/lib/zlib \
+		core/lib/lib{fdt,tomcrypt} core/libzlib \
 		lib/libutils lib/libmbedtls \
 		lib/libutee/include/elf.h \
 		lib/libutee/include/elf_common.h \
