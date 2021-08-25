@@ -417,13 +417,9 @@ static struct stm32_scmi_clk *find_clock(unsigned int channel_id,
 					 unsigned int scmi_id)
 {
 	const struct channel_resources *resource = find_resource(channel_id);
-	size_t n = 0;
 
-	if (resource) {
-		for (n = 0; n < resource->clock_count; n++)
-			if (n == scmi_id)
-				return &resource->clock[n];
-	}
+	if (resource && scmi_id < resource->clock_count)
+		return &resource->clock[scmi_id];
 
 	return NULL;
 }
@@ -621,13 +617,9 @@ static struct stm32_scmi_rd *find_rd(unsigned int channel_id,
 				     unsigned int scmi_id)
 {
 	const struct channel_resources *resource = find_resource(channel_id);
-	size_t n = 0;
 
-	if (resource) {
-		for (n = 0; n < resource->rd_count; n++)
-			if (n == scmi_id)
-				return &resource->rd[n];
-	}
+	if (resource && scmi_id < resource->rd_count)
+		return &resource->rd[scmi_id];
 
 	return NULL;
 }
