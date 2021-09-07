@@ -5,6 +5,7 @@
  */
 #include <assert.h>
 #include <confine_array_index.h>
+#include <drivers/clk.h>
 #include <drivers/scmi-msg.h>
 #include <drivers/scmi.h>
 #include <string.h>
@@ -64,6 +65,13 @@ int32_t __weak plat_scmi_clock_get_state(unsigned int channel_id __unused,
 int32_t __weak plat_scmi_clock_set_state(unsigned int channel_id __unused,
 					 unsigned int scmi_id __unused,
 					 bool enable_not_disable __unused)
+{
+	return SCMI_NOT_SUPPORTED;
+}
+
+int32_t __weak plat_scmi_clock_get_duty_cycle(unsigned int channel_id __unused,
+					      unsigned int scmi_id __unused,
+					      struct clk_duty_cycle *duty __unused)
 {
 	return SCMI_NOT_SUPPORTED;
 }
@@ -211,6 +219,34 @@ static void scmi_clock_rate_set(struct scmi_msg *msg)
 	status = plat_scmi_clock_set_rate(msg->channel_id, clock_id, rate);
 
 	scmi_status_response(msg, status);
+}
+
+static void scmi_clock_duty_cycle_get(struct scmi_msg *msg)
+{
+	const struct scmi_clock_duty_cycle_get_a2p *in_args = (void *)msg->in;
+	struct scmi_clock_duty_cycle_get_p2a return_values = { };
+	struct clk_duty duty = { 1, 2};
+	unsigned int clock_id = 0;
+
+	if (msg->in_size != sizeof(*in_args)) {
+		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
+		return;
+	}
+
+	if (in_args->clock_id >= plat_scmi_clock_count(msg->channel_id)) {
+		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
+		return;
+	}
+
+	clock_id = confine_array_index(in_args->clock_id,
+				       plat_scmi_clock_count(msg->channel_id));
+
+	plat_scmi_clock_get_duty_cycle(msg->channel_id, clock_id, &duty);
+
+	return_values.num = duty.num;
+	return_values.den = duty.den;
+
+	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
 
 static void scmi_clock_config_set(struct scmi_msg *msg)
@@ -365,6 +401,7 @@ static const scmi_msg_handler_t scmi_clock_handler_table[] = {
 	[SCMI_CLOCK_RATE_SET] = scmi_clock_rate_set,
 	[SCMI_CLOCK_RATE_GET] = scmi_clock_rate_get,
 	[SCMI_CLOCK_CONFIG_SET] = scmi_clock_config_set,
+	[SCMI_CLOCK_DUTY_CYCLE_GET] = scmi_clock_duty_cycle_get,
 };
 
 static bool message_id_is_supported(unsigned int message_id)
