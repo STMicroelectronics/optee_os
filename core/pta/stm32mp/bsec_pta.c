@@ -14,15 +14,30 @@
 #include <string.h>
 #include <util.h>
 
-static_assert(IS_ENABLED(CFG_STM32_BSEC));
+static_assert(IS_ENABLED(CFG_STM32_BSEC) || IS_ENABLED(CFG_STM32_BSEC3));
+
+#define TA_STM32MP_NVMEM_UUID { 0x1a8342cc, 0x81a5, 0x4512, \
+		{ 0x99, 0xfe, 0x9e, 0x2b, 0x3e, 0x37, 0xd6, 0x26 } }
 
 #define PTA_NAME "bsec.pta"
 
 static TEE_Result bsec_check_access(uint32_t otp_id)
 {
-	if (!stm32_bsec_nsec_can_access_otp(otp_id))
+	struct ts_session *ts = ts_get_current_session();
+	struct tee_ta_session *ta_session = to_ta_session(ts);
+
+	/* REE kernel is allowed to access non secure OTP */
+	if (ta_session->clnt_id.login == TEE_LOGIN_REE_KERNEL) {
+		if (!stm32_bsec_nsec_can_access_otp(otp_id))
+			return TEE_ERROR_ACCESS_DENIED;
+
+		return TEE_SUCCESS;
+	}
+
+	if (!stm32_bsec_can_access_otp(otp_id))
 		return TEE_ERROR_ACCESS_DENIED;
 
+	/* All TA have access to fuses */
 	return TEE_SUCCESS;
 }
 
@@ -287,6 +302,25 @@ static TEE_Result pta_bsec_open_session(uint32_t ptypes __unused,
 					void **session __unused)
 {
 	uint32_t login = to_ta_session(ts_get_current_session())->clnt_id.login;
+	struct ts_session *caller_ts = ts_get_calling_session();
+	static const TEE_UUID ta_uuid = TA_STM32MP_NVMEM_UUID;
+	uint32_t state = BSEC_STATE_INVALID;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!IS_ENABLED(CFG_STM32_BSEC) && !IS_ENABLED(CFG_STM32_BSEC3))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	if (login == TEE_LOGIN_TRUSTED_APP &&
+	    !memcmp((char *)&caller_ts->ctx->uuid, (char *)&ta_uuid,
+		    sizeof(TEE_UUID))) {
+		assert(is_user_ta_ctx(caller_ts->ctx));
+
+		res = stm32_bsec_get_state(&state);
+		if (res || state != BSEC_STATE_SEC_OPEN)
+			return TEE_ERROR_ACCESS_DENIED;
+
+		return TEE_SUCCESS;
+	}
 
 	if (login == TEE_LOGIN_REE_KERNEL)
 		return TEE_SUCCESS;
