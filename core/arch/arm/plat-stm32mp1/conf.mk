@@ -363,7 +363,7 @@ endif
 # Enable BSEC PTA for fuses access management
 CFG_STM32_BSEC_PTA ?= y
 ifeq ($(CFG_STM32_BSEC_PTA),y)
-$(call force,CFG_STM32_BSEC,y,Mandated by CFG_BSEC_PTA)
+$(call force,CFG_STM32_BSEC,y,Required by CFG_STM32_BSEC_PTA)
 endif
 
 # Default disable CPU OPP support
@@ -393,6 +393,13 @@ CFG_SCMI_MSG_SHM_MSG ?= y
 CFG_SCMI_MSG_SMT ?= y
 CFG_SCMI_MSG_SMT_THREAD_ENTRY ?= y
 $(call force,CFG_SCMI_MSG_VOLTAGE_DOMAIN,y)
+endif
+
+# Enable Early TA NVMEM for provisioning management
+CFG_TA_STM32MP_NVMEM ?= y
+ifeq ($(CFG_TA_STM32MP_NVMEM),y)
+$(call force,CFG_STM32_BSEC_PTA,y,Required by CFG_TA_STM32MP_NVMEM)
+CFG_IN_TREE_EARLY_TAS += stm32mp_nvmem/1a8342cc-81a5-4512-99fe-9e2b3e37d626
 endif
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
