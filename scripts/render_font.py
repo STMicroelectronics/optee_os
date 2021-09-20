@@ -2,13 +2,11 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 # Copyright (c) 2016-2021, Linaro Limited
-#
 
-from wand.image import Image
-from wand.drawing import Drawing
-from wand.color import Color
+from PIL import ImageDraw
+from PIL import ImageFont
+from PIL import Image
 import sys
-
 
 def get_args():
     from argparse import ArgumentParser
@@ -26,116 +24,112 @@ def get_args():
                         help='Print informational messages')
     return parser.parse_args()
 
-
-def c_hex_print(f, str):
-    n = 0
-    s = ""
-    for x in str:
+def c_hex(bstr):
+    s = []
+    for n, x in enumerate(bstr):
         if n % 8 == 0:
-            s += "\t"
+            if n == 0:
+                s.append("\t")
+            else:
+                s.append("\n\t")
         else:
-            s += " "
-        # Hack to satisfy both Python 2.x and 3.x. In 2.x the variable x
-        # is string, while it in Python 3.x it's considered as a class
-        # int.
-        if sys.version_info > (3, 0):
-            s += "0x%02x," % x
-        else:
-            s += "0x%02x," % ord(x)
-        n = n + 1
-        if n % 8 == 0:
-            f.write(s + "\n")
-            s = ""
-    if n % 8 != 0:
-        f.write(s + "\n")
-        s = ""
+            s.append(" ")
 
+        s.append("0x{:02x},".format(x))
 
-def write_comment(f):
-    f.write("/*\n * This file is auto generated with\n")
-    f.write(" *")
-    for x in sys.argv:
-        f.write(" " + x)
-    f.write("\n * do not edit.\n */\n")
+    return "".join(s)
 
+header_template = """/*
+ * This file is auto generated with
+ * {cmd_line}
+ * do not edit.
+ */
+"""
+
+h_file_template = """#ifndef __{FONT_NAME}_H
+#define __{FONT_NAME}_H
+
+#include "font.h"
+
+extern const struct font font_{font_name};
+
+#endif /*__{FONT_NAME}_H*/
+"""
+
+letter_template = """/* {letter} */
+static const unsigned char letter_{id}[] = {{
+{c_hex}
+}};
+
+"""
+
+font_letter_template = """\t{{ letter_{id}, sizeof(letter_{id}), {width}}},
+"""
+
+font_template = """const struct font font_{name} = {{
+        .first = 0x{first:02x},
+        .last = 0x{last:02x},
+	.letters = letters,
+	.height = {height},
+	.max_width = {max_width},
+}};
+"""
 
 def main():
     args = get_args()
 
-    draw = Drawing()
-    draw.font = args.font_file
-    draw.font_size = args.font_size
-
     font_name = args.font_name
     out_dir = args.out_dir
 
-    img_ref = Image(width=1000, height=1000)
+    range_first = 0x20
+    range_last = 0x7d
+    c_letters = {}
+
+    letters = range(range_first, range_last + 1)
+
+    font = ImageFont.truetype(args.font_file, args.font_size)
+    ascent, descent = font.getmetrics()
+    text_height = font.font.height + 2
+
+    for x in letters:
+        letter= chr(x)
+        (width, height), (offset_x, offset_y) = font.font.getsize(letter)
+        text_width = width + 2 + offset_x;
+        letter_img = Image.new("1", (text_width, text_height), 0)
+        draw = ImageDraw.Draw(letter_img)
+        draw.fontmode="1"
+        draw.text((0, 0), letter, font=font, fill=1)
+        c_letters[x] = {'img' : letter_img.tobytes(),
+                        'width' : text_width }
 
     if args.verbose:
         print("Writing " + out_dir + "/" + font_name + ".c")
-    f = open(out_dir + "/" + font_name + ".c", 'w+')
-    write_comment(f)
-    f.write("#include \"font.h\"\n\n")
 
-    font_height = 0
-    range_first = 0x20
-    range_last = 0x7d
-    font_width = []
-    max_width = 0
-    for x in range(range_first, range_last + 1):
-        letter = chr(x)
-        metrics = draw.get_font_metrics(img_ref, letter)
-        text_height = int(round(metrics.text_height + 2))
-        if font_height == 0:
-            font_height = text_height
-        assert (font_height == text_height), "font height changed!"
-        if max_width == 0:
-            max_width = metrics.maximum_horizontal_advance + 2
-        assert (max_width == metrics.maximum_horizontal_advance + 2), \
-            "font advance width changed!"
-        text_width = int(round(metrics.text_width + 2))
-        font_width.append(text_width)
-        img = Image(width=text_width, height=text_height)
-        d = draw.clone()
-        d.text(0, int(metrics.ascender), letter)
-        d(img)
+    with open(out_dir + "/" + font_name + ".c", 'w+') as f:
+        f.write(header_template.format(cmd_line=' '.join(sys.argv)))
+        f.write('#include "font.h"\n\n')
+        for x in letters:
+            f.write(letter_template.format(letter=chr(x), id="{:02x}".format(x),
+                    c_hex=c_hex(c_letters[x]['img'])))
 
-        img.depth = 1
-
-        f.write("static const unsigned char ")
-        f.write("letter_" + str(hex(x)[2:]) + "[] = {\n")
-        c_hex_print(f, img.make_blob(format='A'))
+        f.write("static const struct font_letter letters[] = {\n")
+        for x in letters:
+            f.write(font_letter_template.format(id="{:02x}".format(x),
+                    width=c_letters[x]['width']))
         f.write("};\n\n")
-        img.close()
 
-    f.write("static const struct font_letter letters[] = {\n")
-    for x in range(range_first, range_last + 1):
-        letter_var_name = "letter_" + str(hex(x)[2:])
-        f.write("\t{ " + letter_var_name + ", ")
-        f.write("sizeof(" + letter_var_name + "), ")
-        f.write(str(font_width[x - range_first]) + "},\n")
-    f.write("};\n\n")
-
-    f.write("const struct font font_" + font_name + " = {\n")
-    f.write("\t.first = " + str(hex(range_first)) + ",\n")
-    f.write("\t.last = " + str(hex(range_last)) + ",\n")
-    f.write("\t.letters = letters,\n")
-    f.write("\t.height = " + str(font_height) + ",\n")
-    f.write("\t.max_width = " + str(max_width) + ",\n")
-    f.write("};\n")
-    f.close()
+        f.write(font_template.format(name=args.font_name,
+            first=letters[0],
+            last=letters[-1],
+            height=text_height,
+            max_width=max(l['width'] for l in c_letters.values())))
 
     if args.verbose:
         print("Writing " + out_dir + "/" + font_name + ".h")
-    f = open(out_dir + "/" + font_name + ".h", 'w+')
-    write_comment(f)
-    f.write("#ifndef __" + font_name.upper() + "_H\n")
-    f.write("#define __" + font_name.upper() + "_H\n")
-    f.write("#include \"font.h\"\n")
-    f.write("extern const struct font font_" + font_name + ";\n")
-    f.write("#endif /*__" + font_name.upper() + "_H*/\n")
-    f.close()
 
+    with open(out_dir + "/" + font_name + ".h", 'w+') as f:
+        f.write(header_template.format(cmd_line=' '.join(sys.argv)))
+        f.write(h_file_template.format(font_name=font_name, FONT_NAME=font_name.upper()))
 
 if __name__ == "__main__":
     main()
