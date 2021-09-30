@@ -271,6 +271,14 @@ int fdt_get_dt_driver_cells(const void *fdt, int nodeoffset,
  */
 TEE_Result dt_driver_maybe_add_probe_node(const void *fdt, int nodeoffset);
 
+/* Add a matching node to the probe list
+ * @compat: compat to search for matching the node
+ *
+ * Return appropriate TEE error code
+ */
+TEE_Result add_probe_node_by_compat(const void *fdt, int node,
+				    const char *compat);
+
 #ifdef CFG_DT_DRIVER_EMBEDDED_TEST
 /*
  * Return TEE_ERROR_NOT_IMPLEMENTED if test are not implemented

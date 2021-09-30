@@ -727,8 +727,8 @@ static TEE_Result add_node_to_probe(const void *fdt, int node,
  *	  TEE_ERROR_ITEM_NOT_FOUND if no matching driver
  *	  TEE_ERROR_OUT_OF_MEMORY if heap is exhausted
  */
-static TEE_Result add_probe_node_by_compat(const void *fdt, int node,
-					   const char *compat)
+TEE_Result add_probe_node_by_compat(const void *fdt, int node,
+				    const char *compat)
 {
 	TEE_Result res = TEE_ERROR_ITEM_NOT_FOUND;
 	const struct dt_driver *dt_drv = NULL;
