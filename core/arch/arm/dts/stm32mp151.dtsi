@@ -139,6 +139,22 @@
 		status = "disabled";
 	};
 
+	osc_calibration: osc-calibration {
+		compatible = "st,osc-calibration";
+
+		csi_calibration: csi-calibration {
+			compatible = "st,csi-cal";
+			counter = <&timers15 0 8>;
+			status = "disabled";
+		};
+
+		hsi_calibration: hsi-calibration {
+			compatible = "st,hsi-cal";
+			counter = <&timers15 0 7>;
+			status = "disabled";
+		};
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;

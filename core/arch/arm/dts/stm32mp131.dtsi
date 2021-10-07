@@ -116,6 +116,22 @@
 
 	};
 
+	osc_calibration: osc-calibration {
+		compatible = "st,osc-calibration";
+
+		csi_calibration: csi-calibration {
+			compatible = "st,csi-cal";
+			counter = <&timers12 0 2>;
+			status = "disabled";
+		};
+
+		hsi_calibration: hsi-calibration {
+			compatible = "st,hsi-cal";
+			counter = <&timers12 0 1>;
+			status = "disabled";
+		};
+	};
+
 	scmi_regu: scmi-regu {
 		compatible = "st,scmi-regulator-consumer";
 		#address-cells = <1>;
