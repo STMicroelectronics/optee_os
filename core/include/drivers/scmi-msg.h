@@ -257,6 +257,9 @@ int32_t plat_scmi_clock_rates_by_step(unsigned int channel_id,
 unsigned long plat_scmi_clock_get_rate(unsigned int channel_id,
 				       unsigned int scmi_id);
 
+unsigned long plat_scmi_clock_round_rate(unsigned int channel_id,
+				       unsigned int scmi_id, unsigned long rate);
+
 /*
  * Set clock rate in Hertz
  * @channel_id: SCMI channel ID

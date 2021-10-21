@@ -24,6 +24,7 @@ enum scmi_clock_command_id {
 	SCMI_CLOCK_RATE_GET = 0x006,
 	SCMI_CLOCK_CONFIG_SET = 0x007,
 	SCMI_CLOCK_DUTY_CYCLE_GET = 0x00B,
+	SCMI_CLOCK_ROUND_RATE_GET = 0x00C,
 };
 
 /* Protocol attributes */

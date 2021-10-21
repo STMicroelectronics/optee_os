@@ -192,6 +192,37 @@ static void scmi_clock_rate_get(struct scmi_msg *msg)
 	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
 
+static void scmi_clock_round_rate_get(struct scmi_msg *msg)
+{
+	const struct scmi_clock_rate_set_a2p *in_args = (void *)msg->in;
+	unsigned long rate = 0;
+	struct scmi_clock_rate_get_p2a return_values = { };
+	unsigned int clock_id = 0;
+	uint64_t rate_64 = 0;
+
+	if (msg->in_size != sizeof(*in_args)) {
+		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
+		return;
+	}
+
+	if (in_args->clock_id >= plat_scmi_clock_count(msg->channel_id)) {
+		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
+		return;
+	}
+
+	clock_id = confine_array_index(in_args->clock_id,
+				       plat_scmi_clock_count(msg->channel_id));
+
+	rate_64 = reg_pair_to_64(in_args->rate[1], in_args->rate[0]);
+	rate = rate_64;
+
+	rate = plat_scmi_clock_round_rate(msg->channel_id, clock_id, rate);
+
+	reg_pair_from_64(rate, return_values.rate + 1, return_values.rate);
+
+	scmi_write_response(msg, &return_values, sizeof(return_values));
+}
+
 static void scmi_clock_rate_set(struct scmi_msg *msg)
 {
 	const struct scmi_clock_rate_set_a2p *in_args = (void *)msg->in;
@@ -402,6 +433,7 @@ static const scmi_msg_handler_t scmi_clock_handler_table[] = {
 	[SCMI_CLOCK_RATE_GET] = scmi_clock_rate_get,
 	[SCMI_CLOCK_CONFIG_SET] = scmi_clock_config_set,
 	[SCMI_CLOCK_DUTY_CYCLE_GET] = scmi_clock_duty_cycle_get,
+	[SCMI_CLOCK_ROUND_RATE_GET] = scmi_clock_round_rate_get,
 };
 
 static bool message_id_is_supported(unsigned int message_id)

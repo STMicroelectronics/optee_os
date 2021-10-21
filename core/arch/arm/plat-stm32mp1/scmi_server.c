@@ -581,6 +581,18 @@ unsigned long plat_scmi_clock_get_rate(unsigned int channel_id,
 	return clk_get_rate(clock->clk);
 }
 
+unsigned long plat_scmi_clock_round_rate(unsigned int channel_id,
+					 unsigned int scmi_id,
+					 unsigned long rate)
+{
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
+
+	if (!clock || !nsec_can_access_resource(clock->etzpc_id))
+		return 0;
+
+	return clk_round_rate(stm32mp_rcc_clock_id_to_clk(clock->clock_id), rate);
+}
+
 int32_t plat_scmi_clock_get_state(unsigned int channel_id, unsigned int scmi_id)
 {
 	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
