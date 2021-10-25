@@ -1808,6 +1808,24 @@ clk_stm32_composite_get_duty_cycle(struct clk *clk,
 	return TEE_SUCCESS;
 }
 
+static unsigned long clk_stm32_composite_round_rate(struct clk *clk,
+						    unsigned long rate,
+						    unsigned long prate)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct clk_stm32_composite_cfg *cfg = clk->priv;
+	const struct div_cfg *divider = &priv->div[cfg->div_id];
+	unsigned int div = 0U;
+
+	if (cfg->div_id == NO_DIV)
+		return 0UL;
+
+	div = MIN(UDIV_ROUND_NEAREST((uint64_t)prate, rate),
+		  MASK_WIDTH_SHIFT(divider->width, 0) + 1);
+
+	return UDIV_ROUND_NEAREST((uint64_t)prate, div);
+}
+
 static const struct clk_ops clk_stm32_composite_duty_cycle_ops = {
 	.get_parent	= clk_stm32_composite_get_parent,
 	.set_parent	= clk_stm32_composite_set_parent,
@@ -1816,6 +1834,7 @@ static const struct clk_ops clk_stm32_composite_duty_cycle_ops = {
 	.enable		= clk_stm32_composite_gate_enable,
 	.disable	= clk_stm32_composite_gate_disable,
 	.is_enabled	= clk_stm32_composite_gate_is_enabled,
+	.round_rate	= clk_stm32_composite_round_rate,
 	.get_duty_cycle	= clk_stm32_composite_get_duty_cycle,
 };
 
