@@ -180,6 +180,7 @@ CFG_CORE_UNSAFE_MODEXP ?= y
 
 include core/arch/arm/cpu/cortex-a7.mk
 
+$(call force,CFG_ARM_GIC_PM,y)
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_DT,y)
 $(call force,CFG_DRIVERS_GPIO,y)
