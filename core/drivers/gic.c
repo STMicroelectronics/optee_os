@@ -759,8 +759,8 @@ static void gic_it_set_prio(struct gic_data *gd, size_t it, uint8_t prio)
 
 	assert(gd == &gic_data);
 
-	/* Assigned to group0 */
-	assert(!(io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask));
+	if (io_read32(gd->gicd_base + GICD_IGROUPR(idx)) & mask)
+		DMSG("GIC set prio to non-secure interrupt %zu", it);
 
 	/* Set prio it to selected CPUs */
 	DMSG("prio: writing %#"PRIx8" to %#" PRIxVA,
@@ -785,6 +785,35 @@ static void gic_it_set_type(struct gic_data *gd, size_t it, uint32_t type)
 	io_mask32(gd->gicd_base + GICD_ICFGR(index),
 		  SHIFT_U32(icfg, shift),
 		  SHIFT_U32(GICD_ICFGR_FIELD_MASK, shift));
+}
+
+/*
+ * GIC exported function for platform low power sequence
+ */
+uint8_t gic_set_pmr(uint8_t mask)
+{
+	struct gic_data *gd = &gic_data;
+	uint32_t pmr = io_read32(gd->gicc_base + GICC_PMR);
+
+	/*
+	 * Order memory updates w.r.t. PMR write, and ensure they're visible
+	 * before potential out of band interrupt trigger because of PMR update.
+	 */
+	dsb_ishst();
+	io_write32(gd->gicc_base + GICC_PMR, mask);
+	dsb_ishst();
+
+	return (uint8_t)pmr;
+}
+
+uint8_t gic_set_ipriority(size_t it, uint8_t mask)
+{
+	struct gic_data *gd = &gic_data;
+	uint8_t prio = io_read8(gd->gicd_base + GICD_IPRIORITYR(0) + it);
+
+	gic_it_set_prio(gd, it, mask);
+
+	return prio;
 }
 
 static void gic_it_enable(struct gic_data *gd, size_t it)

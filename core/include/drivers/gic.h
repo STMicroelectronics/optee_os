@@ -72,4 +72,10 @@ void gic_dump_state(void);
  * assigned to secure world and disabled when this function is called.
  */
 TEE_Result gic_spi_release_to_ns(size_t it);
+
+/* Set the Priority Mask Regarding and return its previous value */
+uint8_t gic_set_pmr(uint8_t mask);
+
+/* Set the targe tinterrupt priority mask and return its previous value */
+uint8_t gic_set_ipriority(size_t it, uint8_t mask);
 #endif /*__DRIVERS_GIC_H*/
