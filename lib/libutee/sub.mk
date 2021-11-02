@@ -19,6 +19,11 @@ srcs-y += tee_tcpudp_socket.c
 srcs-y += tcb.c
 srcs-y += user_ta_entry.c
 srcs-y += user_ta_entry_compat.c
+
+ifeq ($(CFG_WITH_TUI),y)
+subdirs-y += tui
+endif
+
 endif #ifneq ($(sm),ldelf)
 
 subdirs-y += arch/$(ARCH)

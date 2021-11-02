@@ -52,6 +52,7 @@ ta-mk-file-export-vars-$(sm) += CFG_MEMTAG
 ta-mk-file-export-vars-$(sm) += CFG_TA_LIBGCC
 ta-mk-file-export-vars-$(sm) += CFG_TA_SANITIZE_UNDEFINED
 ta-mk-file-export-vars-$(sm) += _CFG_TA_STACK_PROTECTOR
+ta-mk-file-export-vars-$(sm) += CFG_WITH_TUI
 
 # Expand platform flags here as $(sm) will change if we have several TA
 # targets. Platform flags should not change after inclusion of ta/ta.mk.
@@ -119,6 +120,15 @@ libdir = lib/libdl
 libuuid = be807bbd-81e1-4dc4-bd99-3d363f240ece
 libl = utee utils
 include mk/lib.mk
+
+ifeq ($(CFG_WITH_TUI),y)
+libname = zlib
+libdir = lib/libzlib
+include mk/lib.mk
+libname = png
+libdir = lib/libpng
+include mk/lib.mk
+endif
 
 base-prefix :=
 

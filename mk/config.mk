@@ -889,6 +889,9 @@ _CFG_SCMI_PTA_SMT_HEADER ?= n
 _CFG_SCMI_PTA_MSG_HEADER ?= n
 endif
 
+# Enable Trusted User Interface
+CFG_WITH_TUI ?= n
+
 ifneq ($(CFG_STMM_PATH),)
 $(call force,CFG_WITH_STMM_SP,y)
 $(call force,CFG_EFILIB,y)

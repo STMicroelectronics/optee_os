@@ -95,6 +95,13 @@ endif
 libnames += dl
 libdeps += $(ta-dev-kit-dir$(sm))/lib/libdl.a
 
+ifeq ($(CFG_WITH_TUI),y)
+libnames += zlib
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libzlib.a
+libnames += png
+libdeps += $(ta-dev-kit-dir$(sm))/lib/libpng.a
+endif
+
 # libutils provides __getauxval symbol which is needed by libgcc 10.x. We can't
 # link libutils after libgcc, because libgcc will replace some symbols provided
 # by libutils, which will cause further linking issues.

@@ -48,6 +48,9 @@ libnames = utils utee
 ifeq ($(CFG_TA_MBEDTLS),y)
 libnames += mbedtls
 endif
+ifeq ($(CFG_WITH_TUI),y)
+libnames += zlib png
+endif
 libdeps = $(addsuffix .a, $(addprefix $(libdirs)/lib, $(libnames)))
 
 subdirs = $(patsubst %/,%,$(dir $(ta-mk-file)))
