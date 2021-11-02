@@ -50,3 +50,4 @@ endif
 
 srcs-y += uuid.c
 srcs-y += tee_supp_plugin_rpc.c
+srcs-$(CFG_WITH_TUI) += tui.c

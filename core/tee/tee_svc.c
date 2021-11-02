@@ -22,6 +22,7 @@
 #include <tee_api_types.h>
 #include <tee/tee_cryp_utl.h>
 #include <tee/tee_svc.h>
+#include <tee/tui.h>
 #include <trace.h>
 #include <user_ta_header.h>
 #include <utee_types.h>
@@ -393,6 +394,20 @@ const struct tee_props tee_propset_tee[] = {
 	}
 #endif
 
+#ifdef CFG_WITH_TUI
+	{
+		.name = "gpd.tee.tui.securityIndicator",
+		.prop_type = USER_TA_PROP_TYPE_BOOL,
+		.data = &(uint32_t){ TUI_PROP_SECURITY_INDICATOR },
+		.len = sizeof(uint32_t)
+	},
+	{
+		.name = "gpd.tee.tui.session.timeout",
+		.prop_type = USER_TA_PROP_TYPE_U32,
+		.data = &(const uint32_t){ TUI_SESSION_TIMEOUT },
+		.len = sizeof(uint32_t)
+	},
+#endif
 	/*
 	 * Following properties are processed directly in libutee:
 	 *	gpd.tee.arith.maxBigIntSize

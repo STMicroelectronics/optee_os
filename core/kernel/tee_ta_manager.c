@@ -28,6 +28,9 @@
 #include <tee_api_types.h>
 #include <tee/entry_std.h>
 #include <tee/tee_obj.h>
+#include <tee/tee_svc_cryp.h>
+#include <tee/tee_svc_storage.h>
+#include <tee/tui.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <user_ta_header.h>
@@ -307,6 +310,7 @@ static void destroy_session(struct tee_ta_session *s,
 	}
 #endif
 
+	tui_close_session(&s->ts_sess);
 	tee_ta_unlink_session(s, open_sessions);
 #if defined(CFG_TA_GPROF_SUPPORT)
 	free(s->ts_sess.sbuf);

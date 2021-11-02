@@ -29,6 +29,23 @@ $(eval $(call cfg-depends-all,CFG_PAGED_USER_TA,CFG_WITH_PAGER CFG_WITH_USER_TA)
 _CFG_CORE_ASYNC_NOTIF_DEFAULT_IMPL ?= $(CFG_CORE_ASYNC_NOTIF)
 include core/crypto.mk
 
+ifeq ($(CFG_WITH_TUI),y)
+ifneq ($(CFG_FRAME_BUFFER),y)
+(warning: disabling CFG_WITH_TUI due to missing CFG_FRAME_BUFFER)
+CFG_WITH_TUI :=
+ifeq ($(CFG_WITH_TUI),y)
+$(error error: can't disable CFG_WITH_TUI)
+endif
+endif
+ifneq ($(CFG_DISPLAY),y)
+$(warning warning: disabling CFG_WITH_TUI due to missing CFG_DISPLAY)
+CFG_WITH_TUI :=
+ifeq ($(CFG_WITH_TUI),y)
+$(error error: can't disable CFG_WITH_TUI)
+endif
+endif
+endif
+
 ifeq ($(CFG_SCMI_SCPFW),y)
 include core/lib/scmi-server/conf.mk
 endif
