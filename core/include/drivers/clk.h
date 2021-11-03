@@ -62,6 +62,7 @@ struct clk_duty_cycle {
 /**
  * struct clk_ops - Clock operations
  *
+ * @is_enabled: Get effective state of the clock (on / off)
  * @enable: Enable the clock
  * @disable: Disable the clock
  * @set_parent: Set the clock parent based on index
@@ -77,6 +78,7 @@ struct clk_duty_cycle {
  * world is not operating (power off, suspend, resume).
  */
 struct clk_ops {
+	bool (*is_enabled)(struct clk *clk);
 	TEE_Result (*enable)(struct clk *clk);
 	void (*disable)(struct clk *clk);
 	TEE_Result (*set_parent)(struct clk *clk, size_t index);
