@@ -1131,14 +1131,15 @@ static TEE_Result stm32mp1_clk_fdt_init(const void *fdt, int node)
 	}
 	for (i = (enum stm32mp1_pll_id)0; i < _PLL_NB; i++) {
 		char name[] = "st,pll@X";
+		int subnode = -1;
 
 		snprintf(name, sizeof(name), "st,pll@%d", i);
-		node = fdt_subnode_offset(fdt, node, name);
-		if (node < 0)
+		subnode = fdt_subnode_offset(fdt, node, name);
+		if (subnode < 0)
 			continue;
 
-		if (fdt_getprop(fdt, node, "cfg", &len) ||
-		    fdt_getprop(fdt, node, "frac", &len)) {
+		if (fdt_getprop(fdt, subnode, "cfg", &len) ||
+		    fdt_getprop(fdt, subnode, "frac", &len)) {
 			DMSG("Ignore PLL%u configurations from DT", i);
 			ignored++;
 		}
