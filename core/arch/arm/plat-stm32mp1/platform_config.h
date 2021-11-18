@@ -38,6 +38,8 @@
 #define APB6_SIZE			0x0000d000
 #endif
 
+#define AHB2_BASE			0x48000000
+#define AHB2_SIZE			0x01040000
 #define AHB4_BASE			0x50000000
 #define AHB4_SIZE			0x00020000
 #ifdef CFG_STM32MP13
@@ -50,11 +52,20 @@
 #endif
 
 /* SoC interface registers base address */
+#define ADC1_BASE			0x48003000
+#define ADC2_BASE			0x48004000
+#define BKPSRAM_BASE			0x54000000
 #define BSEC_BASE			0x5c005000
-#define ETZPC_BASE			0x5c007000
 #define CRYP1_BASE			0x54001000
 #define DBGMCU_BASE			0x50081000
+#define DCMIPP_BASE			0x5a000000
 #define DDR_BASE			0xc0000000ul
+#define DDRCTRL_BASE			0x5a003000
+#define DDRPHYC_BASE			0x5a004000
+#define ETH1_BASE			0x5800A000
+#define ETH2_BASE			0x5800E000
+#define ETZPC_BASE			0x5c007000
+#define FMC_BASE			0x58002000
 #define GIC_BASE			0xa0021000ul
 #define GPIOA_BASE			0x50002000
 #define GPIOB_BASE			0x50003000
@@ -65,6 +76,13 @@
 #define GPIOG_BASE			0x50008000
 #define GPIOH_BASE			0x50009000
 #define GPIOI_BASE			0x5000a000
+#ifdef CFG_STM32MP13
+#define HASH1_BASE			0x54003000
+#define I2C3_BASE			0x4c004000
+#define I2C4_BASE			0x4c005000
+#define I2C5_BASE			0x4c006000
+#endif
+#ifdef CFG_STM32MP15
 #define GPIOJ_BASE			0x5000b000
 #define GPIOK_BASE			0x5000c000
 #define GPIOZ_BASE			0x54004000
@@ -72,9 +90,15 @@
 #define I2C4_BASE			0x5c002000
 #define I2C5_BASE			0x40015000
 #define I2C6_BASE			0x5c009000
+#endif
 #define IWDG1_BASE			0x5c003000
 #define IWDG2_BASE			0x5a002000
+#define LTDC_BASE			0x5a001000
+#define MCUSRAM_BASE			0x30000000ul
+#define MDMA_BASE			0x58000000
+#define OTG_BASE			0x49000000
 #define PWR_BASE			0x50001000
+#define QSPI_BASE			0x58003000
 #define RCC_BASE			0x50000000
 #ifdef CFG_STM32MP13
 #define RNG1_BASE			0x54004000
@@ -83,7 +107,10 @@
 #define RNG1_BASE			0x54003000
 #endif
 #define RTC_BASE			0x5c004000
+#ifdef CFG_STM32MP15
 #define SPI6_BASE			0x5c001000
+#endif
+#define STGEN_BASE			0x5c008000
 #define SYSCFG_BASE			0x50020000
 #ifdef CFG_STM32MP13
 #define SYSRAM_BASE			0x2ffe0000
@@ -92,6 +119,33 @@
 #define SYSRAM_BASE			0x2ffc0000
 #endif
 #define TAMP_BASE			0x5c00a000
+#define TIM1_BASE			0x44000000
+#define TIM2_BASE			0x40000000
+#define TIM3_BASE			0x40001000
+#define TIM4_BASE			0x40002000
+#define TIM5_BASE			0x40003000
+#define TIM6_BASE			0x40004000
+#define TIM7_BASE			0x40005000
+#define TIM8_BASE			0x44001000
+#ifdef CFG_STM32MP13
+#define LPTIM2_BASE			0x50021000
+#define LPTIM3_BASE			0x50022000
+#define TIM12_BASE			0x4c007000
+#define TIM13_BASE			0x4c008000
+#define TIM14_BASE			0x4c009000
+#define TIM15_BASE			0x4c00a000
+#define TIM16_BASE			0x4c00b000
+#define TIM17_BASE			0x4c00c000
+#endif
+#ifdef CFG_STM32MP15
+#define TIM12_BASE			0x40006000
+#define TIM13_BASE			0x40007000
+#define TIM14_BASE			0x40008000
+#define TIM15_BASE			0x44006000
+#define TIM16_BASE			0x44007000
+#define TIM17_BASE			0x44008000
+#endif
+#define TSC_BASE			0x5000B000
 #define TZC_BASE			0x5c006000
 #ifdef CFG_STM32MP13
 #define UART1_BASE			0x4c000000
@@ -107,6 +161,7 @@
 #define UART6_BASE			0x44003000
 #define UART7_BASE			0x40018000
 #define UART8_BASE			0x40019000
+#define VREFBUF_BASE			0x50025000
 
 #define ROM_BASE			0
 #define ROM_SIZE			0x20000
@@ -230,6 +285,16 @@
 #define BKPSRAM_SIZE			U(0x1000)
 #endif
 
+#define BKPSRAM_PM_OFFSET		U(0x0000)
+#define BKPSRAM_PM_SIZE			(BKPSRAM_PM_MAILBOX_SIZE + \
+						BKPSRAM_PM_CONTEXT_SIZE)
+
+#define BKPSRAM_PM_MAILBOX_OFFSET	BKPSRAM_PM_OFFSET
+#define BKPSRAM_PM_MAILBOX_SIZE		U(0x100)
+#define BKPSRAM_PM_CONTEXT_OFFSET	(BKPSRAM_PM_MAILBOX_OFFSET + \
+						BKPSRAM_PM_MAILBOX_SIZE)
+#define BKPSRAM_PM_CONTEXT_SIZE		U(0xF00)
+
 /* SYSRAM layout */
 #ifdef CFG_STM32MP13
 #define SYSRAM_SIZE			0x20000
@@ -251,7 +316,9 @@
 #endif
 
 #ifdef CFG_STM32MP15
+/* SRAM layout*/
 #define SRAM1_BASE			0x30000000
+#define SRAM1_SIZE			0x20000
 #define SRAM2_BASE			0x30020000
 #define SRAM3_BASE			0x30040000
 #define SRAM4_BASE			0x30050000
@@ -266,19 +333,23 @@
 #define SRAM3_SIZE			0x10000
 #define SRAM4_SIZE			0x10000
 
-#define RETRAM_BASE			0x38000000
-#define RETRAM_SIZE			0x10000
+/* RETRAM layout */
+#define RETRAM_BASE			U(0x38000000)
+#define RETRAM_SIZE			U(0x10000)
 #endif
 
 #ifdef CFG_STM32MP13
 /* SRAM layout*/
-#define SRAM1_BASE			0x30000000
-#define SRAM1_SIZE			0x4000
-#define SRAM2_BASE			0x30004000
-#define SRAM2_SIZE			0x2000
-#define SRAM3_BASE			0x30006000
-#define SRAM3_SIZE			0x2000
+#define SRAM1_BASE			U(0x30000000)
+#define SRAM1_SIZE			U(0x4000)
+#define SRAM2_BASE			U(0x30004000)
+#define SRAM2_SIZE			U(0x2000)
+#define SRAM3_BASE			U(0x30006000)
+#define SRAM3_SIZE			U(0x2000)
 #endif
+
+/* MCUSRAM layout */
+#define MCUSRAM_SIZE			U(0x60000)
 
 /* SoC part numbers and revisions */
 #define STM32MP135C_PART_NB		U(0x05010000)
@@ -309,10 +380,21 @@
 
 #ifdef CFG_STM32MP13
 #define STM32MP1_CHIP_ID		U(0x501)
+#define STM32MP1_REV_A			U(0x00001000)
+#define STM32MP1_REV_Z			U(0x00001001)
 #endif
 
 #ifdef CFG_STM32MP15
 #define STM32MP1_CHIP_ID		U(0x500)
+#define STM32MP1_REV_A			U(0x00001000)
+#define STM32MP1_REV_B			U(0x00002000)
+#define STM32MP1_REV_Z			U(0x00002001)
 #endif
+
+#define STM32MP1_CHIP_DEFAULT_VERSION	U(0)
+
+/* OPP */
+#define PLAT_MAX_OPP_NB			2U
+#define PLAT_MAX_PLLCFG_NB		6U
 
 #endif /*PLATFORM_CONFIG_H*/
