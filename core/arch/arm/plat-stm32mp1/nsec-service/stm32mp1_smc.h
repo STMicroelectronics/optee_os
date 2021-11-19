@@ -73,24 +73,8 @@
 
 /*
  * SIP functions STM32_SIP_SVC_FUNC_BSEC - Deprecated
- *
- * Argument a0: (input) SMCCC function ID
- *		(output) status return code
- * Argument a1: (input) Service ID (STM32_SIP_BSEC_xxx)
- * Argument a2: (input) OTP index
- *		(output) OTP read value, if applicable
- * Argument a3: (input) OTP value if applicable
  */
 #define STM32_SIP_SVC_FUNC_BSEC			0x1003
-
-/* Service ID for function ID STM32_SIP_FUNC_BSEC */
-#define STM32_SIP_SVC_BSEC_READ_SHADOW		0x1
-#define STM32_SIP_SVC_BSEC_PROG_OTP		0x2
-#define STM32_SIP_SVC_BSEC_WRITE_SHADOW		0x3
-#define STM32_SIP_SVC_BSEC_READ_OTP		0x4
-/* reserved for STM32_SIP_SVC_SMC_READ_ALL	0x5 */
-/* reserved for STM32_SIP_SVC_SMC_WRITE_ALL	0x6 */
-#define STM32_SIP_SVC_BSEC_WRLOCK_OTP		0x7
 
 /*
  * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT
