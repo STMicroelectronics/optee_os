@@ -451,3 +451,6 @@ ifeq ($(CFG_STM32_RTC),y)
 $(call force,CFG_DRIVERS_RTC,y)
 $(call force,CFG_RTC_PTA,y)
 endif
+
+# Generate the STM32 files
+CFG_STM32MP15x_STM32IMAGE ?= n
