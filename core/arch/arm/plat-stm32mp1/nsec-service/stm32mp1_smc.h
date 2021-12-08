@@ -103,4 +103,52 @@
 #define STM32_SIP_SVC_FUNC_SCMI_AGENT0		0x2000
 #define STM32_SIP_SVC_FUNC_SCMI_AGENT1		0x2001
 
+/*
+ * OEM Functions
+ */
+#define STM32_OEM_SVC_VERSION_MAJOR		0x0
+#define STM32_OEM_SVC_VERSION_MINOR		0x1
+
+#define STM32_OEM_SVC_FUNCTION_COUNT	1
+
+/* Use the same UID as for SiP service */
+#define STM32_OEM_SVC_UID_0			STM32_SIP_SVC_UID_0
+#define STM32_OEM_SVC_UID_1			STM32_SIP_SVC_UID_1
+#define STM32_OEM_SVC_UID_2			STM32_SIP_SVC_UID_2
+#define STM32_OEM_SVC_UID_3			STM32_SIP_SVC_UID_3
+
+/* OEM service generic return codes */
+#define STM32_OEM_SVC_OK			0x0
+#define STM32_OEM_SVC_NOT_SUPPORTED		0xffffffffU
+#define STM32_OEM_SVC_FAILED			0xfffffffeU
+#define STM32_OEM_SVC_INVALID_PARAMS		0xfffffffdU
+
+/*
+ * OEM function STM32_OEM_FUNC_CALL_COUNT
+ *
+ * Argument a0: (input) SMCC ID
+ *		(output) Count of defined function IDs
+ */
+#define STM32_OEM_SVC_FUNC_CALL_COUNT		0xff00
+
+/*
+ * OEM function STM32_OEM_SVC_FUNC_UID
+ *
+ * Argument a0: (input) SMCC ID
+ *		(output) Lowest 32bit of the stm32mp1 OEM service UUID
+ * Argument a1: (output) Next 32bit of the stm32mp1 OEM service UUID
+ * Argument a2: (output) Next 32bit of the stm32mp1 OEM service UUID
+ * Argument a3: (output) Last 32bit of the stm32mp1 OEM service UUID
+ */
+#define STM32_OEM_SVC_FUNC_UID			0xff01
+
+/*
+ * OEM function STM32_OEM_FUNC_VERSION
+ *
+ * Argument a0: (input) SMCC ID
+ *		(output) STM32 OEM service major
+ * Argument a1: (output) STM32 OEM service minor
+ */
+#define STM32_OEM_SVC_FUNC_VERSION		0xff03
+
 #endif /* __STM32MP1_SMC_H__*/

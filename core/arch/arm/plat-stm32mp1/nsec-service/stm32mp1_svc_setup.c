@@ -56,6 +56,30 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 	return SM_HANDLER_SMC_HANDLED;
 }
 
+static enum sm_handler_ret oem_service(struct sm_ctx *ctx __unused,
+				       struct thread_smc_args *args)
+{
+	switch (OPTEE_SMC_FUNC_NUM(args->a0)) {
+	case STM32_OEM_SVC_FUNC_CALL_COUNT:
+		args->a0 = STM32_OEM_SVC_FUNCTION_COUNT;
+		break;
+	case STM32_OEM_SVC_FUNC_VERSION:
+		args->a0 = STM32_OEM_SVC_VERSION_MAJOR;
+		args->a1 = STM32_OEM_SVC_VERSION_MINOR;
+		break;
+	case STM32_OEM_SVC_FUNC_UID:
+		args->a0 = STM32_OEM_SVC_UID_0;
+		args->a1 = STM32_OEM_SVC_UID_1;
+		args->a2 = STM32_OEM_SVC_UID_2;
+		args->a3 = STM32_OEM_SVC_UID_3;
+		break;
+	default:
+		return SM_HANDLER_PENDING_SMC;
+	}
+
+	return SM_HANDLER_SMC_HANDLED;
+}
+
 enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
 {
 	struct thread_smc_args *args = (void *)&ctx->nsec.r0;
@@ -66,6 +90,8 @@ enum sm_handler_ret sm_platform_handler(struct sm_ctx *ctx)
 	switch (OPTEE_SMC_OWNER_NUM(args->a0)) {
 	case OPTEE_SMC_OWNER_SIP:
 		return sip_service(ctx, args);
+	case OPTEE_SMC_OWNER_OEM:
+		return oem_service(ctx, args);
 	default:
 		return SM_HANDLER_PENDING_SMC;
 	}
