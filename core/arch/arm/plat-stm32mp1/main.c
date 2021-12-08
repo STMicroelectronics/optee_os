@@ -491,6 +491,13 @@ vaddr_t stm32mp_bkpsram_base(void)
 	return io_pa_or_va(&base, BKPSRAM_SIZE);
 }
 
+vaddr_t stm32mp_stgen_base(void)
+{
+	struct io_pa_va base = { .pa = STGEN_BASE };
+
+	return io_pa_or_va(&base, 1);
+}
+
 static bool __maybe_unused bank_is_valid(unsigned int bank)
 {
 	if (IS_ENABLED(CFG_STM32MP15))

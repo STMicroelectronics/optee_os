@@ -24,6 +24,8 @@ bool stm32mp_supports_hw_cryp(void);
 /*  Second core support */
 bool stm32mp_supports_second_core(void);
 vaddr_t stm32mp_bkpsram_base(void);
+/* Platform util for the STGEN driver */
+vaddr_t stm32mp_stgen_base(void);
 
 /* Get device ID from SYSCFG registers */
 uint32_t stm32mp_syscfg_get_chip_dev_id(void);
