@@ -14,7 +14,9 @@
 #define BCKR_CORE1_MAGIC_NUMBER			4
 
 /* Value for BCKR_CORE1_MAGIC_NUMBER entry */
+#define BOOT_API_A7_CORE0_MAGIC_NUMBER		0xca7face0
 #define BOOT_API_A7_CORE1_MAGIC_NUMBER		0xca7face1
+#define BOOT_API_A7_RESET_MAGIC_NUMBER		0xca7dead0
 
 /* Backup register #5: physical address of core1 entry at boot up */
 #define BCKR_CORE1_BRANCH_ADDRESS		5
