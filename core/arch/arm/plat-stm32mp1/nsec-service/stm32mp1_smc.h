@@ -14,7 +14,7 @@
 #define STM32_SIP_SVC_VERSION_MAJOR	0x0
 #define STM32_SIP_SVC_VERSION_MINOR	0x1
 
-#define STM32_SIP_SVC_FUNCTION_COUNT	0x4
+#define STM32_SIP_SVC_FUNCTION_COUNT	0x5
 
 /* STM32 SIP service generic return codes */
 #define STM32_SIP_SVC_OK		0x0
@@ -93,6 +93,22 @@
  * SIP functions STM32_SIP_SVC_FUNC_BSEC - Deprecated
  */
 #define STM32_SIP_SVC_FUNC_BSEC			0x1003
+
+/*
+ * SIP function STM32_SIP_FUNC_PD_DOMAIN
+ *
+ * Argument a0: (input) SMCC ID
+ *		(output) status return code
+ * Argument a2: (index) ID of target power domain to be enabled/disabled
+ * Argument a3: (input) 0 to disable, 1 to enable target domain
+ */
+#define STM32_SIP_FUNC_PD_DOMAIN		0x1008
+
+/* Valid IDs for power domain for function STM32_SIP_FUNC_PD_DOMAIN */
+#define STM32_SIP_PD_VSW			0x0
+#define STM32_SIP_PD_CORE_RET			0x1
+#define STM32_SIP_PD_CORE			0x2
+#define STM32_SIP_PD_MAX_PM_DOMAIN		0x3
 
 /*
  * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT

@@ -10,6 +10,7 @@
 #include <sm/sm.h>
 #include <sm/std_smc.h>
 
+#include "low_power_svc.h"
 #include "pwr_svc.h"
 #include "stm32mp1_smc.h"
 
@@ -46,6 +47,9 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		break;
 	case STM32_SIP_SVC_FUNC_PWR:
 		args->a0 = pwr_scv_handler(args->a1, args->a2, args->a3);
+		break;
+	case STM32_SIP_FUNC_PD_DOMAIN:
+		args->a0 = pm_domain_scv_handler(args->a1, args->a2);
 		break;
 	default:
 		return SM_HANDLER_PENDING_SMC;
