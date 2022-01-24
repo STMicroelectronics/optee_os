@@ -306,12 +306,14 @@ CFG_STM32_GPIO ?= y
 CFG_STM32_HASH ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
+CFG_STM32_LPTIMER ?= y
 CFG_STM32_PKA ?= y
 CFG_STM32_RNG ?= y
 CFG_STM32_RSTCTRL ?= y
 CFG_STM32_RTC ?= y
 CFG_STM32_SAES ?= y
 CFG_STM32_TAMP ?= y
+CFG_STM32_TIM ?= y
 CFG_STM32_UART ?= y
 CFG_STM32MP_PROVISIONING ?= y
 CFG_STPMIC1 ?= y
@@ -345,6 +347,11 @@ ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP \
 	                      CFG_STM32_PKA  \
 	                      CFG_STM32_SAES),y)
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
+endif
+
+
+ifeq ($(call cfg-one-enabled, CFG_STM32_LPTIMER CFG_STM32_TIM),y)
+$(call force,CFG_COUNTER_DRIVER,y)
 endif
 
 CFG_DRIVERS_RSTCTRL ?= $(CFG_STM32_RSTCTRL)
