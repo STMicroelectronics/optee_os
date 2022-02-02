@@ -12,6 +12,7 @@ void stm32_reset_system(void);
 
 /* Helper from platform RCC clock driver */
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
+unsigned int stm32mp_rcc_clk_to_clock_id(struct clk *clk);
 
 #ifdef CFG_STM32MP15_CLK
 /* Export stm32mp1_clk_ops to make it pager resisdent for STM32MP15 */

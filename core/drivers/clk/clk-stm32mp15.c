@@ -1230,6 +1230,11 @@ struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id)
 	return clock_id_to_clk(clock_id);
 }
 
+unsigned int stm32mp_rcc_clk_to_clock_id(struct clk *clk)
+{
+	return clk_to_clock_id(clk);
+}
+
 #if (CFG_TEE_CORE_LOG_LEVEL >= TRACE_DEBUG) && defined(CFG_TEE_CORE_DEBUG)
 struct clk_name {
 	unsigned int clock_id;
