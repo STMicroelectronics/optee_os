@@ -85,6 +85,12 @@ TLV_TYPES = {
         'PKEYINFO': 0x0000000011,  # information to retrieve signature key
 }
 
+# Platform type definitions
+PLAT_TLV_TYPES = {
+        'BOOTADDR': 0x00010001,  # boot address of the remoteproc firmware
+        'BOOTSEC': 0x00010002,   # boot mode: secure or non-secure
+}
+
 GENERIC_TLV_TYPE_RANGE = range(0x00000000, 0x00010000)
 PLATFORM_TLV_TYPE_RANGE = range(0x00010000, 0x00020000)
 
@@ -139,7 +145,20 @@ class TLV():
     def add_plat_tlv(self, cust_tlv):
         # Get list of custom protected TLVs from the command-line
         for tlv in cust_tlv:
-            type_id = int(tlv[0], 0)
+            if tlv[0].isalpha():
+                if tlv[0] in PLAT_TLV_TYPES.keys():
+                    type_id = PLAT_TLV_TYPES[tlv[0]]
+                    logging.debug("\tTLV ID found \t= %x" % type_id)
+                else:
+                    raise Exception(
+                        'Predefined platform TLV %s not found' % tlv[0])
+            else:
+                type_id = int(tlv[0], 0)
+
+                if type_id in PLAT_TLV_TYPES.values():
+                    raise Exception(
+                        'TLV %s conflicts with predefined platform TLV.'
+                        % hex(type_id))
 
             if type_id not in PLATFORM_TLV_TYPE_RANGE:
                 raise Exception('TLV %s not in range' % hex(type_id))
