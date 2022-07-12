@@ -23,7 +23,6 @@
 /* VRS bit 3 is unused because the voltage is not specified */
 #define VREFBUF_CSR_VRS			GENMASK_32(5, 4)
 #define VREFBUF_CSR_VRS_SHIFT		U(4)
-#define INV_VRS(x)			((~(x)) & VREFBUF_CSR_VRS)
 
 #define VREFBUF_CSR_VRR			BIT(3)
 #define VREFBUF_CSR_HIZ			BIT(1)
@@ -40,6 +39,7 @@
  */
 struct vrefbuf_compat {
 	int voltages[VREFBUF_LEVELS_COUNT];
+	bool invert_voltages;
 };
 
 /*
@@ -67,6 +67,7 @@ static const struct vrefbuf_compat stm32mp15_vrefbuf_compat = {
 		/* Matches resp. VRS = 011b, 010b, 001b, 000b */
 		1500000, 1800000, 2048000, 2500000,
 	},
+	.invert_voltages = true,
 };
 
 static const struct vrefbuf_compat stm32mp13_vrefbuf_compat = {
@@ -74,6 +75,15 @@ static const struct vrefbuf_compat stm32mp13_vrefbuf_compat = {
 		/* Matches resp. VRS = 011b, 010b, 001b, 000b */
 		1650000, 1800000, 2048000, 2500000,
 	},
+	.invert_voltages = true,
+};
+
+static const struct vrefbuf_compat stm32mp25_vrefbuf_compat = {
+	/* Matches resp. VRS = 000b, 001b */
+	.voltages = {
+		1210000, 1500000,
+	},
+	.invert_voltages = false,
 };
 
 /* Expect at most 1 instance */
@@ -169,8 +179,12 @@ static TEE_Result vrefbuf_get_voltage(struct regulator *regulator,
 	if (res)
 		return res;
 
-	index = io_read32(vr->base + VREFBUF_CSR) & VREFBUF_CSR_VRS;
-	index = INV_VRS(index) >> VREFBUF_CSR_VRS_SHIFT;
+	if (vr->compat->invert_voltages)
+		index = ((~io_read32(vr->base)) & VREFBUF_CSR_VRS) >>
+			VREFBUF_CSR_VRS_SHIFT;
+	else
+		index = (io_read32(vr->base) & VREFBUF_CSR_VRS) >>
+			VREFBUF_CSR_VRS_SHIFT;
 
 	clk_disable(vr->clock);
 
@@ -187,7 +201,10 @@ static TEE_Result vrefbuf_set_voltage(struct regulator *regulator, int level_uv)
 
 	for (i = 0 ; i < ARRAY_SIZE(vr->compat->voltages) ; i++) {
 		if (vr->compat->voltages[i] == level_uv) {
-			uint32_t val = INV_VRS(i << VREFBUF_CSR_VRS_SHIFT);
+			uint32_t val = i << VREFBUF_CSR_VRS_SHIFT;
+
+			if (vr->compat->invert_voltages)
+				val = (~val) & VREFBUF_CSR_VRS;
 
 			res = clk_enable(vr->clock);
 			if (res)
@@ -376,6 +393,10 @@ static const struct dt_device_match stm32_vrefbuf_match_table[] = {
 	{
 		.compatible = "st,stm32mp13-vrefbuf",
 		.compat_data = &stm32mp13_vrefbuf_compat
+	},
+	{
+		.compatible = "st,stm32mp25-vrefbuf",
+		.compat_data = &stm32mp25_vrefbuf_compat,
 	},
 	{ }
 };
