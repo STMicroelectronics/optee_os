@@ -163,6 +163,11 @@ int dt_enable_secure_status(void *fdt, int node);
  */
 
 /*
+ * Return the base address from a cell or (paddr_t)-1 in case of error
+ */
+paddr_t fdt_read_paddr(const uint32_t *cell, int n);
+
+/*
  * Return the base address for the "reg" property of the specified node or
  * (paddr_t)-1 in case of error
  */
@@ -352,6 +357,13 @@ static inline int dt_map_dev(const void *fdt __unused, int offs __unused,
 {
 	return -1;
 }
+
+static inline paddr_t fdt_read_paddr(const uint32_t *cell __unused,
+				     int n __unused)
+{
+	return -1;
+}
+
 
 static inline paddr_t fdt_reg_base_address(const void *fdt __unused,
 					   int offs __unused)
