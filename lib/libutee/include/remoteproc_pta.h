@@ -24,6 +24,16 @@
 /* The platform supports load of segment with hash protection */
 #define PTA_RPROC_HWCAP_PROT_HASH_TABLE	BIT32(0)
 
+/* Platform predefined TLV ID */
+/* boot address of the remoteproc firmware */
+#define PTA_REMOTEPROC_TLV_BOOTADDR	U(0x00010001)
+/* Activate secure boot */
+#define PTA_REMOTEPROC_TLV_BOOT_SEC	U(0x00010002)
+
+/* Platform predefined TLV LENGTH (byte) */
+#define PTA_REMOTEPROC_TLV_BOOTADDR_LGTH	U(4)
+#define PTA_REMOTEPROC_TLV_BOOT_SEC_LGTH	U(4)
+
 /**
  * struct rproc_pta_key_info - public key information
  * @algo:	Algorithm, defined by public key algorithms TEE_ALG_*
@@ -155,5 +165,16 @@ static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
  * [in]  params[0].value.a:	Unique 32bit remote processor identifier
  */
 #define PTA_REMOTEPROC_RELEASE		9
+
+/*
+ * Provide platform parameter in Type-Length-Value format
+ *
+ * Return TEE_SUCCESS if the TLV is valid, else an error
+ *
+ * [in]  params[0].value.a:	Unique 32bit remote processor identifier
+ * [in]  params[1].value.a:	16bit Type identifier
+ * [in]  params[2].memref:	Value associated to the type ID
+ */
+#define PTA_REMOTEPROC_TLV_PARAM	10
 
 #endif /* __REMOTEPROC_PTA_H */
