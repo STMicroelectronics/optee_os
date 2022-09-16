@@ -522,6 +522,48 @@ static TEE_Result get_rproc_pta_capabilities(struct remoteproc_context *ctx)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result remoteproc_set_platform_tlv(struct remoteproc_context *ctx)
+{
+	const uint32_t  exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						 TEE_PARAM_TYPE_VALUE_INPUT,
+						 TEE_PARAM_TYPE_MEMREF_INPUT,
+						 TEE_PARAM_TYPE_NONE);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+	uint8_t *p_tlv = ctx->tlvs;
+	uint8_t *p_end_tlv = p_tlv + ctx->tlvs_sz;
+	uint16_t tlv_length = 0;
+	uint32_t tlv_type = 0;
+	uint32_t tlv_v = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	params[0].value.a = ctx->rproc_id;
+
+	/* Parse the tlv area */
+	while (p_tlv < p_end_tlv) {
+		memcpy(&tlv_v, p_tlv, sizeof(tlv_v));
+		tlv_type = TEE_U32_FROM_LITTLE_ENDIAN(tlv_v);
+		memcpy(&tlv_v, p_tlv + RPROC_TLV_LENGTH_OF, sizeof(tlv_v));
+		tlv_length = TEE_U32_FROM_LITTLE_ENDIAN(tlv_v);
+
+		if (tlv_type >= RPROC_PLAT_TLV_TYPE_MIN &&
+		    tlv_type < RPROC_PLAT_TLV_TYPE_MAX) {
+			params[1].value.a  = tlv_type;
+			params[2].memref.size = tlv_length;
+			params[2].memref.buffer = &p_tlv[RPROC_TLV_VALUE_OF];
+
+			res = TEE_InvokeTACommand(pta_session,
+						  TEE_TIMEOUT_INFINITE,
+						  PTA_REMOTEPROC_TLV_PARAM,
+						  exp_pt, params, NULL);
+			if (res)
+				return res;
+		}
+		p_tlv += ROUNDUP_64(sizeof(struct remoteproc_tlv) + tlv_length);
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result get_tlv_hash_type(struct remoteproc_context *ctx)
 {
 	uint8_t hash_type = REMOTEPROC_INVALID_TYPE;
@@ -592,6 +634,11 @@ static TEE_Result remoteproc_verify_firmware(struct remoteproc_context *ctx,
 
 	/* Get hash type */
 	res = get_tlv_hash_type(ctx);
+	if (res)
+		goto free_sec_cpy;
+
+	/* TODO:  transmit to the PTA the platform tlv chunk */
+	res = remoteproc_set_platform_tlv(ctx);
 	if (res)
 		goto free_sec_cpy;
 
