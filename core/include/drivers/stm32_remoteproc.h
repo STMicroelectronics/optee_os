@@ -75,6 +75,21 @@ TEE_Result stm32_rproc_stop(uint32_t rproc_id);
  */
 TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id);
 
+/*
+ * stm32_rproc_set_boot_address - provide the remote processor boot address.
+ * @rproc_id	unique identifier of the remote processor
+ * @address	boot address
+ * Return TEE_SUCCESS or appropriate error.
+ */
+TEE_Result stm32_rproc_set_boot_address(uint32_t rproc_id, paddr_t address);
+
+/*
+ * stm32_rproc_enable_sec_boot() - enable to boot in secure mode
+ * @rproc_id	unique identifier of the remote processor
+ * Return TEE_SUCCESS or appropriate error.
+ */
+TEE_Result stm32_rproc_enable_sec_boot(uint32_t rproc_id);
+
 #ifdef CFG_STM32MP_REMOTEPROC
 /* Return true is secure loading of remoteproc firmware is enabled */
 bool stm32_rproc_is_secure(uint32_t rproc_id);
