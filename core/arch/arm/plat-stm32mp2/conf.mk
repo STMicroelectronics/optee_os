@@ -191,6 +191,12 @@ $(call force,CFG_DRIVERS_RSTCTRL,y)
 $(call force,CFG_STM32_RSTCTRL,y)
 endif
 
+# Provisioning support for shadow
+CFG_STM32MP_PROVISIONING ?= y
+ifeq ($(CFG_STM32MP_PROVISIONING),y)
+$(call force,CFG_INSECURE,y,Required by CFG_STM32MP_PROVISIONING)
+endif
+
 # Optional behavior upon receiving illegal access events
 CFG_STM32_PANIC_ON_IAC_EVENT ?= y
 ifeq ($(CFG_TEE_CORE_DEBUG),y)
