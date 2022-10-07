@@ -1870,7 +1870,7 @@ static TEE_Result clk_stm32_pll1_set_rate(struct clk *clk __maybe_unused,
 
 	opp = clk_stm32_get_opp_config(pdata->opp->mpu_opp, rate);
 	if (!opp)
-		return TEE_ERROR_GENERIC;
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	pll_conf = &opp->pll_cfg;
 
@@ -1922,19 +1922,103 @@ static const struct clk_ops clk_stm32_pll1p_ops = {
 	.is_enabled	= clk_stm32_composite_gate_is_enabled,
 };
 
+static TEE_Result clk_stm32_mpu_determine_rate(struct clk *clk,
+					       struct clk_rate_request *req)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	struct stm32_clk_opp_cfg *opp = NULL;
+	unsigned long rate = req->rate;
+	struct clk *parent = NULL;
+	int index = 0;
+
+	opp = clk_stm32_get_opp_config(pdata->opp->mpu_opp, rate);
+	if (!opp)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	index = (opp->src & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
+
+	parent = clk_get_parent_by_index(clk, index);
+
+	req->best_parent = parent;
+	req->best_parent_rate = req->rate;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result clk_stm32_mpu_set_rate(struct clk *clk __unused,
+					 unsigned long rate,
+					 unsigned long parent_rate)
+{
+	if (rate == parent_rate)
+		return TEE_SUCCESS;
+
+	return TEE_ERROR_GENERIC;
+}
+
 static const struct clk_ops clk_stm32_mpu_ops = {
+	.determine_rate = clk_stm32_mpu_determine_rate,
+	.set_rate	= clk_stm32_mpu_set_rate,
 	.get_parent	= clk_stm32_composite_get_parent,
 	.set_parent	= clk_stm32_composite_set_parent,
 };
 
+static TEE_Result clk_stm32_axi_determine_rate(struct clk *clk,
+					       struct clk_rate_request *req)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	struct stm32_clk_opp_cfg *opp = NULL;
+	unsigned long rate = req->rate;
+	struct clk *parent = NULL;
+	int index = 0;
+
+	opp = clk_stm32_get_opp_config(pdata->opp->axi_opp, rate);
+	if (!opp)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	index = (opp->src & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
+	parent = clk_get_parent_by_index(clk, index);
+
+	req->best_parent = parent;
+	req->best_parent_rate = parent->rate;
+
+	return TEE_SUCCESS;
+}
+
 static const struct clk_ops clk_stm32_axi_ops = {
+	.determine_rate = clk_stm32_axi_determine_rate,
 	.get_parent	= clk_stm32_composite_get_parent,
 	.set_parent	= clk_stm32_composite_set_parent,
 	.set_rate	= clk_stm32_composite_set_rate,
 	.get_rate	= clk_stm32_composite_get_rate,
 };
 
+static TEE_Result clk_stm32_mlahb_determine_rate(struct clk *clk,
+						 struct clk_rate_request *req)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	struct stm32_clk_opp_cfg *opp = NULL;
+	unsigned long rate = req->rate;
+	struct clk *parent = NULL;
+	int index = 0;
+
+	opp = clk_stm32_get_opp_config(pdata->opp->mlahbs_opp, rate);
+	if (!opp)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	index = (opp->src & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
+	parent = clk_get_parent_by_index(clk, index);
+
+	req->best_parent = parent;
+	req->best_parent_rate = parent->rate;
+
+	return TEE_SUCCESS;
+}
+
 const struct clk_ops clk_stm32_mlahb_ops = {
+	.determine_rate = clk_stm32_mlahb_determine_rate,
 	.get_parent	= clk_stm32_composite_get_parent,
 	.set_parent	= clk_stm32_composite_set_parent,
 	.set_rate	= clk_stm32_composite_set_rate,
@@ -2165,7 +2249,7 @@ static struct clk ck_mpu = {
 		.mux_id	= MUX_MPU,
 	},
 	.name		= "ck_mpu",
-	.flags		= CLK_SET_PARENT_PRE_ENABLE | CLK_SET_RATE_PARENT,
+	.flags		= CLK_SET_PARENT_PRE_ENABLE,
 	.num_parents	= 4,
 	.parents	= { &ck_hsi, &ck_hse, &ck_pll1p, &ck_pll1p_div },
 };
@@ -2177,7 +2261,7 @@ static struct clk ck_axi = {
 		.div_id	= DIV_AXI,
 	},
 	.name		= "ck_axi",
-	.flags		= CLK_SET_PARENT_PRE_ENABLE | CLK_SET_RATE_PARENT,
+	.flags		= CLK_SET_PARENT_PRE_ENABLE,
 	.num_parents	= 3,
 	.parents	= { &ck_hsi, &ck_hse, &ck_pll2p },
 };
@@ -2189,7 +2273,7 @@ static struct clk ck_mlahb = {
 		.div_id	= DIV_MLAHB,
 	},
 	.name		= "ck_mlahb",
-	.flags		= CLK_SET_PARENT_PRE_ENABLE | CLK_SET_RATE_PARENT,
+	.flags		= CLK_SET_PARENT_PRE_ENABLE,
 	.num_parents	= 4,
 	.parents	= { &ck_hsi, &ck_hse, &ck_csi, &ck_pll3p },
 };
