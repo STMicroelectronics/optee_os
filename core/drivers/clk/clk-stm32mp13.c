@@ -11,7 +11,11 @@
 #include <drivers/stm32mp1_rcc_util.h>
 #include <io.h>
 #include <kernel/boot.h>
+#include <kernel/delay.h>
+#include <kernel/dt.h>
+#include <kernel/pm.h>
 #include <libfdt.h>
+#include <mm/core_memprot.h>
 #include <stdio.h>
 
 #include "clk-stm32-core.h"
@@ -2732,6 +2736,499 @@ static struct clk *stm32mp13_clk_provided[STM32MP13_ALL_CLK_NB] = {
 	[I2S_CKIN]	= &ck_i2sckin,
 };
 
+static uint8_t clk_stm32_backup_mux[MUX_NB];
+static uint32_t clk_stm32_backup_div[DIV_NB];
+
+static void clk_stm32_pm_save_mux(uint16_t mux_id)
+{
+	clk_stm32_backup_mux[mux_id] = stm32_mux_get_parent(mux_id);
+}
+
+static void clk_stm32_pm_restore_mux(uint16_t mux_id)
+{
+	stm32_mux_set_parent(mux_id, clk_stm32_backup_mux[mux_id]);
+}
+
+static void clk_stm32_pm_restore_div(uint16_t div_id)
+{
+	stm32_div_set_value(div_id, clk_stm32_backup_div[div_id]);
+}
+
+static void clk_stm32_pm_save_div(uint16_t div_id)
+{
+	clk_stm32_backup_div[div_id] = stm32_div_get_value(div_id);
+}
+
+static void clk_stm32_pm_force_set_all_oscillators(bool cmd)
+{
+	size_t i = 0;
+	struct clk *clks[] = { &ck_hse, &ck_hsi, &ck_lse,
+				&ck_lsi, &ck_csi };
+
+	for (i = 0; i < ARRAY_SIZE(clks); i++) {
+		if (cmd)
+			clk_enable(clks[i]);
+		else
+			clk_disable(clks[i]);
+	}
+}
+
+static void clk_stm32_pm_force_enable_all_oscillators(void)
+{
+	clk_stm32_pm_force_set_all_oscillators(true);
+}
+
+static void clk_stm32_pm_force_disable_all_oscillators(void)
+{
+	clk_stm32_pm_force_set_all_oscillators(false);
+}
+
+static void clk_stm32_pm_backup_mlahb(void)
+{
+	clk_stm32_pm_save_mux(MUX_MLAHB);
+	clk_stm32_pm_save_div(DIV_MLAHB);
+}
+
+static void clk_stm32_pm_restore_mlahb(void)
+{
+	clk_stm32_pm_restore_mux(MUX_MLAHB);
+	clk_stm32_pm_restore_div(DIV_MLAHB);
+}
+
+static uint32_t apb_iwdg1;
+static uint32_t apb_iwdg2;
+
+static void clk_stm32_pm_backup_iwdg(void)
+{
+	uintptr_t rcc_base = stm32_rcc_base();
+
+	apb_iwdg1 = (io_read32(rcc_base + RCC_MP_APB5ENSETR) &
+		    RCC_MP_APB5ENSETR_IWDG1APBEN);
+	apb_iwdg2 = (io_read32(rcc_base + RCC_MP_APB4ENSETR) &
+		    RCC_MP_APB4ENSETR_IWDG2APBEN);
+}
+
+static void clk_stm32_pm_restore_iwdg(void)
+{
+	uintptr_t rcc_base = stm32_rcc_base();
+
+	io_clrsetbits32(rcc_base + RCC_MP_APB5ENSETR,
+			RCC_MP_APB5ENSETR_IWDG1APBEN, apb_iwdg1);
+	io_clrsetbits32(rcc_base + RCC_MP_APB4ENSETR,
+			RCC_MP_APB4ENSETR_IWDG2APBEN, apb_iwdg2);
+}
+
+static void clk_stm32_pm_backup_all_mux(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uint32_t mux_id = 0U;
+
+	for (mux_id = 0U; mux_id < priv->nb_muxes; mux_id++)
+		clk_stm32_backup_mux[mux_id] = stm32_mux_get_parent(mux_id);
+}
+
+static void clk_stm32_pm_restore_all_kernel_mux(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uint16_t mux_id = 0U;
+
+	for (mux_id = MUX_KERNEL_BEGIN; mux_id < priv->nb_muxes; mux_id++)
+		clk_stm32_pm_restore_mux(mux_id);
+}
+
+static void clk_stm32_pm_backup_all_div(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	size_t div_id = 0;
+
+	for (div_id = 0; div_id < priv->nb_div; div_id++)
+		clk_stm32_backup_div[div_id] = stm32_div_get_value(div_id);
+}
+
+static void clk_stm32_pm_restore_div_system(void)
+{
+	size_t div_id = 0;
+	int div_tab[] = { DIV_MPU,
+			  DIV_AXI,
+			  DIV_MLAHB,
+			  DIV_APB1,
+			  DIV_APB2,
+			  DIV_APB3,
+			  DIV_APB4,
+			  DIV_APB5,
+			  DIV_APB6
+	};
+
+	for (div_id = 0; div_id < ARRAY_SIZE(div_tab); div_id++)
+		stm32_div_set_value(div_tab[div_id],
+				    clk_stm32_backup_div[div_tab[div_id]]);
+}
+
+/* Structure is used for set/clear registers and for regular registers */
+struct backup_clock_cfg {
+	uint32_t offset;
+	uint32_t value;
+};
+
+static struct backup_clock_cfg backup_clock_sc_cfg[] = {
+	{ .offset = RCC_MP_APB1ENSETR },
+	{ .offset = RCC_MP_APB2ENSETR },
+	{ .offset = RCC_MP_APB3ENSETR },
+	{ .offset = RCC_MP_S_APB3ENSETR },
+	{ .offset = RCC_MP_NS_APB3ENSETR },
+	{ .offset = RCC_MP_APB4ENSETR },
+	{ .offset = RCC_MP_S_APB4ENSETR },
+	{ .offset = RCC_MP_NS_APB4ENSETR },
+	{ .offset = RCC_MP_APB5ENSETR },
+	{ .offset = RCC_MP_APB6ENSETR },
+	{ .offset = RCC_MP_AHB2ENSETR },
+	{ .offset = RCC_MP_AHB4ENSETR },
+	{ .offset = RCC_MP_S_AHB4ENSETR },
+	{ .offset = RCC_MP_NS_AHB4ENSETR },
+	{ .offset = RCC_MP_AHB5ENSETR },
+	{ .offset = RCC_MP_AHB6ENSETR },
+	{ .offset = RCC_MP_S_AHB6ENSETR },
+	{ .offset = RCC_MP_NS_AHB6ENSETR },
+};
+
+static struct backup_clock_cfg backup_clock_regular_cfg[] = {
+	{ .offset = RCC_SECCFGR},
+	{ .offset = RCC_MCO1CFGR },
+	{ .offset = RCC_MCO2CFGR },
+	{ .offset = RCC_DBGCFGR },
+	{ .offset = RCC_DDRITFCR },
+	{ .offset = RCC_TIMG1PRER },
+	{ .offset = RCC_TIMG2PRER },
+	{ .offset = RCC_TIMG3PRER },
+};
+
+static void clk_stm32_pm_backup_peripheral_clock_gating(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_sc_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_sc_cfg);
+	uintptr_t base = stm32_rcc_base();
+	size_t i = 0;
+
+	for (i = 0; i < count; i++)
+		cfg[i].value = io_read32(base + cfg[i].offset);
+}
+
+static void clk_stm32_pm_restore_all_peripheral_clock_gating(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_sc_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_sc_cfg);
+	uintptr_t base = stm32_rcc_base();
+	size_t i = 0;
+
+	for (i = 0; i < count; i++) {
+		io_write32(base + cfg[i].offset, cfg[i].value);
+		io_write32(base + cfg[i].offset + RCC_MP_ENCLRR_OFFSET,
+			   ~cfg[i].value);
+	}
+}
+
+static void clk_stm32_pm_backup_regular_cfg(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_regular_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_regular_cfg);
+	uintptr_t base = stm32_rcc_base();
+	size_t i = 0;
+
+	for (i = 0; i < count; i++)
+		cfg[i].value = io_read32(base + cfg[i].offset);
+}
+
+static void clk_stm32_pm_restore_regular_cfg(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_regular_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_regular_cfg);
+	uintptr_t base = stm32_rcc_base();
+	size_t i = 0;
+
+	for (i = 0; i < count; i++)
+		io_write32(base + cfg[i].offset, cfg[i].value);
+}
+
+static void clk_stm32_pm_disable_ker_clocks(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	const uint32_t ker_mask = RCC_OCENR_HSIKERON |
+				  RCC_OCENR_CSIKERON |
+				  RCC_OCENR_HSEKERON;
+
+	/* Disable all ck_xxx_ker clocks */
+	io_write32(priv->base + RCC_OCENCLRR, ker_mask);
+}
+
+static void clk_stm32_pm_enable_ker_clocks(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	const uint32_t ker_mask = RCC_OCENR_HSIKERON |
+				  RCC_OCENR_CSIKERON |
+				  RCC_OCENR_HSEKERON;
+	uint32_t reg = 0U;
+
+	/* Enable ck_xxx_ker clocks if ck_xxx was on */
+	reg = io_read32(priv->base + RCC_OCENSETR) << 1;
+	io_write32(priv->base + RCC_OCENSETR, reg & ker_mask);
+}
+
+static void clear_rcc_reset_status(void)
+{
+	/* Clear reset status fields */
+	io_write32(stm32_rcc_base() + RCC_MP_RSTSCLRR, 0);
+}
+
+static struct stm32_pll_dt_cfg stm32_pll_backup_state[PLL_NB];
+
+static void clk_stm32_pm_pll_backup_status(int pll_idx)
+{
+	struct stm32_pll_dt_cfg *pll_conf = &stm32_pll_backup_state[pll_idx];
+	const struct stm32_clk_pll *pll = clk_stm32_pll_data(pll_idx);
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uintptr_t pll_base = priv->base + pll->reg_pllxcr;
+	uint32_t value = 0;
+
+	value = io_read32(pll_base + RCC_OFFSET_PLLXCR);
+	value &= (RCC_PLLNCR_DIVPEN | RCC_PLLNCR_DIVQEN | RCC_PLLNCR_DIVREN |
+		 RCC_PLLNCR_PLLON);
+
+	pll_conf->vco.status = value;
+}
+
+static void clk_stm32_pm_pll_backup_vco(struct clk_stm32_priv *priv,
+					const struct stm32_clk_pll *pll,
+					struct stm32_pll_vco *vco)
+{
+	uintptr_t pll_base = priv->base + pll->reg_pllxcr;
+	uint32_t value = 0U;
+	uint32_t mod_per = 0U;
+	uint32_t inc_step = 0U;
+	uint32_t sscg_mode = 0U;
+	uint16_t mux_id = 0U;
+	int sel = 0;
+
+	mux_id = pll->mux_id;
+	sel = stm32_mux_get_parent(mux_id);
+
+	vco->src = CMD_MUX << CMD_SHIFT | mux_id << MUX_ID_SHIFT | sel;
+
+	/* Read N / M / IFREGE fields */
+	value = io_read32(pll_base + RCC_OFFSET_PLLXCFGR1);
+
+	vco->div_mn[PLL_CFG_M] = (value & RCC_PLLNCFGR1_DIVM_MASK) >>
+				 RCC_PLLNCFGR1_DIVM_SHIFT;
+	vco->div_mn[PLL_CFG_N] = (value & RCC_PLLNCFGR1_DIVN_MASK) >>
+				 RCC_PLLNCFGR1_DIVN_SHIFT;
+
+	/* Read Frac */
+	vco->frac = io_read32(pll_base + RCC_OFFSET_PLLXFRACR) &
+		    RCC_PLLNFRACR_FRACV_MASK;
+	vco->frac = vco->frac >> RCC_PLLNFRACR_FRACV_SHIFT;
+
+	/* Read CSG */
+	value = io_read32(pll_base + RCC_OFFSET_PLLXCSGR);
+	mod_per = (value & RCC_PLLNCSGR_MOD_PER_MASK) >>
+		   RCC_PLLNCSGR_MOD_PER_SHIFT;
+	inc_step = (value & RCC_PLLNCSGR_INC_STEP_MASK) >>
+		   RCC_PLLNCSGR_INC_STEP_SHIFT;
+	sscg_mode = (value & RCC_PLLNCSGR_SSCG_MODE_MASK) >>
+		    RCC_PLLNCSGR_SSCG_MODE_SHIFT;
+
+	vco->csg[PLL_CSG_MOD_PER] = mod_per;
+	vco->csg[PLL_CSG_INC_STEP] = inc_step;
+	vco->csg[PLL_CSG_SSCG_MODE] = sscg_mode;
+
+	vco->csg_enabled = io_read32(pll_base + RCC_OFFSET_PLLXCSGR) &
+			   RCC_PLLNCR_SSCG_CTRL;
+}
+
+static void clk_stm32_pm_pll_backup_output(struct clk_stm32_priv *priv,
+					   const struct stm32_clk_pll *pll,
+					   struct stm32_pll_output *out)
+{
+	uintptr_t pll_base = priv->base + pll->reg_pllxcr;
+	uint32_t value = 0;
+
+	value = io_read32(pll_base + RCC_OFFSET_PLLXCFGR2);
+
+	out->output[PLL_CFG_P] = (value & RCC_PLLNCFGR2_DIVP_MASK) >>
+				 RCC_PLLNCFGR2_DIVP_SHIFT;
+	out->output[PLL_CFG_Q] = (value & RCC_PLLNCFGR2_DIVQ_MASK) >>
+				 RCC_PLLNCFGR2_DIVQ_SHIFT;
+	out->output[PLL_CFG_R] = (value & RCC_PLLNCFGR2_DIVR_MASK) >>
+				 RCC_PLLNCFGR2_DIVR_SHIFT;
+}
+
+static void stm32_clk_pm_pll_backup(int pll_idx)
+{
+	struct stm32_pll_dt_cfg *pll_conf = &stm32_pll_backup_state[pll_idx];
+	const struct stm32_clk_pll *pll = clk_stm32_pll_data(pll_idx);
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+
+	clk_stm32_pm_pll_backup_status(pll_idx);
+	clk_stm32_pm_pll_backup_vco(priv, pll, &pll_conf->vco);
+	clk_stm32_pm_pll_backup_output(priv, pll, &pll_conf->output);
+}
+
+static void clk_stm32_pm_backup_pll34(void)
+{
+	int plls[] = { PLL3_ID, PLL4_ID };
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(plls); i++)
+		clk_stm32_pm_pll_backup_status(plls[i]);
+}
+
+static void clk_stm32_pm_restore_pll34(void)
+{
+	int plls[] = { PLL3_ID, PLL4_ID };
+	size_t i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(plls); i++) {
+		int pll_id = plls[i];
+		const struct stm32_clk_pll *pll = clk_stm32_pll_data(pll_id);
+		bool pll_status = stm32_gate_is_enabled(pll->gate_id);
+		struct stm32_pll_dt_cfg *conf = NULL;
+
+		conf = &stm32_pll_backup_state[pll_id];
+
+		if ((conf->vco.status & RCC_PLLNCR_PLLON) && !pll_status) {
+			if (stm32_gate_rdy_enable(pll->gate_id)) {
+				EMSG("timeout to enable pll %d", pll_id);
+				panic();
+			}
+
+			clk_stm32_pll_restore_output_diven(pll,
+							   conf->vco.status);
+		}
+	}
+}
+
+static void clk_stm32_pm_backup_all_pll(void)
+{
+	int pll_id = 0;
+
+	for (pll_id = PLL1_ID; pll_id < PLL_NB; pll_id++)
+		stm32_clk_pm_pll_backup(pll_id);
+}
+
+static void clk_stm32_pm_restore_all_pll(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	int pll_id = 0;
+
+	for (pll_id = PLL1_ID; pll_id < PLL_NB; pll_id++) {
+		if (clk_stm32_pll_init(priv, pll_id,
+				       &stm32_pll_backup_state[pll_id])) {
+			EMSG("Failed to restore PLL");
+			panic();
+		}
+	}
+}
+
+static void clk_stm32_pm_restore_pll_output_status(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uint32_t mask = 0;
+	int pll_id = 0;
+
+	mask = RCC_PLLNCR_DIVPEN | RCC_PLLNCR_DIVQEN | RCC_PLLNCR_DIVREN;
+
+	for (pll_id = PLL1_ID; pll_id < PLL_NB; pll_id++) {
+		struct stm32_pll_dt_cfg *conf = NULL;
+		const struct stm32_clk_pll *pll = clk_stm32_pll_data(pll_id);
+		uintptr_t pllxcr = priv->base + pll->reg_pllxcr;
+
+		conf = &stm32_pll_backup_state[pll_id];
+
+		/* If pll was on */
+		if (conf->vco.status & RCC_PLLNCR_PLLON) {
+			/* Set output */
+			io_clrsetbits32(pllxcr, mask,
+					conf->vco.status & mask);
+		} else {
+			/* Stop all output */
+			io_clrbits32(pllxcr, RCC_PLLNCR_DIVPEN |
+				     RCC_PLLNCR_DIVQEN | RCC_PLLNCR_DIVREN);
+			stm32_gate_rdy_disable(pll->gate_id);
+		}
+	}
+}
+
+static void clk_stm32_pm_restore_mux_system(void)
+{
+	clk_stm32_pm_restore_mux(MUX_MPU);
+	clk_stm32_pm_restore_mux(MUX_AXI);
+	clk_stm32_pm_restore_mux(MUX_MLAHB);
+	clk_stm32_pm_restore_mux(MUX_CKPER);
+}
+
+void stm32mp1_clk_save_context_for_stop(void)
+{
+	clk_stm32_pm_enable_ker_clocks();
+	clk_stm32_pm_backup_mlahb();
+	clk_stm32_pm_backup_pll34();
+	clk_stm32_pm_backup_iwdg();
+}
+
+void stm32mp1_clk_restore_context_for_stop(void)
+{
+	clk_stm32_pm_restore_pll34();
+	clk_stm32_pm_restore_mlahb();
+	clk_stm32_pm_disable_ker_clocks();
+	clk_stm32_pm_restore_iwdg();
+}
+
+static void __maybe_unused stm32_clock_suspend(void)
+{
+	clk_stm32_pm_backup_regular_cfg();
+	clk_stm32_pm_backup_peripheral_clock_gating();
+	clk_stm32_pm_backup_all_mux();
+	clk_stm32_pm_backup_all_div();
+	clk_stm32_pm_backup_all_pll();
+	clk_stm32_pm_enable_ker_clocks();
+	clear_rcc_reset_status();
+}
+
+static void __maybe_unused stm32_clock_resume(void)
+{
+	clk_stm32_pm_force_enable_all_oscillators();
+	clk_stm32_pm_restore_all_pll();
+	clk_stm32_pm_restore_mux_system();
+	clk_stm32_pm_restore_div_system();
+	clk_stm32_pm_restore_regular_cfg();
+	clk_stm32_pm_restore_all_kernel_mux();
+	clk_stm32_pm_restore_all_peripheral_clock_gating();
+	clk_stm32_pm_restore_pll_output_status();
+	clk_stm32_pm_force_disable_all_oscillators();
+	clk_stm32_pm_disable_ker_clocks();
+}
+
+static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint,
+				 const struct pm_callback_handle *hdl __unused)
+{
+	static int standby_prepared;
+
+	if (op == PM_OP_SUSPEND) {
+		if (PM_HINT_IS_STATE(pm_hint, CONTEXT)) {
+			stm32_clock_suspend();
+			standby_prepared = 1;
+		} else {
+			stm32mp1_clk_save_context_for_stop();
+			standby_prepared = 0;
+		}
+	} else {
+		/* back from standby */
+		if (standby_prepared)
+			stm32_clock_resume();
+		else
+			stm32mp1_clk_restore_context_for_stop();
+	}
+
+	return TEE_SUCCESS;
+}
+
 static bool clk_stm32_clock_is_critical(struct clk *clk __maybe_unused)
 {
 	struct clk *clk_criticals[] = {
@@ -2846,6 +3343,8 @@ static TEE_Result stm32mp13_clk_probe(const void *fdt, int node,
 		return TEE_ERROR_GENERIC;
 
 	clk_stm32_init_oscillators(fdt, node);
+
+	register_pm_core_service_cb(stm32_clock_pm, NULL, "stm32-rcc_pm");
 
 	stm32mp_clk_provider_probe_final(fdt, node, priv);
 
