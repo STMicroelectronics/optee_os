@@ -385,9 +385,17 @@ static void clk_stm32_gate_disable(struct clk *clk)
 	stm32_gate_disable(cfg->gate_id);
 }
 
+static bool clk_stm32_gate_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_gate_cfg *cfg = clk->priv;
+
+	return stm32_gate_is_enabled(cfg->gate_id);
+}
+
 const struct clk_ops clk_stm32_gate_ops = {
 	.enable		= clk_stm32_gate_enable,
 	.disable	= clk_stm32_gate_disable,
+	.is_enabled	= clk_stm32_gate_is_enabled,
 };
 
 static TEE_Result clk_stm32_gate_ready_enable(struct clk *clk)
@@ -408,6 +416,7 @@ static void clk_stm32_gate_ready_disable(struct clk *clk)
 const struct clk_ops clk_stm32_gate_ready_ops = {
 	.enable		= clk_stm32_gate_ready_enable,
 	.disable	= clk_stm32_gate_ready_disable,
+	.is_enabled	= clk_stm32_gate_is_enabled,
 };
 
 /* STM32 DIV clock operators */
@@ -494,6 +503,13 @@ void clk_stm32_composite_gate_disable(struct clk *clk)
 	stm32_gate_disable(cfg->gate_id);
 }
 
+bool clk_stm32_composite_gate_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_composite_cfg *cfg = clk->priv;
+
+	return stm32_gate_is_enabled(cfg->gate_id);
+}
+
 const struct clk_ops clk_stm32_composite_ops = {
 	.get_parent	= clk_stm32_composite_get_parent,
 	.set_parent	= clk_stm32_composite_set_parent,
@@ -501,6 +517,7 @@ const struct clk_ops clk_stm32_composite_ops = {
 	.set_rate	= clk_stm32_composite_set_rate,
 	.enable		= clk_stm32_composite_gate_enable,
 	.disable	= clk_stm32_composite_gate_disable,
+	.is_enabled	= clk_stm32_composite_gate_is_enabled,
 };
 
 TEE_Result clk_stm32_set_parent_by_index(struct clk *clk, size_t pidx)

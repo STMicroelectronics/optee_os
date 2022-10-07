@@ -154,6 +154,7 @@ TEE_Result clk_stm32_composite_set_rate(struct clk *clk, unsigned long rate,
 					unsigned long parent_rate);
 TEE_Result clk_stm32_composite_gate_enable(struct clk *clk);
 void clk_stm32_composite_gate_disable(struct clk *clk);
+bool clk_stm32_composite_gate_is_enabled(struct clk *clk);
 
 TEE_Result clk_stm32_set_parent_by_index(struct clk *clk, size_t pidx);
 
