@@ -519,7 +519,7 @@ static const uint8_t stm32mp1_mcu_div[16] = {
 	0, 1, 2, 3, 4, 6, 7, 8, 9, 9, 9, 9, 9, 9, 9, 9
 };
 
-/* div = /1 /2 /4 /8 /16 : same divider for PMU and APBX */
+/* div = /1 /2 /4 /8 /16 : same divider for MPU and APBX */
 #define stm32mp1_mpu_div	stm32mp1_mpu_apbx_div
 #define stm32mp1_apbx_div	stm32mp1_mpu_apbx_div
 static const uint8_t stm32mp1_mpu_apbx_div[8] = {
