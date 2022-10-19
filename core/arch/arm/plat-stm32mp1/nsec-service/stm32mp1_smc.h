@@ -93,14 +93,14 @@
 #define STM32_SIP_SVC_BSEC_WRLOCK_OTP		0x7
 
 /*
- * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT0
- * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT1
+ * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT
+ * SIP function STM32_SIP_SVC_FUNC_SCMI_AGENT1 - Obsolete
  *
  * Process SCMI message pending in related SCMI shared memory buffer.
  *
  * Argument a0: (input) SMCC ID
  */
-#define STM32_SIP_SVC_FUNC_SCMI_AGENT0		0x2000
+#define STM32_SIP_SVC_FUNC_SCMI_AGENT		0x2000
 #define STM32_SIP_SVC_FUNC_SCMI_AGENT1		0x2001
 
 /*
