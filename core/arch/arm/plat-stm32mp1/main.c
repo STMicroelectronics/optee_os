@@ -484,6 +484,13 @@ vaddr_t stm32mp_bkpreg(unsigned int idx)
 	return bkpreg_base() + (idx * sizeof(uint32_t));
 }
 
+vaddr_t stm32mp_bkpsram_base(void)
+{
+	struct io_pa_va base = { .pa = BKPSRAM_BASE };
+
+	return io_pa_or_va(&base, BKPSRAM_SIZE);
+}
+
 static bool __maybe_unused bank_is_valid(unsigned int bank)
 {
 	if (IS_ENABLED(CFG_STM32MP15))
