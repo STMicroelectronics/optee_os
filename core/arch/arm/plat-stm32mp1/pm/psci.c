@@ -242,7 +242,8 @@ void __noreturn psci_system_off(void)
 /* Override default psci_system_reset() with platform specific sequence */
 void __noreturn psci_system_reset(void)
 {
-	rstctrl_assert(stm32mp_rcc_reset_id_to_rstctrl(MPSYST_R));
+	DMSG("core %u", get_core_pos());
+	stm32_reset_system();
 	udelay(100);
 	panic();
 }
