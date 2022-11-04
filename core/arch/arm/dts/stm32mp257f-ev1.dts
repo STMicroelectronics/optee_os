@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
+#include <dt-bindings/soc/stm32mp-provisioning.h>
 #include <dt-bindings/mfd/st,stpmic2.h>
 #include <dt-bindings/regulator/st,stm32mp25-regulator.h>
 #include <dt-bindings/tamper/st,stm32mp25-tamp.h>
@@ -33,6 +34,14 @@
 	memory@80000000 {
 		device_type = "memory";
 		reg = <0x0 0x80000000 0x1 0x00000000>;
+	};
+
+	shadow-prov {
+		compatible = "st,provisioning";
+		hconf1_prov {
+			nvmem-cells = <&hconf1_otp>;
+			st,shadow-value = <0x00018DB6>;
+		};
 	};
 };
 
