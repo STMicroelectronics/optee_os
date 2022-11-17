@@ -90,6 +90,15 @@
 
 #define SRAM1_BASE			0x0e040000
 
+#ifdef CFG_STM32MP21
+#define DBGMCU_BASE			0x440a0000
+#else
+#define DBGMCU_BASE			0x4a010000
+#endif
+
+/* DBGMCU */
+#define DBGMCU_SIZE			0x10000
+
 /* GIC resources */
 #define GIC_SIZE			0x80000
 #define GICC_OFFSET			0x20000
