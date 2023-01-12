@@ -5,7 +5,11 @@
 
 #include <drivers/clk.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#ifdef CFG_STM32MP21_CLK
+#include <drivers/stm32mp21_rcc.h>
+#else
 #include <drivers/stm32mp25_rcc.h>
+#endif
 #include <io.h>
 #include <keep.h>
 #include <kernel/delay.h>
