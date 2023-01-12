@@ -4510,6 +4510,9 @@ static TEE_Result stm32mp21_clk_probe(const void *fdt, int node,
 	if (IS_ENABLED(CFG_STM32_CLK_DEBUG))
 		clk_print_tree();
 
+	if (clk_stm32_init_calib(fdt, node))
+		panic("Calibration error init");
+
 	register_pm_core_service_cb(stm32_rcc_pm, NULL, "stm32-rcc");
 
 	return TEE_SUCCESS;
