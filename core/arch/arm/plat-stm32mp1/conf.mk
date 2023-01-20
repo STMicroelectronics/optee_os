@@ -234,6 +234,7 @@ $(call force,CFG_WITH_NSEC_GPIOS,n)
 CFG_STM32MP_OPP_COUNT ?= 3
 CFG_STM32_ADC ?= y
 CFG_WITH_PAGER ?= n
+CFG_WITH_TUI ?= y
 endif # CFG_STM32MP13
 
 ifeq ($(CFG_STM32MP15),y)
@@ -283,6 +284,16 @@ CFG_IN_TREE_EARLY_TAS += remoteproc/80a4c275-0a47-4905-8285-1486a9771a08
 # Embed public part of this key in OP-TEE OS
 RPROC_SIGN_KEY ?= keys/default.pem
 CFG_REMOTEPROC_ENC_TESTKEY ?= n
+endif
+
+# Trusted User Interface
+ifeq ($(CFG_WITH_TUI),y)
+$(call force,CFG_DISPLAY,y,Mandated by CFG_WITH_TUI)
+$(call force,CFG_FRAME_BUFFER,y,Mandated by CFG_WITH_TUI)
+$(call force,CFG_STM32_LTDC,y,Mandated by CFG_WITH_TUI)
+# Provision virtual space to fit 10MByte plus the TUI frame buffer
+CFG_TUI_FRAME_BUFFER_SIZE_MAX ?= 0x01000000
+CFG_RESERVED_VASPACE_SIZE ?= (10 * 1024 * 1024 + $(CFG_TUI_FRAME_BUFFER_SIZE_MAX))
 endif
 
 ifneq ($(CFG_WITH_LPAE),y)
