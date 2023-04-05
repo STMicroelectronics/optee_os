@@ -1587,7 +1587,9 @@ static int stm32_clk_parse_fdt_all_pll(const void *fdt, int node,
 		int subnode = 0;
 		int err = 0;
 
-		snprintf(name, sizeof(name), "st,pll@%d", i);
+		err = snprintf(name, sizeof(name), "st,pll@%d", i);
+		if (err < 0 || (size_t)err >= sizeof(name))
+			panic();
 
 		subnode = fdt_subnode_offset(fdt, node, name);
 		if (subnode < 0)
