@@ -61,6 +61,19 @@ flavorlist-MP13 = $(flavor_dts_file-135F_DK)
 flavorlist-dh-platforms = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
 			  $(flavor_dts_file-157C_DHCOM_PDK2)
 
+# Check if device-tree exist in OP-TEE source code, else search it in external
+# device tree repository
+ifeq ($(wildcard $(arch-dir)/dts/$(CFG_EMBED_DTB_SOURCE_FILE)),)
+# External device tree default path
+CFG_EXT_DTS ?= $(arch-dir)/dts/external-dt/optee
+ifneq ($(wildcard $(CFG_EXT_DTS)/$(CFG_EMBED_DTB_SOURCE_FILE)),)
+override dts-source-path := $(CFG_EXT_DTS)
+-include $(CFG_EXT_DTS)/conf.mk
+else
+$(error Cannot find DTS file $(CFG_EXT_DTS)/$(CFG_EMBED_DTB_SOURCE_FILE))
+endif
+endif
+
 ifneq ($(PLATFORM_FLAVOR),)
 ifeq ($(flavor_dts_file-$(PLATFORM_FLAVOR)),)
 $(error Invalid platform flavor $(PLATFORM_FLAVOR))
@@ -95,6 +108,9 @@ endif
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-dh-platforms)),)
 CFG_STM32_ALLOW_UNSAFE_PROBE ?= y
 endif
+
+# Default do not access external DT passed to non-secure boot stage
+CFG_EXTERNAL_DT ?= n
 
 # CFG_STM32MP1x switches are exclusive.
 # - CFG_STM32MP15 is enabled for STM32MP15x-* targets (default)
@@ -144,7 +160,6 @@ $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_STM32MP13_REGULATOR_IOD,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_WITH_NSEC_GPIOS,n)
-CFG_EXTERNAL_DT ?= n
 CFG_STM32_CPU_OPP ?= y
 CFG_STM32MP_OPP_COUNT ?= 3
 # Measured latency on STM32MP13 is around 650uS so set 1mS
@@ -164,7 +179,6 @@ $(call force,CFG_STM32MP1_RSTCTRL,y)
 $(call force,CFG_STM32MP15_CLK,y)
 CFG_CORE_RESERVED_SHM ?= n
 CFG_MULTI_CORE_HALTING ?= y
-CFG_EXTERNAL_DT ?= y
 CFG_STM32_BSEC_SIP ?= y
 CFG_TEE_CORE_NB_CORE ?= 2
 CFG_WITH_SOFTWARE_PRNG ?= y
