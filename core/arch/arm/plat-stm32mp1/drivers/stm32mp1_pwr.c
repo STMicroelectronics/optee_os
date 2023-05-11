@@ -93,6 +93,8 @@ void stm32mp1_pwr_regulator_set_state(enum pwr_regulator id, bool enable)
 		if (!(io_read32(cr3) & ready_mask))
 			panic();
 	} else {
+		/* Make sure the previous operations are visible */
+		dsb();
 		io_clrbits32(cr3, enable_mask);
 	}
 }
