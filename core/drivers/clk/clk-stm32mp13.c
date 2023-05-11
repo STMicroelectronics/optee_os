@@ -2749,5 +2749,8 @@ void stm32_reset_system(void)
 {
 	vaddr_t rcc = stm32_rcc_base();
 
+	/* Make sure the pending operation are visible */
+	dsb();
+
 	io_write32(rcc + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPSYSRST);
 }

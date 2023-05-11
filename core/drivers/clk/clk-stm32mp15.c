@@ -1873,9 +1873,13 @@ static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint __unused,
 				 const struct pm_callback_handle *hdl __unused)
 {
 	if (op == PM_OP_SUSPEND) {
+		/* Make sure the pending operations are visible */
+		dsb();
 		stm32_clock_suspend();
 	} else {
 		stm32_clock_resume();
+		/* Make sure the clock are restored */
+		dsb();
 	}
 
 	return TEE_SUCCESS;
@@ -1885,6 +1889,9 @@ DECLARE_KEEP_PAGER_PM(stm32_clock_pm);
 void stm32_reset_system(void)
 {
 	vaddr_t rcc = stm32_rcc_base();
+
+	/* Make sure the pending operations are visible */
+	dsb();
 
 	io_write32(rcc + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPSYSRST);
 }
