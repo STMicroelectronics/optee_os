@@ -60,15 +60,22 @@ flavorlist-MP13 = $(flavor_dts_file-135F_DK)
 
 flavorlist-dh-platforms = $(flavor_dts_file-157A_DHCOR_AVENGER96) \
 			  $(flavor_dts_file-157C_DHCOM_PDK2)
+# External device tree default path
+CFG_EXT_DTS ?= $(arch-dir)/dts/external-dt/optee
+
+# Extend flavorlists with external device trees
+ifneq ($(wildcard $(CFG_EXT_DTS)/conf.mk),)
+-include $(CFG_EXT_DTS)/conf.mk
+endif
+
+# List of all DTS for this PLATFORM
+ALL_DTS = $(flavorlist-MP15) $(flavorlist-MP13)
 
 # Check if device-tree exist in OP-TEE source code, else search it in external
 # device tree repository
 ifeq ($(wildcard $(arch-dir)/dts/$(CFG_EMBED_DTB_SOURCE_FILE)),)
-# External device tree default path
-CFG_EXT_DTS ?= $(arch-dir)/dts/external-dt/optee
 ifneq ($(wildcard $(CFG_EXT_DTS)/$(CFG_EMBED_DTB_SOURCE_FILE)),)
 override dts-source-path := $(CFG_EXT_DTS)
--include $(CFG_EXT_DTS)/conf.mk
 else
 $(error Cannot find DTS file $(CFG_EXT_DTS)/$(CFG_EMBED_DTB_SOURCE_FILE))
 endif
