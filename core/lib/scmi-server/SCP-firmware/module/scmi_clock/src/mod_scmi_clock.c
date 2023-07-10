@@ -150,6 +150,8 @@ static int scmi_clock_rate_change_requested_notify_handler(
     fwk_id_t service_id,
     const uint32_t *payload);
 #endif
+static int scmi_clock_duty_cycle_get_handler(fwk_id_t service_id,
+    const uint32_t *payload);
 
 /*
  * Internal variables.
@@ -172,6 +174,7 @@ static handler_table_t handler_table[MOD_SCMI_CLOCK_COMMAND_COUNT] = {
     [MOD_SCMI_CLOCK_RATE_CHANGE_REQUESTED_NOTIFY] =
         scmi_clock_rate_change_requested_notify_handler,
 #endif
+    [MOD_SCMI_CLOCK_DUTY_CYCLE_GET] = scmi_clock_duty_cycle_get_handler,
 };
 
 static const size_t payload_size_table[MOD_SCMI_CLOCK_COMMAND_COUNT] = {
@@ -197,6 +200,8 @@ static const size_t payload_size_table[MOD_SCMI_CLOCK_COMMAND_COUNT] = {
     [MOD_SCMI_CLOCK_RATE_CHANGE_REQUESTED_NOTIFY] =
         (unsigned int)sizeof(struct scmi_clock_rate_notify_a2p),
 #endif
+    [MOD_SCMI_CLOCK_DUTY_CYCLE_GET] =
+        (unsigned int)sizeof(struct scmi_clock_duty_cycle_get_a2p),
 };
 
 /*
@@ -1716,6 +1721,62 @@ static int scmi_clock_rate_change_requested_notify_handler(
         MOD_SCMI_CLOCK_RATE_CHANGE_REQUESTED_NOTIFY, service_id, payload);
 };
 #endif
+
+static int scmi_clock_duty_cycle_get_handler(fwk_id_t service_id,
+    const uint32_t *payload)
+
+{
+    const struct scmi_clock_duty_cycle_get_a2p *parameters;
+    struct scmi_clock_duty_cycle_get_p2a return_values = {
+        .status = (int32_t)SCMI_SUCCESS
+    };
+    const struct mod_scmi_clock_device *clock_device;
+    unsigned int agent_id;
+    size_t response_size;
+    int status;
+
+    parameters = (const struct scmi_clock_duty_cycle_get_a2p*)payload;
+
+    status = scmi_clock_ctx.scmi_api->get_agent_id(service_id, &agent_id);
+    if (status != FWK_SUCCESS) {
+        goto exit;
+    }
+
+    status = scmi_clock_get_clock_device_entry(
+        agent_id, parameters->clock_id, &clock_device);
+    if (status != FWK_SUCCESS) {
+        return_values.status = (int32_t)SCMI_NOT_FOUND;
+        goto exit;
+    }
+
+#ifdef BUILD_HAS_MOD_RESOURCE_PERMS
+    /* Test SET_RATE permission until we have a DUTY_CYCLE permission flag */
+    status = scmi_clock_permissions_handler(
+        parameters->clock_id,
+        agent_id,
+        (unsigned int)MOD_SCMI_CLOCK_RATE_SET);
+    if (status != FWK_SUCCESS) {
+        return_values.status = (int32_t)SCMI_DENIED;
+        goto exit;
+    }
+#endif
+
+    status = scmi_clock_ctx.clock_api->get_duty_cycle(clock_device->element_id,
+                                                      &return_values.numerator,
+                                                      &return_values.denominator);
+
+    if (status == FWK_E_SUPPORT) {
+        return_values.status = (int32_t)SCMI_NOT_SUPPORTED;
+    } else if (status != FWK_SUCCESS) {
+        return_values.status = (int32_t)SCMI_GENERIC_ERROR;
+    }
+
+exit:
+    response_size = (return_values.status == SCMI_SUCCESS) ?
+        sizeof(return_values) : sizeof(return_values.status);
+    return scmi_clock_ctx.scmi_api->respond(
+        service_id, &return_values, response_size);
+}
 
 /*
  * SCMI module -> SCMI clock module interface

@@ -322,6 +322,44 @@ static int get_rate_from_index(
     return FWK_SUCCESS;
 }
 
+static int get_duty_cycle(fwk_id_t dev_id, uint32_t *num, uint32_t *den)
+{
+    struct optee_clock_dev_ctx *ctx = elt_id_to_ctx(dev_id);
+    struct clk_duty_cycle duty = { 0 };
+    TEE_Result res;
+
+    if (ctx == NULL) {
+        return FWK_E_PARAM;
+    }
+
+    if (!is_exposed(ctx)) {
+        /* Return a dummy value to prevent an error trace */
+        *num = 1;
+        *den = 2;
+        return FWK_SUCCESS;
+    }
+
+    res = clk_get_duty_cycle(ctx->clk, &duty);
+
+    FWK_LOG_DEBUG(
+        MOD_NAME "SCMI optee_clock (%u/\"%s\"): %" PRIx32,
+        fwk_id_get_element_idx(dev_id),
+        clk_get_name(ctx->clk),
+        res);
+
+    if (res == TEE_ERROR_NOT_SUPPORTED) {
+        /* Assume a 50% duty cycle */
+        duty = (struct clk_duty_cycle){ .num = 1, .den = 2 };
+    } else if (res != TEE_SUCCESS) {
+        return FWK_E_DEVICE;
+    }
+
+    *num = duty.num;
+    *den = duty.den;
+
+    return FWK_SUCCESS;
+}
+
 static int stub_process_power_transition(fwk_id_t dev_id, unsigned int state)
 {
     return FWK_E_SUPPORT;
@@ -342,6 +380,7 @@ static const struct mod_clock_drv_api api_optee_clock = {
     .get_range = get_range,
     .get_rate_from_index = get_rate_from_index,
     .set_rate = set_rate,
+    .get_duty_cycle = get_duty_cycle,
     /* Not supported */
     .process_power_transition = stub_process_power_transition,
     .process_pending_power_transition = stub_pending_power_transition,

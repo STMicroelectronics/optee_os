@@ -459,6 +459,20 @@ static int clock_get_info(fwk_id_t clock_id, struct mod_clock_info *info)
     return FWK_SUCCESS;
 }
 
+static int clock_get_duty_cycle(fwk_id_t clock_id, uint32_t *num, uint32_t *den)
+{
+    struct clock_dev_ctx *ctx;
+
+    clock_get_ctx(clock_id, &ctx);
+
+    if (!ctx->api->get_duty_cycle) {
+        return FWK_E_SUPPORT;
+    }
+
+    return ctx->api->get_duty_cycle(ctx->config->driver_id, num, den);
+}
+
+
 static const struct mod_clock_api clock_api = {
     .set_rate = clock_set_rate,
     .get_rate = clock_get_rate,
@@ -466,6 +480,7 @@ static const struct mod_clock_api clock_api = {
     .set_state = clock_set_state,
     .get_state = clock_get_state,
     .get_info = clock_get_info,
+    .get_duty_cycle = clock_get_duty_cycle,
 };
 
 /*

@@ -455,6 +455,21 @@ struct mod_clock_drv_api {
         fwk_id_t clock_id,
         uint64_t in_rate,
         uint64_t *out_rate);
+
+    /*!
+     * \brief Get the clock duty cycle.
+     *
+     * \param clock_id Clock device identifier.
+     *
+     * \param[out] num Numerator of the clock duty cycle.
+     *
+     * \param[out] den Denominator of the clock duty cycle.
+     *
+     * \retval ::FWK_SUCCESS The operation succeeded.
+     * \return One of the standard framework error codes.
+     */
+    int (*get_duty_cycle)(fwk_id_t clock_id, uint32_t *num, uint32_t *den);
+
 };
 
 /*!
@@ -574,6 +589,21 @@ struct mod_clock_api {
      * \return One of the standard framework error codes.
      */
     int (*get_info)(fwk_id_t clock_id, struct mod_clock_info *info);
+
+    /*!
+     * \brief Get the clock duty cycle.
+     *
+     * \param clock_id Clock device identifier.
+     *
+     * \param[out] num Numerator of the clock duty cycle.
+     *
+     * \param[out] den Denominator of the clock duty cycle.
+     *
+     * \retval ::FWK_SUCCESS The operation succeeded.
+     * \return One of the standard framework error codes.
+     */
+    int (*get_duty_cycle)(fwk_id_t clock_id, uint32_t *num, uint32_t *den);
+
 };
 
 /*!
