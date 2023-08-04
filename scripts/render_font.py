@@ -8,6 +8,7 @@ from PIL import ImageFont
 from PIL import Image
 import sys
 
+
 def get_args():
     from argparse import ArgumentParser
 
@@ -24,6 +25,7 @@ def get_args():
                         help='Print informational messages')
     return parser.parse_args()
 
+
 def c_hex(bstr):
     s = []
     for n, x in enumerate(bstr):
@@ -38,6 +40,7 @@ def c_hex(bstr):
         s.append("0x{:02x},".format(x))
 
     return "".join(s)
+
 
 header_template = """/*
  * This file is auto generated with
@@ -67,13 +70,14 @@ font_letter_template = """\t{{ letter_{id}, sizeof(letter_{id}), {width}}},
 """
 
 font_template = """const struct font font_{name} = {{
-        .first = 0x{first:02x},
-        .last = 0x{last:02x},
-	.letters = letters,
-	.height = {height},
-	.max_width = {max_width},
+    .first = 0x{first:02x},
+    .last = 0x{last:02x},
+    .letters = letters,
+    .height = {height},
+    .max_width = {max_width},
 }};
 """
+
 
 def main():
     args = get_args()
@@ -92,15 +96,15 @@ def main():
     text_height = font.font.height + 2
 
     for x in letters:
-        letter= chr(x)
+        letter = chr(x)
         (width, height), (offset_x, offset_y) = font.font.getsize(letter)
-        text_width = width + 2 + offset_x;
+        text_width = width + 2 + offset_x
         letter_img = Image.new("1", (text_width, text_height), 0)
         draw = ImageDraw.Draw(letter_img)
-        draw.fontmode="1"
+        draw.fontmode = "1"
         draw.text((0, 0), letter, font=font, fill=1)
-        c_letters[x] = {'img' : letter_img.tobytes(),
-                        'width' : text_width }
+        c_letters[x] = {'img': letter_img.tobytes(),
+                        'width': text_width}
 
     if args.verbose:
         print("Writing " + out_dir + "/" + font_name + ".c")
@@ -109,7 +113,8 @@ def main():
         f.write(header_template.format(cmd_line=' '.join(sys.argv)))
         f.write('#include "font.h"\n\n')
         for x in letters:
-            f.write(letter_template.format(letter=chr(x), id="{:02x}".format(x),
+            f.write(letter_template.format(letter=chr(x),
+                                           id="{:02x}".format(x),
                     c_hex=c_hex(c_letters[x]['img'])))
 
         f.write("static const struct font_letter letters[] = {\n")
@@ -119,17 +124,19 @@ def main():
         f.write("};\n\n")
 
         f.write(font_template.format(name=args.font_name,
-            first=letters[0],
-            last=letters[-1],
-            height=text_height,
-            max_width=max(l['width'] for l in c_letters.values())))
+                first=letters[0],
+                last=letters[-1],
+                height=text_height,
+                max_width=max(i['width'] for i in c_letters.values())))
 
     if args.verbose:
         print("Writing " + out_dir + "/" + font_name + ".h")
 
     with open(out_dir + "/" + font_name + ".h", 'w+') as f:
         f.write(header_template.format(cmd_line=' '.join(sys.argv)))
-        f.write(h_file_template.format(font_name=font_name, FONT_NAME=font_name.upper()))
+        f.write(h_file_template.format(font_name=font_name,
+                                       FONT_NAME=font_name.upper()))
+
 
 if __name__ == "__main__":
     main()
