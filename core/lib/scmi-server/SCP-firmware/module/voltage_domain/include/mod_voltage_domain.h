@@ -78,10 +78,10 @@ enum mod_voltd_voltage_level_type {
  */
 struct mod_voltd_dev_config {
     /*! Reference to the device element within the associated driver module */
-    const fwk_id_t driver_id;
+    fwk_id_t driver_id;
 
     /*! Reference to the API provided by the device driver module */
-    const fwk_id_t api_id;
+    fwk_id_t api_id;
 };
 
 /*!
