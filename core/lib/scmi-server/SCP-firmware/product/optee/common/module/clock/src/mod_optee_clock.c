@@ -184,9 +184,8 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
         return FWK_E_PARAM;
     }
 
-    range->rate_type = MOD_CLOCK_RATE_TYPE_DISCRETE;
-
     if (!is_exposed(ctx)) {
+        range->rate_type = MOD_CLOCK_RATE_TYPE_DISCRETE;
         range->min = 0;
         range->max = 0;
         range->rate_count = 1;
@@ -196,9 +195,23 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
 
     res = clk_get_rates_array(ctx->clk, 0, NULL, &rate_count);
     if (res == TEE_ERROR_NOT_SUPPORTED) {
-        range->min = clk_get_rate(ctx->clk);
-        range->max = range->min;
-        range->rate_count = 1;
+        unsigned long max = 0;
+        unsigned long min = 0;
+        unsigned long step = 0;
+
+        res = clk_get_rates_steps(ctx->clk, &min, &max, &step);
+
+        if (res == TEE_ERROR_NOT_SUPPORTED) {
+            range->rate_type = MOD_CLOCK_RATE_TYPE_DISCRETE;
+            range->min = clk_get_rate(ctx->clk);
+            range->max = range->min;
+            range->rate_count = 1;
+        }
+
+        range->rate_type = MOD_CLOCK_RATE_TYPE_CONTINUOUS;
+        range->min = min;
+        range->max = max;
+        range->step = step;
 
         return FWK_SUCCESS;
     } else if (res != TEE_SUCCESS) {
