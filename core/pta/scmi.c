@@ -205,16 +205,29 @@ static enum optee_scmi_ocall_reply pta_scmi_ocall(uint32_t channel_id,
 		break;
 	case PTA_SCMI_OCALL_PROCESS_MSG_CHANNEL:
 		FMSG("Posting MSG message on channel %u"PRIu32, channel_id);
-		if (!IS_ENABLED(CFG_SCMI_MSG_SHM_MSG) || !dyn_shm)
+		if (!dyn_shm)
 			return PTA_SCMI_OCALL_ERROR;
 
 		dyn_shm->in_size = ocall2_params[1];
 		dyn_shm->out_size = dyn_shm->out_max_size;
 
-		if (scmi_msg_threaded_entry(channel_id, dyn_shm->in_buf,
-					    dyn_shm->in_size, dyn_shm->out_buf,
-					    &dyn_shm->out_size))
-			return PTA_SCMI_OCALL_ERROR;
+		if (IS_ENABLED(CFG_SCMI_MSG_SHM_MSG)) {
+			if (scmi_msg_threaded_entry(channel_id, dyn_shm->in_buf,
+						    dyn_shm->in_size,
+						    dyn_shm->out_buf,
+						    &dyn_shm->out_size))
+				return PTA_SCMI_OCALL_ERROR;
+		}
+
+		if (IS_ENABLED(CFG_SCMI_SCPFW)) {
+			if (scmi_server_msg_process_thread(channel_id,
+							   dyn_shm->in_buf,
+							   dyn_shm->in_size,
+							   dyn_shm->out_buf,
+							   &dyn_shm->out_size))
+				return PTA_SCMI_OCALL_ERROR;
+		}
+
 		break;
 	case PTA_SCMI_OCALL_CLOSE_THREAD:
 		FMSG("Closing channel %u"PRIu32, channel_id);
@@ -272,7 +285,6 @@ static TEE_Result cmd_scmi_ocall_msg_thread(uint32_t ptypes,
 						TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_MEMREF_OUTPUT,
 						TEE_PARAM_TYPE_NONE);
-
 	struct msg_shm dyn_shm = {
 		.in_buf = params[1].memref.buffer,
 		.in_size = params[1].memref.size,
@@ -280,16 +292,12 @@ static TEE_Result cmd_scmi_ocall_msg_thread(uint32_t ptypes,
 		.out_max_size = params[2].memref.size,
 	};
 	unsigned int channel_id = params[0].value.a;
-	struct scmi_msg_channel *channel = NULL;
-
-	if (!IS_ENABLED(CFG_SCMI_MSG_SHM_MSG))
-		return TEE_ERROR_NOT_SUPPORTED;
 
 	if (ptypes != exp_pt || !dyn_shm.in_buf || !dyn_shm.out_buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	channel = plat_scmi_get_channel(channel_id);
-	if (!channel)
+	if (IS_ENABLED(CFG_SCMI_MSG_SHM_MSG) &&
+	    !plat_scmi_get_channel(channel_id))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	while (1) {
