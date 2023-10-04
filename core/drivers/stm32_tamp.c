@@ -2104,6 +2104,7 @@ static TEE_Result stm32_tamp_probe(const void *fdt, int node,
 	struct itr_chip *chip = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	vaddr_t base = 0;
+	int subnode = -FDT_ERR_NOTFOUND;
 
 	/* Manage dependency on RNG driver */
 	res = dt_driver_get_crypto();
@@ -2195,6 +2196,15 @@ static TEE_Result stm32_tamp_probe(const void *fdt, int node,
 	stm32_tamp_set_pins(base, stm32_tamp_dev->pdata.pins_conf);
 
 	interrupt_enable(chip, it_num);
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		res = dt_driver_maybe_add_probe_node(fdt, subnode);
+		if (res) {
+			EMSG("Failed on node %s with %#" PRIx32,
+			     fdt_get_name(fdt, subnode, NULL), res);
+			panic();
+		}
+	}
 
 	return TEE_SUCCESS;
 
