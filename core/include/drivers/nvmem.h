@@ -6,6 +6,7 @@
 #ifndef __DRIVERS_NVMEM_H
 #define __DRIVERS_NVMEM_H
 
+#include <assert.h>
 #include <kernel/dt_driver.h>
 #include <tee_api_defines.h>
 #include <tee_api_types.h>
@@ -27,6 +28,8 @@ struct nvmem_ops {
 	 * @data: Output buffer of size greater or equal to @cell->size
 	 */
 	TEE_Result (*read_cell)(struct nvmem_cell *cell, uint8_t *data);
+	TEE_Result (*write_cell)(struct nvmem_cell *cell, uint8_t *data,
+				 size_t len);
 	void (*put_cell)(struct nvmem_cell *cell);
 };
 
@@ -153,6 +156,22 @@ static inline TEE_Result nvmem_cell_read(struct nvmem_cell *cell,
 TEE_Result nvmem_cell_malloc_and_read(struct nvmem_cell *cell,
 				      uint8_t **out_data);
 
+/*
+ * nvmem_cell_write() - write data to a nvmem cell
+ * @cell: Cell to write
+ * @data: Input buffer
+ * @buf_len: Size of the buffer to write in the cell
+ */
+static inline TEE_Result nvmem_cell_write(struct nvmem_cell *cell,
+					  uint8_t *data, size_t buf_len)
+{
+	assert(buf_len <= cell->len);
+
+	if (!cell->ops->write_cell)
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	return cell->ops->write_cell(cell, data, buf_len);
+}
 #else /* CFG_DRIVERS_NVMEM */
 static inline TEE_Result nvmem_register_provider(const void *fdt __unused,
 						 int nodeoffset __unused,
@@ -188,6 +207,27 @@ static inline TEE_Result nvmem_cell_parse_dt(const void *fdt __unused,
 
 static inline void nvmem_put_cell(struct nvmem_cell *cell __unused)
 {
+}
+
+static inline TEE_Result nvmem_cell_read(struct nvmem_cell *cell __unused,
+					 uint8_t *data __unused,
+					 size_t buf_len __unused,
+					 size_t *read_len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result nvmem_cell_write(struct nvmem_cell *cell __unused,
+					  uint8_t *data __unused,
+					  size_t buf_len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
+static inline TEE_Result nvmem_cell_malloc_and_read(struct nvmem_cell *cell,
+						    uint8_t **out_data)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
 }
 #endif /* CFG_DRIVERS_NVMEM */
 #endif /* __DRIVERS_NVMEM_H */
