@@ -8,6 +8,7 @@
 
 /* Platform util for the RCC drivers */
 vaddr_t stm32_rcc_base(void);
+void stm32_reset_system(void);
 
 /* Helper from platform RCC clock driver */
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);

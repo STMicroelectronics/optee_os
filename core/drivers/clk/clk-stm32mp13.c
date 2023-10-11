@@ -2744,3 +2744,10 @@ static TEE_Result stm32mp13_clk_probe(const void *fdt, int node,
 }
 
 CLK_DT_DECLARE(stm32mp13_clk, "st,stm32mp13-rcc", stm32mp13_clk_probe);
+
+void stm32_reset_system(void)
+{
+	vaddr_t rcc = stm32_rcc_base();
+
+	io_write32(rcc + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPSYSRST);
+}

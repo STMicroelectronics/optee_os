@@ -574,4 +574,11 @@ static inline void stm32_rcc_set_mckprot(bool enable)
 
 #endif /*__ASSEMBLER__*/
 
+
+/* Global Reset Register */
+#define RCC_MP_GRSTCSETR_MPSYSRST	BIT(0)
+#define RCC_MP_GRSTCSETR_MCURST		BIT(1)
+#define RCC_MP_GRSTCSETR_MPUP0RST	BIT(4)
+#define RCC_MP_GRSTCSETR_MPUP1RST	BIT(5)
+
 #endif /*__DRIVERS_STM32MP1_RCC_H__*/
