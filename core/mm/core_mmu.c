@@ -543,6 +543,14 @@ void core_mmu_set_discovered_nsec_ddr(struct core_mmu_phys_mem *start,
 	if (!core_mmu_check_end_pa(m[num_elems - 1].addr,
 				   m[num_elems - 1].size))
 		panic();
+
+	if (CFG_TEE_CORE_LOG_LEVEL >= TRACE_DEBUG) {
+		while (num_elems--) {
+			DMSG("Non-secure memory range [%#"PRIxPA" %#"PRIxPA"]",
+			     m->addr, m->addr + m->size);
+			m++;
+		}
+	}
 }
 
 static bool get_discovered_nsec_ddr(const struct core_mmu_phys_mem **start,
