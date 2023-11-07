@@ -63,6 +63,27 @@ endif
 include core/arch/arm/cpu/cortex-armv8-0.mk
 supported-ta-targets ?= ta_arm64
 
+# Enable flag when Cortex-M33 is TDCID
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-M33-TDCID)),)
+$(call force,CFG_STM32_CM33TDCID,y)
+endif
+
+CFG_STM32_CM33TDCID ?= n
+ifeq ($(CFG_STM32_CM33TDCID),y)
+$(call force,CFG_SCMI_CORTEXM_AGENT,n)
+$(call force,CFG_SCMI_MSG_DRIVERS,n)
+$(call force,CFG_SCMI_PTA,n)
+$(call force,CFG_SCMI_SCPFW,n)
+$(call force,CFG_SCMI_SERVER_CLOCK_CONSUMER,n)
+$(call force,CFG_SCMI_SERVER_REGULATOR_CONSUMER,n)
+$(call force,CFG_SCMI_SERVER_RESET_CONSUMER,n)
+$(call force,CFG_STM32_BSEC_WRITE,n)
+$(call force,CFG_STM32_PWR_REGUL,n)
+$(call force,CFG_STM32_TAMP,n)
+$(call force,CFG_STM32MP_PROVISIONING,n)
+$(call force,CFG_TA_STM32MP_NVMEM,n)
+endif
+
 $(call force,CFG_ARM_GIC_PM,y)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_CORE_ASYNC_NOTIF,y)
@@ -81,7 +102,7 @@ $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_STM32_STGEN,y)
 $(call force,CFG_STM32_PWR,y)
-$(call force,CFG_STM32_PWR_REGUL,y)
+CFG_STM32_PWR_REGUL ?= y
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
