@@ -346,8 +346,7 @@
 
 &iwdg2 {
 	timeout-sec = <32>;
-	status = "okay";
-	secure-status = "disabled";
+	status = "disabled";
 };
 
 &m4_rproc {
