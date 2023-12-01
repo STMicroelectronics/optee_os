@@ -25,6 +25,7 @@ enum syscon_banks {
  * SYSCFG register offsets (base relative)
  */
 #define SYSCFG_VDERAMCR		SYSCON_ID(SYSCON_SYSCFG, 0x1800)
+#define SYSCFG_POTTAMPRSTCR	SYSCON_ID(SYSCON_SYSCFG, 0x1804)
 #define SYSCFG_HPDMAARCR	SYSCON_ID(SYSCON_SYSCFG, 0x2050)
 
 /*
