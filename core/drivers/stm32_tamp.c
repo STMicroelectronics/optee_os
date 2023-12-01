@@ -18,6 +18,9 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
+#include <stm32_sysconf.h>
+#endif /* defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21) */
 #include <stm32_util.h>
 
 /* STM32 Registers */
@@ -430,6 +433,7 @@ struct stm32_tamp_platdata {
 	uint32_t pins_conf;
 	uint32_t out_pins;
 	bool is_wakeup_source;
+	bool mask_pot_reset;
 	bool is_tdcid;
 };
 
@@ -2055,6 +2059,9 @@ static TEE_Result stm32_tamp_parse_fdt(const void *fdt, int node,
 	if (fdt_getprop(fdt, node, "wakeup-source", NULL))
 		pdata->is_wakeup_source = true;
 
+	if (fdt_getprop(fdt, node, "st,tamp-mask-pot-reset", NULL))
+		pdata->mask_pot_reset = true;
+
 	parse_bkpregs_dt_conf(fdt, node);
 
 	if (pdata->compat->tags & TAMP_HAS_RIF_SUPPORT) {
@@ -2145,6 +2152,11 @@ static TEE_Result stm32_tamp_probe(const void *fdt, int node,
 		res = TEE_ERROR_NOT_SUPPORTED;
 		goto err_clk;
 	}
+
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
+	if (stm32_tamp_dev->pdata.mask_pot_reset)
+		stm32mp_syscfg_write(SYSCFG_POTTAMPRSTCR, BIT(0), BIT(0));
+#endif
 
 	if (stm32_tamp_dev->pdata.compat->tags & TAMP_HAS_RIF_SUPPORT) {
 		apply_rif_config();
