@@ -277,6 +277,18 @@ TEE_Result clk_get_rates_steps(struct clk *clk, unsigned long *min,
 			       unsigned long *max, unsigned long *step);
 
 /**
+ * clk_reparent - Update clock parent
+ *
+ * This function mandates that clock framework is locked against
+ * concurrent accesses on clock tree.
+ *
+ * @clk: Clock for which the parent should be set
+ * @parent: Parent clock to set
+ * Return a TEE_Result compliant value
+ */
+TEE_Result clk_reparent(struct clk *clk, struct clk *parent);
+
+/**
  * clk_get_duty_cycle() - Get clock duty cycle
  *
  * @clk: Clock for which the duty cycle is requested

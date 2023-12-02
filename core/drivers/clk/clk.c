@@ -114,6 +114,24 @@ static void clk_init_parent(struct clk *clk)
 	}
 }
 
+TEE_Result clk_reparent(struct clk *clk, struct clk *parent)
+{
+	size_t i = 0;
+
+	if (clk->parent == parent)
+		return TEE_SUCCESS;
+
+	for (i = 0; i < clk_get_num_parents(clk); i++) {
+		if (clk_get_parent_by_index(clk, i) == parent) {
+			clk->parent = parent;
+			return TEE_SUCCESS;
+		}
+	}
+	EMSG("Clock %s is not a parent of clock %s", parent->name, clk->name);
+
+	return TEE_ERROR_BAD_PARAMETERS;
+}
+
 TEE_Result clk_register(struct clk *clk)
 {
 	assert(clk_check(clk));
