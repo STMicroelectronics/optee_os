@@ -576,6 +576,7 @@ const struct clk_ops clk_fixed_clk_ops = {
 	.get_rate	= clk_fixed_get_rate,
 };
 
+#ifndef CFG_STM32MP15
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id)
 {
 	struct clk_stm32_priv *priv = clk_stm32_get_priv();
@@ -585,6 +586,7 @@ struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id)
 
 	return priv->clk_refs[clock_id];
 }
+#endif
 
 static TEE_Result stm32mp_clk_dt_get_clk(struct dt_pargs *pargs,
 					 void *data __unused,
