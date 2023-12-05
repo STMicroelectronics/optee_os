@@ -2487,6 +2487,152 @@ static const struct stm32_clk_pll *clk_stm32_pll_data(unsigned int idx)
 	return &stm32_mp15_clk_pll[idx];
 }
 
+#ifdef CFG_STM32_CLK_DEBUG
+static void clk_stm32_debug_display_pll_cfg(int pll_id,
+					    struct stm32_pll_dt_cfg *pll)
+{
+	struct stm32_pll_vco *vco = &pll->vco;
+	struct stm32_pll_output *out = &pll->output;
+	unsigned int j = 0;
+
+	printf("PLL%d : %s", pll_id + 1, vco->status ? "" : "disabled");
+
+	if (!vco->status) {
+		printf("\n");
+		return;
+	}
+
+	printf(" vco = < ");
+
+	for (j = 0; j < PLL_DIV_MN_NB; j++)
+		printf("%d ", vco->div_mn[j]);
+
+	printf("> ");
+
+	printf("frac = 0x%x ", vco->frac);
+
+	printf("src = 0x%x ", vco->src);
+
+	if (vco->csg_enabled) {
+		printf("csg = < ");
+
+		for (j = 0; j < PLL_CSG_NB; j++)
+			printf("%d ", vco->csg[j]);
+
+		printf("> ");
+	}
+
+	printf("output = < ");
+
+	for (j = 0; j < PLL_DIV_PQR_NB; j++)
+		printf("%d ", out->output[j]);
+
+	printf(">\n");
+}
+
+static void clk_stm32_debug_display_opp_cfg(const char *opp_name,
+					    struct stm32_clk_opp_cfg *opp_cfg)
+{
+	unsigned int i = 0;
+
+	printf("\nOPP %s :\n", opp_name);
+
+	for (i = 0; i < MAX_OPP; i++) {
+		if (opp_cfg->frq == 0UL)
+			break;
+
+		printf("frequency = %d src = 0x%x div = 0x%x ", opp_cfg->frq,
+		       opp_cfg->src, opp_cfg->div);
+
+		clk_stm32_debug_display_pll_cfg(_PLL1, &opp_cfg->pll_cfg);
+
+		opp_cfg++;
+	}
+
+	printf("\n");
+}
+
+static void clk_stm32_debug_display_opp_dt_cfg(struct clk_stm32_priv *priv)
+{
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	struct stm32_clk_opp_dt_cfg *opp = pdata->opp;
+
+	clk_stm32_debug_display_opp_cfg("st,ck_mpu", opp->mpu_opp);
+	clk_stm32_debug_display_opp_cfg("st,ck_axi", pdata->opp->axi_opp);
+	clk_stm32_debug_display_opp_cfg("st,ck_mcu", pdata->opp->mcu_opp);
+}
+
+static void clk_stm32_debug_display_pll_dt_cfg(struct clk_stm32_priv *priv)
+{
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	size_t i = 0;
+
+	for (i = _PLL1; i < pdata->npll; i++)
+		clk_stm32_debug_display_pll_cfg(i, &pdata->pll[i]);
+}
+
+static void clk_stm32_debug_display_osc_dt_cfg(struct clk_stm32_priv *priv)
+{
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	size_t nb = pdata->nosci;
+	size_t i = 0;
+
+	printf("\nNumber of oscillators = %d\n", nb);
+
+	for (i = 0; i < nb; i++) {
+		struct stm32_osci_dt_cfg *osc = &pdata->osci[i];
+		const struct clk_oscillator_data *osc_data = NULL;
+
+		osc_data = clk_oscillator_get_data(i);
+
+		printf("%s %ld bypass = %d digbyp = %d css = %d drive = %d\n",
+		       osc_data->name,
+		       osc->freq,
+		       osc->bypass,
+		       osc->digbyp,
+		       osc->css,
+		       osc->drive);
+	}
+}
+
+static void clk_stm32_debug_display_src_dt_cfg(struct clk_stm32_priv *priv)
+{
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	size_t i = 0;
+
+	printf("nb st,clksrc = %d\n", pdata->nclksrc);
+
+	for (i = 0; i < pdata->nclksrc; i++)
+		printf("\t0x%x\n", pdata->clksrc[i]);
+
+	printf("\n");
+}
+
+static void clk_stm32_debug_display_div_dt_cfg(struct clk_stm32_priv *priv)
+{
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	size_t i = 0;
+
+	printf("nb st,clkdiv = %d\n", pdata->nclkdiv);
+
+	for (i = 0; i < pdata->nclkdiv; i++)
+		printf("\t%d\n", pdata->clkdiv[i]);
+
+	printf("\n");
+}
+
+static void clk_stm32_debug_display_pdata(void)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+
+	clk_stm32_debug_display_pll_dt_cfg(priv);
+	clk_stm32_debug_display_opp_dt_cfg(priv);
+	clk_stm32_debug_display_osc_dt_cfg(priv);
+	clk_stm32_debug_display_src_dt_cfg(priv);
+	clk_stm32_debug_display_div_dt_cfg(priv);
+}
+#endif
+
 static int fdt_clk_stm32_parse_oscillator(const void *fdt, int node,
 					  const char *name,
 					  struct stm32_osci_dt_cfg *osci)
@@ -3286,6 +3432,9 @@ static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
 	if (res)
 		return res;
 
+#ifdef CFG_STM32_CLK_DEBUG
+	clk_stm32_debug_display_pdata();
+#endif
 	rc = stm32mp1_init_clock_tree(priv, pdata);
 	if (rc)
 		return TEE_ERROR_GENERIC;
