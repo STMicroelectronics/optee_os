@@ -41,9 +41,7 @@ struct clk {
 	unsigned long rate;
 	unsigned int flags;
 	struct refcount enabled_count;
-#ifdef CFG_DRIVERS_CLK_PRINT_TREE
 	SLIST_ENTRY(clk) link;
-#endif
 	size_t num_parents;
 	struct clk *parents[];
 };
@@ -93,6 +91,8 @@ struct clk_rate_request {
  * @determine_rate: Given a target rate as input, returns the closest rate
  *		actually supported by the clock, and optionally the parent clock
  *		that should be used to provide the clock rate
+ * @save_context: Save clock registers context before entering low-power mode
+ * @restore_context: Restore clock registers context after exiting low-power mode
  *
  * All clock operations are expected to execute in a interruptible thread
  * context at the exclusion of power management sequence where non secure
@@ -119,6 +119,8 @@ struct clk_ops {
 				    unsigned long parent_rate);
 	TEE_Result (*determine_rate)(struct clk *clk,
 				     struct clk_rate_request *req);
+	TEE_Result (*save_context)(struct clk *clk);
+	void (*restore_context)(struct clk *clk);
 };
 
 /**
@@ -292,6 +294,23 @@ TEE_Result clk_get_duty_cycle(struct clk *clk,
  * or zero when not supported
  */
 unsigned long clk_round_rate(struct clk *clk, unsigned long rate);
+
+/**
+ * clk_save_context - save clock context for poweroff
+ *
+ * Saves the context of the clock register for powerstates in which the
+ * contents of the registers will be lost. Occurs deep within the suspend
+ * code.
+ */
+TEE_Result clk_save_context(void);
+
+/**
+ * clk_restore_context - restore clock context after poweroff
+ *
+ * Restore the saved clock context upon resume.
+ *
+ */
+void clk_restore_context(void);
 
 #ifdef CFG_DRIVERS_CLK
 /**
