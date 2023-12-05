@@ -72,6 +72,7 @@ struct clk_duty_cycle {
  * @get_rates_array: Get the supported clock rates as array in ascending order
  * @get_rates_steps: Get support clock rates by min/max/step representation
  * @get_duty_cycle: Get duty cytcle of the clock
+ * @round_rate: Get the closest supported clock rate to a requested rate
  *
  * All clock operations are expected to execute in a interruptible thread
  * context at the exclusion of power management sequence where non secure
@@ -93,6 +94,9 @@ struct clk_ops {
 				      unsigned long *max, unsigned long *step);
 	TEE_Result (*get_duty_cycle)(struct clk *clk,
 				     struct clk_duty_cycle *duty_cycle);
+	unsigned long (*round_rate)(struct clk *clk,
+				    unsigned long rate,
+				    unsigned long parent_rate);
 };
 
 /**
@@ -247,6 +251,14 @@ TEE_Result clk_get_rates_steps(struct clk *clk, unsigned long *min,
  */
 TEE_Result clk_get_duty_cycle(struct clk *clk,
 			      struct clk_duty_cycle *duty_cycle);
+
+/**
+ * clk_round_rate - Round the given rate for a clock
+ * @clk: Clock for which the round rate is need
+ * @rate: The rate which is to be rounded
+ * Returns the closest rate actually supported by the clock.
+ */
+unsigned long clk_round_rate(struct clk *clk, unsigned long rate);
 
 #ifdef CFG_DRIVERS_CLK
 /**

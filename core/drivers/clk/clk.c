@@ -385,6 +385,19 @@ TEE_Result clk_get_duty_cycle(struct clk *clk,
 	return TEE_SUCCESS;
 }
 
+unsigned long clk_round_rate(struct clk *clk, unsigned long rate)
+{
+	struct clk *parent = clk->parent;
+
+	if (clk->ops->round_rate)
+		return clk->ops->round_rate(clk, rate, clk->parent->rate);
+
+	if (parent && (clk->flags & CLK_SET_RATE_PARENT))
+		return clk_round_rate(parent, rate);
+
+	return clk->rate;
+}
+
 /* Return updated message buffer position of NULL on failure */
 static __printf(3, 4) char *add_msg(char *cur, char *end, const char *fmt, ...)
 {
