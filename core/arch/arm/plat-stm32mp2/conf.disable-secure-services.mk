@@ -13,9 +13,6 @@ $(call force,CFG_TEE_BENCHMARK,n)
 $(call force,CFG_WITH_TUI,n)
 $(call force,CFG_WITH_USER_TA,n)
 
-# Deactivate remote processor support
-$(call force,CFG_STM32MP_REMOTEPROC,n)
-
 # Deactivate crypto support
 $(call force,CFG_CRYPTO,n)
 $(call force,CFG_STM32_CRYP,n)
