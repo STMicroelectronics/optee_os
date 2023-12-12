@@ -126,6 +126,7 @@ CFG_SCMI_SERVER_RESET_CONSUMER ?= y
 # Default enable some test facitilites
 CFG_ENABLE_EMBEDDED_TESTS ?= y
 CFG_WITH_STATS ?= y
+CFG_WERROR ?= y
 
 # Default disable ASLR
 CFG_CORE_ASLR ?= n
