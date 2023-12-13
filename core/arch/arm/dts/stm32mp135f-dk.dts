@@ -547,6 +547,11 @@
 			};
 		};
 	};
+
+	st,rcc {
+		compatible = "st,rcc";
+		pinctrl-0 = <&rcc_mco_pins_a>;
+	};
 };
 
 &rng {
