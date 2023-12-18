@@ -183,6 +183,7 @@ void boot_secondary_init_intc(void)
 		   RCC_MP_RSTSCLRR_MPUP1RSTF);
 }
 
+#ifdef CFG_WITH_PAGER
 /*
  * This concerns OP-TEE pager for STM32MP1 to use secure internal
  * RAMs to execute. TZSRAM refers the TZSRAM_BASE/TZSRAM_SIZE
@@ -250,7 +251,6 @@ void boot_secondary_init_intc(void)
 
 #define TZSRAM_IS_IN_DRAM	(CFG_TZSRAM_START >= CFG_DRAM_BASE)
 
-#ifdef CFG_WITH_PAGER
 /*
  * At build time, we enforce that, when pager is used,
  * either TZSRAM fully fits inside SYSRAM secure address range,
