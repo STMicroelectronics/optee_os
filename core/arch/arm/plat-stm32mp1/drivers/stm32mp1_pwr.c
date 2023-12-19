@@ -19,6 +19,10 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 
+/* VBAT charge */
+#define PWR_CR3_VBE		BIT(8)
+#define PWR_CR3_VBRS		BIT(9)
+/* Regulators */
 #define PWR_CR3_USB33_EN	BIT(24)
 #define PWR_CR3_USB33_RDY	BIT(26)
 #define PWR_CR3_REG18_EN	BIT(28)
@@ -275,6 +279,15 @@ static TEE_Result stm32mp1_pwr_regu_probe(const void *fdt, int node,
 			EMSG("Can't register %s: %#"PRIx32, node_name, res);
 			panic();
 		}
+	}
+
+	if (fdt_getprop(fdt, node, "st,enable-vbat-charge", NULL)) {
+		uintptr_t cr3 = stm32_pwr_base() + PWR_CR3_OFF;
+
+		io_setbits32(cr3, PWR_CR3_VBE);
+
+		if (fdt_getprop(fdt, node, "st,vbat-charge-1K5", NULL))
+			io_setbits32(cr3, PWR_CR3_VBRS);
 	}
 
 	return TEE_SUCCESS;
