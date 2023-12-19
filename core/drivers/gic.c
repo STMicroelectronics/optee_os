@@ -395,10 +395,10 @@ static void init_gic_per_cpu(struct gic_data *gd)
 	 * allow the Non-secure world to adjust the priority mask itself
 	 */
 #if defined(CFG_ARM_GICV3)
-	write_icc_pmr(0x80);
+	write_icc_pmr(GIC_HIGHEST_NS_PRIORITY);
 	write_icc_igrpen1(1);
 #else
-	io_write32(gd->gicc_base + GICC_PMR, 0x80);
+	io_write32(gd->gicc_base + GICC_PMR, GIC_HIGHEST_NS_PRIORITY);
 
 	/* Enable GIC */
 	io_write32(gd->gicc_base + GICC_CTLR,
@@ -684,11 +684,11 @@ static void gic_init_setup(struct gic_data __maybe_unused *gd)
 	 * allow the Non-secure world to adjust the priority mask itself
 	 */
 #if defined(CFG_ARM_GICV3)
-	write_icc_pmr(0x80);
+	write_icc_pmr(GIC_HIGHEST_NS_PRIORITY);
 	write_icc_igrpen1(1);
 	io_setbits32(gd->gicd_base + GICD_CTLR, GICD_CTLR_ENABLEGRP1S);
 #else
-	io_write32(gd->gicc_base + GICC_PMR, 0x80);
+	io_write32(gd->gicc_base + GICC_PMR, GIC_HIGHEST_NS_PRIORITY);
 
 	/* Enable GIC */
 	io_write32(gd->gicc_base + GICC_CTLR, GICC_CTLR_FIQEN |
