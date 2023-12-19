@@ -10,6 +10,7 @@
 #include <sm/sm.h>
 #include <sm/std_smc.h>
 
+#include "pwr_svc.h"
 #include "stm32mp1_smc.h"
 
 static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
@@ -42,6 +43,9 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		break;
 	case STM32_SIP_SVC_FUNC_BSEC:
 		args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
+		break;
+	case STM32_SIP_SVC_FUNC_PWR:
+		args->a0 = pwr_scv_handler(args->a1, args->a2, args->a3);
 		break;
 	default:
 		return SM_HANDLER_PENDING_SMC;

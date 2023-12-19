@@ -14,7 +14,7 @@
 #define STM32_SIP_SVC_VERSION_MAJOR	0x0
 #define STM32_SIP_SVC_VERSION_MINOR	0x1
 
-#define STM32_SIP_SVC_FUNCTION_COUNT	0x3
+#define STM32_SIP_SVC_FUNCTION_COUNT	0x4
 
 /* STM32 SIP service generic return codes */
 #define STM32_SIP_SVC_OK		0x0
@@ -70,6 +70,24 @@
  * Argument a1: (output) STM32 SIP service minor
  */
 #define STM32_SIP_SVC_FUNC_VERSION		0xff03
+
+/*
+ * SIP function STM32_SIP_SVC_FUNC_PWR
+ *
+ * Argument a0: (input) SMCC ID
+ *		(output) status return code
+ * Argument a1: (input) Service ID (STM32_SIP_REG_xxx)
+ * Argument a2: (input) register offset or physical address
+ *		(output) register read value, if applicable
+ * Argument a3: (input) register target value if applicable
+ */
+#define STM32_SIP_SVC_FUNC_PWR			0x1001
+
+/* Service ID for STM32_SIP_SVC_FUNC_RCC/_PWR */
+#define STM32_SIP_SVC_REG_READ			0x0
+#define STM32_SIP_SVC_REG_WRITE			0x1
+#define STM32_SIP_SVC_REG_SET			0x2
+#define STM32_SIP_SVC_REG_CLEAR			0x3
 
 /*
  * SIP functions STM32_SIP_SVC_FUNC_BSEC - Deprecated
