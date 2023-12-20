@@ -8,8 +8,10 @@
 #include <drivers/firewall_device.h>
 #include <drivers/rstctrl.h>
 #include <drivers/stm32_remoteproc.h>
+#include <keep.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/dt_driver.h>
+#include <kernel/pm.h>
 #include <kernel/tee_misc.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
@@ -120,6 +122,8 @@ struct stm32_rproc_instance {
  */
 struct stm32_rproc_compat_data {
 	uint32_t rproc_id;
+	TEE_Result (*pm)(enum pm_op op, unsigned int pm_hint,
+			 const struct pm_callback_handle *pm_handle);
 	TEE_Result (*start)(struct stm32_rproc_instance *rproc);
 	bool ns_loading;
 };
@@ -730,6 +734,18 @@ static struct stm32_rproc_reset *to_rproc_reset(struct rstctrl *rstctrl)
 	return container_of(rstctrl, struct stm32_rproc_reset, rstctrl);
 }
 
+static TEE_Result stm32mp25_rproc_pm(enum pm_op op, unsigned int pm_hint,
+				     const struct pm_callback_handle *pm_handle)
+{
+	struct stm32_rproc_instance *rproc = pm_handle->handle;
+
+	if (PM_HINT_IS_STATE(pm_hint, CONTEXT) && op == PM_OP_RESUME)
+		stm32_rproc_a35ss_cfg(rproc);
+
+	return TEE_SUCCESS;
+}
+DECLARE_KEEP_PAGER(stm32mp25_rproc_pm);
+
 static TEE_Result stm32_rproc_reset_update(struct rstctrl *rstctrl, bool status,
 					   unsigned int to_us)
 {
@@ -902,6 +918,9 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 	if (!rproc->cdata->ns_loading)
 		SLIST_INSERT_HEAD(&rproc_list, rproc, link);
 
+	if (rproc->cdata->pm)
+		register_pm_driver_cb(rproc->cdata->pm, rproc, "stm32-rproc");
+
 	return TEE_SUCCESS;
 
 err:
@@ -916,12 +935,14 @@ static const struct stm32_rproc_compat_data stm32_rproc_m4_tee_compat = {
 
 static const struct stm32_rproc_compat_data stm32_rproc_m33_compat = {
 	.rproc_id = STM32MP2_M33_RPROC_ID,
+	.pm = stm32mp25_rproc_pm,
 	.ns_loading = true,
 	.start = stm32mp2_rproc_start,
 };
 
 static const struct stm32_rproc_compat_data stm32_rproc_m33_tee_compat = {
 	.rproc_id = STM32MP2_M33_RPROC_ID,
+	.pm = stm32mp25_rproc_pm,
 	.ns_loading = false,
 	.start = stm32mp2_rproc_start,
 };
