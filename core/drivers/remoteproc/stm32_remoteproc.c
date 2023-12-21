@@ -57,6 +57,7 @@ struct stm32_rproc_mem {
  * @regions:	memory regions used
  * @mcu_rst:	remote processor reset control
  * @hold_boot:	remote processor hold boot control
+ * @m33_cr_right: access rights for the M33 subsystem control registers
  * @boot_addr:	boot address
  * @tzen:	indicate if the remote processor should enable the TrustZone
  */
@@ -67,6 +68,7 @@ struct stm32_rproc_instance {
 	struct stm32_rproc_mem *regions;
 	struct rstctrl *mcu_rst;
 	struct rstctrl *hold_boot;
+	uint32_t m33_cr_right;
 	paddr_t boot_addr;
 	bool tzen;
 };
@@ -412,6 +414,13 @@ static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 	int n_regions = 0;
 	int i = 0;
 
+	/*
+	 * In case of firmware loading by the non secure context no need to
+	 * register memory regions, so we ignore them.
+	 */
+	if (rproc->cdata->ns_loading)
+		return TEE_SUCCESS;
+
 	list = fdt_getprop(fdt, node, "memory-region", &len);
 	if (!list) {
 		EMSG("No memory regions found in DT");
@@ -513,6 +522,20 @@ static void stm32_rproc_cleanup(struct stm32_rproc_instance *rproc)
 	free(rproc);
 }
 
+static void stm32_rproc_a35ss_cfg(struct stm32_rproc_instance *rproc __unused)
+{
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
+	stm32mp_syscfg_write(CA35SS_SYSCFG_M33_ACCESS_CR,
+			     rproc->m33_cr_right,
+			     CA35SS_SYSCFG_M33_ACCESS_CR_SEC |
+			     CA35SS_SYSCFG_M33_ACCESS_CR_PRIV);
+	/* Disable the TrustZone that is enabled by default */
+	stm32mp_syscfg_write(CA35SS_SYSCFG_M33_TZEN_CR, 0,
+			     CA35SS_SYSCFG_M33_TZEN_CR_CFG_SECEXT);
+
+#endif
+}
+
 static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 				    const void *comp_data)
 {
@@ -525,9 +548,25 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 
 	rproc->cdata = comp_data;
 
-	res = stm32_rproc_parse_mems(rproc, fdt, node);
-	if (res)
-		goto err;
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
+	if (rproc->cdata->ns_loading) {
+		/*
+		 * The remote firmware will be loaded by the non secure
+		 * Provide access rights to A35SSC_M33 registers
+		 * to the non secure context
+		 */
+		rproc->m33_cr_right = CA35SS_SYSCFG_M33_ACCESS_CR_PRIV;
+	} else {
+		rproc->m33_cr_right = CA35SS_SYSCFG_M33_ACCESS_CR_SEC |
+				      CA35SS_SYSCFG_M33_ACCESS_CR_PRIV;
+	}
+#endif /* CFG_STM32MP25 || CFG_STM32MP23 || CFG_STM32MP21 */
+
+	if (!rproc->cdata->ns_loading) {
+		res = stm32_rproc_parse_mems(rproc, fdt, node);
+		if (res)
+			goto err;
+	}
 
 	res = rstctrl_dt_get_by_name(fdt, node, "mcu_rst", &rproc->mcu_rst);
 	if (res)
@@ -538,11 +577,13 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 		goto err;
 
 	/* Ensure that the MCU is HOLD */
-	if (rproc->mcu_rst) {
+	if (!rproc->cdata->ns_loading) {
 		res = rproc_stop(rproc);
 		if (res)
 			goto err;
 	}
+
+	stm32_rproc_a35ss_cfg(rproc);
 
 #ifdef CFG_STM32MP15
 	if (!stm32_rcc_is_secure()) {
@@ -562,7 +603,8 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 	 */
 	IMSG("Warning: the remoteproc memories are not protected by firewall");
 
-	SLIST_INSERT_HEAD(&rproc_list, rproc, link);
+	if (!rproc->cdata->ns_loading)
+		SLIST_INSERT_HEAD(&rproc_list, rproc, link);
 
 	return TEE_SUCCESS;
 
@@ -571,12 +613,18 @@ err:
 	return res;
 }
 
-static const struct stm32_rproc_compat_data stm32_rproc_m4_compat = {
+static const struct stm32_rproc_compat_data stm32_rproc_m4_tee_compat = {
 	.rproc_id = STM32MP1_M4_RPROC_ID,
 	.ns_loading = false,
 };
 
 static const struct stm32_rproc_compat_data stm32_rproc_m33_compat = {
+	.rproc_id = STM32MP2_M33_RPROC_ID,
+	.ns_loading = true,
+	.start = stm32mp2_rproc_start,
+};
+
+static const struct stm32_rproc_compat_data stm32_rproc_m33_tee_compat = {
 	.rproc_id = STM32MP2_M33_RPROC_ID,
 	.ns_loading = false,
 	.start = stm32mp2_rproc_start,
@@ -585,11 +633,15 @@ static const struct stm32_rproc_compat_data stm32_rproc_m33_compat = {
 static const struct dt_device_match stm32_rproc_match_table[] = {
 	{
 		.compatible = "st,stm32mp1-m4-tee",
-		.compat_data = &stm32_rproc_m4_compat,
+		.compat_data = &stm32_rproc_m4_tee_compat,
+	},
+	{
+		.compatible = "st,stm32mp2-m33",
+		.compat_data = &stm32_rproc_m33_compat,
 	},
 	{
 		.compatible = "st,stm32mp2-m33-tee",
-		.compat_data = &stm32_rproc_m33_compat,
+		.compat_data = &stm32_rproc_m33_tee_compat,
 	},
 	{ }
 };
