@@ -631,6 +631,25 @@ int32_t plat_scmi_clock_set_state(unsigned int channel_id, unsigned int scmi_id,
 	return SCMI_SUCCESS;
 }
 
+int32_t plat_scmi_clock_get_duty_cycle(unsigned int channel_id, unsigned int scmi_id,
+				       struct clk_duty_cycle *duty)
+{
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
+	struct clk *clk_ref = NULL;
+	int ret = 0;
+
+	if (!clock || !nsec_can_access_resource(clock->etzpc_id))
+		return SCMI_DENIED;
+
+	clk_ref = stm32mp_rcc_clock_id_to_clk(clock->clock_id);
+
+	ret = clk_get_duty_cycle(clk_ref, duty);
+	if (ret)
+		return SCMI_NOT_SUPPORTED;
+
+	return SCMI_SUCCESS;
+}
+
 /*
  * Platform SCMI reset domains
  */
