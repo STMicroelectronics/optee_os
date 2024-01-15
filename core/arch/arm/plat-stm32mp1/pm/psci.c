@@ -455,12 +455,7 @@ void __noreturn psci_system_off(void)
 /* Override default psci_system_reset() with platform specific sequence */
 void __noreturn psci_system_reset(void)
 {
-	IMSG("Forced system reset");
-	console_flush();
-	mdelay(10);
-	stm32_reset_system();
-	udelay(100);
-	panic();
+	do_reset("PSCI");
 }
 
 /* Override default psci_cpu_on() with platform supported features */
