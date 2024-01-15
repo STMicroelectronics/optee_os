@@ -116,6 +116,29 @@
 
 	};
 
+	scmi_regu: scmi-regu {
+		compatible = "st,scmi-regulator-consumer";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		scmi-channel-id = <0>;
+
+		scmi_reg11: voltd-reg11 {
+			reg = <VOLTD_SCMI_REG11>;
+			voltd-supply = <&reg11>;
+		};
+
+		scmi_reg18: voltd-reg18 {
+			reg = <VOLTD_SCMI_REG18>;
+			voltd-supply = <&reg18>;
+		};
+
+		scmi_usb33: voltd-usb33 {
+			reg = <VOLTD_SCMI_USB33>;
+			voltd-supply = <&usb33>;
+		};
+	};
+
 	sdmmc1_io: sdmmc1_io {
 		compatible = "st,stm32mp13-iod";
 		regulator-name = "sdmmc1_io";

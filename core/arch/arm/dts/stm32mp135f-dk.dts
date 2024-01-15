@@ -530,6 +530,41 @@
 	status = "okay";
 };
 
+&scmi_regu {
+	voltd-vddcpu {
+		reg = <VOLTD_SCMI_STPMIC1_BUCK1>;
+		voltd-supply = <&vddcpu>;
+	};
+	voltd-vdd {
+		reg = <VOLTD_SCMI_STPMIC1_BUCK3>;
+		voltd-supply = <&vdd>;
+	};
+	voltd-vddcore {
+		reg = <VOLTD_SCMI_STPMIC1_BUCK4>;
+		voltd-supply = <&vddcore>;
+	};
+	voltd-vdd-adc {
+		reg = <VOLTD_SCMI_STPMIC1_LDO1>;
+		voltd-supply = <&vdd_adc>;
+	};
+	voltd-vdd-usb {
+		reg = <VOLTD_SCMI_STPMIC1_LDO4>;
+		voltd-supply = <&vdd_usb>;
+	};
+	voltd-vdd-sd {
+		reg = <VOLTD_SCMI_STPMIC1_LDO5>;
+		voltd-supply = <&vdd_sd>;
+	};
+	voltd-v1v8-periph {
+		reg = <VOLTD_SCMI_STPMIC1_LDO6>;
+		voltd-supply = <&v1v8_periph>;
+	};
+	voltd-v3v3-sw {
+		reg = <VOLTD_SCMI_STPMIC1_PWR_SW2>;
+		voltd-supply = <&v3v3_sw>;
+	};
+};
+
 &sdmmc1_io {
 	vddsd1-supply = <&vdd>;
 };
