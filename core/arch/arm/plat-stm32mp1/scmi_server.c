@@ -544,9 +544,22 @@ const char *plat_scmi_clock_get_name(unsigned int channel_id,
 	return clock->name;
 }
 
-int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
-				    unsigned int scmi_id, size_t start_index,
-				    unsigned long *array, size_t *nb_elts)
+int32_t plat_scmi_clock_rates_array(unsigned int channel_id __unused,
+				    unsigned int scmi_id __unused,
+				    size_t start_index __unused,
+				    unsigned long *array __unused,
+				    size_t *nb_elts __unused)
+{
+	/*
+	 * Explicitly do not expose clock rates by array since not
+	 * fully supported by Linux kernel as of v5.4.24.
+	 */
+	return SCMI_NOT_SUPPORTED;
+}
+
+int32_t plat_scmi_clock_rates_by_step(unsigned int channel_id,
+				      unsigned int scmi_id,
+				      unsigned long *array)
 {
 	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
 
@@ -556,16 +569,62 @@ int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
 	if (!nsec_can_access_resource(clock->etzpc_id))
 		return SCMI_DENIED;
 
-	/* Exposed clocks are currently fixed rate clocks */
-	if (start_index)
-		return SCMI_INVALID_PARAMETERS;
+	switch (scmi_id) {
+	case CK_SCMI_MPU:
+		/*
+		 * Pretend we support all rates for MPU clock,
+		 * CLOCK_RATE_SET will reject unsupported rates.
+		 */
+		array[0] = 0U;
+		array[1] = UINT32_MAX;
+		array[2] = 1U;
+		break;
+#ifdef CFG_STM32MP13
+	case CK_SCMI_PLL4_Q:
+		array[0] = 0U;
+		array[1] = UINT32_MAX;
+		array[2] = 0U;
+		break;
+#endif
+	default:
+		array[0] = clk_get_rate(clock->clk);
+		array[1] = array[0];
+		array[2] = 0U;
+		break;
+	}
 
-	if (!array)
-		*nb_elts = 1;
-	else if (*nb_elts == 1)
-		*array = clk_get_rate(clock->clk);
-	else
-		return SCMI_GENERIC_ERROR;
+	return SCMI_SUCCESS;
+}
+
+int32_t plat_scmi_clock_set_rate(unsigned int channel_id, unsigned int scmi_id,
+				 unsigned long rate)
+{
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
+
+	if (!clock)
+		return SCMI_NOT_FOUND;
+
+	if (!nsec_can_access_resource(clock->etzpc_id))
+		return SCMI_DENIED;
+
+	switch (scmi_id) {
+#if defined(CFG_STM32MP15) && defined(CFG_STM32_CPU_OPP)
+	case CK_SCMI_MPU:
+		if (stm32mp1_set_opp_khz(rate / 1000))
+			return SCMI_INVALID_PARAMETERS;
+		break;
+#endif
+#ifdef CFG_STM32MP13
+	case CK_SCMI_PLL4_Q:
+		if (clk_set_rate(clock->clk, rate))
+			return SCMI_INVALID_PARAMETERS;
+		break;
+#endif
+	default:
+		if (rate != clk_get_rate(clock->clk))
+			return SCMI_INVALID_PARAMETERS;
+		break;
+	}
 
 	return SCMI_SUCCESS;
 }
