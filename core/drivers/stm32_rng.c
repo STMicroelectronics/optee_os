@@ -567,7 +567,9 @@ static TEE_Result stm32_rng_pm_suspend(void)
 		if (io_read32(rng_base + RNG_CR) & RNG_CR_CONDRST)
 			panic();
 	} else {
+#ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
 		io_clrbits32(rng_base + RNG_CR, RNG_CR_RNGEN);
+#endif
 	}
 
 	return TEE_SUCCESS;
@@ -795,7 +797,8 @@ DEFINE_DT_DRIVER(stm32_rng_dt_driver) = {
 
 static TEE_Result stm32_rng_release(void)
 {
-	if (stm32_rng && IS_ENABLED(CFG_WITH_SOFTWARE_PRNG)) {
+	if (stm32_rng && IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
+	    !IS_ENABLED(CFG_STM32MP1_OPTEE_IN_SYSRAM)) {
 		DMSG("Release RNG driver");
 		free(stm32_rng);
 		stm32_rng = NULL;
