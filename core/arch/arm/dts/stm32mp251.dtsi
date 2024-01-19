@@ -28,6 +28,14 @@
 		};
 	};
 
+	hse_monitor: hse-monitor {
+		compatible = "st,freq-monitor";
+		counter = <&lptimer1 1 5 1 1>;
+		clocks = <&rcc HSE_CK>, <&rcc HSI_CK>;
+		clock-names = "hse", "hsi";
+		status = "disabled";
+	};
+
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
