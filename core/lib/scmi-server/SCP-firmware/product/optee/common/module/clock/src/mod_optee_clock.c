@@ -207,6 +207,8 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
             range->min = clk_get_rate(ctx->clk);
             range->max = range->min;
             range->rate_count = 1;
+        } else if (res != TEE_SUCCESS) {
+            return scmi_tee_result_to_fwk_status(res);
         }
 
         range->rate_type = MOD_CLOCK_RATE_TYPE_CONTINUOUS;
@@ -216,7 +218,7 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
 
         return FWK_SUCCESS;
     } else if (res != TEE_SUCCESS) {
-        return FWK_E_DEVICE;
+        return scmi_tee_result_to_fwk_status(res);
     }
 
     range->rate_type = MOD_CLOCK_RATE_TYPE_DISCRETE;
@@ -252,10 +254,8 @@ static int set_rate(
     }
 
     res = clk_set_rate(ctx->clk, rate);
-    if (res == TEE_ERROR_NOT_SUPPORTED) {
-        return FWK_E_SUPPORT;
-    } else if (res != TEE_SUCCESS) {
-        return FWK_E_DEVICE;
+    if (res) {
+        return scmi_tee_result_to_fwk_status(res);
     }
 
     FWK_LOG_DEBUG(
@@ -295,7 +295,7 @@ static int get_rate_from_index(
         *rate = clk_get_rate(ctx->clk);
         return FWK_SUCCESS;
     } else if (res != TEE_SUCCESS) {
-        return FWK_E_DEVICE;
+        return scmi_tee_result_to_fwk_status(res);
     }
 
     if (rate_index > rate_count) {
@@ -347,7 +347,7 @@ static int get_duty_cycle(fwk_id_t dev_id, uint32_t *num, uint32_t *den)
         /* Assume a 50% duty cycle */
         duty = (struct clk_duty_cycle){ .num = 1, .den = 2 };
     } else if (res != TEE_SUCCESS) {
-        return FWK_E_DEVICE;
+        return scmi_tee_result_to_fwk_status(res);
     }
 
     *num = duty.num;
@@ -417,7 +417,7 @@ static int optee_clock_element_init(
         if (ctx->enabled) {
             res = clk_enable(ctx->clk);
             if (res) {
-                return FWK_E_DEVICE;
+                return scmi_tee_result_to_fwk_status(res);
             }
         }
     }
