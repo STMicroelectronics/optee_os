@@ -114,4 +114,11 @@ static inline bool stm32_rproc_is_secure(uint32_t rproc_id __unused)
 }
 #endif
 
+/*
+ * stm32_rproc_clean() - clean resources
+ * @rproc_id	unique identifier of the remote processor
+ * Return TEE_SUCCESS or appropriate error.
+ */
+TEE_Result stm32_rproc_clean(uint32_t rproc_id);
+
 #endif /* __DRIVERS_STM32_REMOTEPROC_H */

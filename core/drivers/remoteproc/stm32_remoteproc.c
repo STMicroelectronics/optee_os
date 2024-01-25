@@ -487,6 +487,23 @@ static TEE_Result stm32_rproc_get_dma_ranges(struct stm32_rproc_instance *rproc,
 	return TEE_SUCCESS;
 }
 
+TEE_Result stm32_rproc_clean(uint32_t rproc_id)
+{
+	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!rproc)
+		return TEE_ERROR_BAD_PARAMETERS;
+	res = stm32_rproc_clean_up_memories(rproc_id);
+	if (res)
+		return res;
+
+	rproc->boot_addr = 0;
+	rproc->tzen = false;
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result stm32_rproc_set_boot_address(uint32_t rproc_id, paddr_t address)
 {
 	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
