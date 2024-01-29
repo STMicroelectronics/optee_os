@@ -337,6 +337,14 @@
 	status = "okay";
 };
 
+&lptimer3 {
+	status = "okay";
+
+	counter {
+		status = "okay";
+	};
+};
+
 &oem_enc_key {
 	st,non-secure-otp-provisioning;
 };
