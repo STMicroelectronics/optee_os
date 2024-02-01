@@ -575,6 +575,32 @@
 					status = "disabled";
 				};
 			};
+
+			ltdc: display-controller@48010000 {
+				compatible = "st,stm32-ltdc";
+				reg = <0x48010000 0x400>;
+				interrupts = <GIC_SPI 160 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 161 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_LTDC>, <&rcc CK_KER_LTDC>;
+				clock-names = "bus", "lcd";
+				resets = <&rcc LTDC_R>;
+				status = "disabled";
+				access-controllers = <&rifsc STM32MP25_RIFSC_LTDC_CMN_ID>;
+				access-controller-names = "cmn";
+
+				l1l2 {
+					access-controllers = <&rifsc STM32MP25_RIFSC_LTDC_L1L2_ID>;
+					access-controller-names = "l1l2";
+				};
+				l3 {
+					access-controllers = <&rifsc STM32MP25_RIFSC_LTDC_L3_ID>;
+					access-controller-names = "l3";
+				};
+				rot {
+					access-controllers = <&rifsc STM32MP25_RIFSC_LTDC_ROT_ID>;
+					access-controller-names = "rot";
+				};
+			};
 		};
 
 		iac: iac@42090000 {
