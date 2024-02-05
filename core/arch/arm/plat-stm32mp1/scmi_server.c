@@ -1213,10 +1213,9 @@ static TEE_Result stm32_scmi_pm(enum pm_op op, unsigned int pm_hint __unused,
 	if (op == PM_OP_RESUME) {
 		for (i = 0; i < ARRAY_SIZE(scmi_channel); i++) {
 			chan = plat_scmi_get_channel(i);
-
-			assert(chan && chan->shm_addr.va);
-
-			scmi_smt_init_agent_channel(chan);
+			assert(chan);
+			if (chan->shm_addr.va)
+				scmi_smt_init_agent_channel(chan);
 		}
 	}
 
