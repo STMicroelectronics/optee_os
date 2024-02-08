@@ -379,6 +379,10 @@
 	status = "okay";
 };
 
+&m33_rproc {
+	status = "okay";
+};
+
 &ommanager {
 	memory-region = <&mm_ospi1>;
 	memory-region-names = "mm_ospi1";
