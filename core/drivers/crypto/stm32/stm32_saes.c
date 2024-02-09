@@ -24,109 +24,11 @@
 
 #include "common.h"
 #include "stm32_saes.h"
-
-/* SAES control register */
-#define _SAES_CR			U(0x0)
-/* SAES status register */
-#define _SAES_SR			U(0x04)
-/* SAES data input register */
-#define _SAES_DINR			U(0x08)
-/* SAES data output register */
-#define _SAES_DOUTR			U(0x0c)
-/* SAES key registers [0-3] */
-#define _SAES_KEYR0			U(0x10)
-#define _SAES_KEYR1			U(0x14)
-#define _SAES_KEYR2			U(0x18)
-#define _SAES_KEYR3			U(0x1c)
-/* SAES initialization vector registers [0-3] */
-#define _SAES_IVR0			U(0x20)
-#define _SAES_IVR1			U(0x24)
-#define _SAES_IVR2			U(0x28)
-#define _SAES_IVR3			U(0x2c)
-/* SAES key registers [4-7] */
-#define _SAES_KEYR4			U(0x30)
-#define _SAES_KEYR5			U(0x34)
-#define _SAES_KEYR6			U(0x38)
-#define _SAES_KEYR7			U(0x3c)
-/* SAES suspend registers [0-7] */
-#define _SAES_SUSPR0			U(0x40)
-#define _SAES_SUSPR1			U(0x44)
-#define _SAES_SUSPR2			U(0x48)
-#define _SAES_SUSPR3			U(0x4c)
-#define _SAES_SUSPR4			U(0x50)
-#define _SAES_SUSPR5			U(0x54)
-#define _SAES_SUSPR6			U(0x58)
-#define _SAES_SUSPR7			U(0x5c)
-/* SAES Interrupt Enable Register */
-#define _SAES_IER			U(0x300)
-/* SAES Interrupt Status Register */
-#define _SAES_ISR			U(0x304)
-/* SAES Interrupt Clear Register */
-#define _SAES_ICR			U(0x308)
-
-/* SAES control register fields */
-#define _SAES_CR_RESET_VALUE		U(0x0)
-#define _SAES_CR_IPRST			BIT(31)
-#define _SAES_CR_KEYSEL_MASK		GENMASK_32(30, 28)
-#define _SAES_CR_KEYSEL_SHIFT		U(28)
-#define _SAES_CR_KEYSEL_SOFT		U(0x0)
-#define _SAES_CR_KEYSEL_DHUK		U(0x1)
-#define _SAES_CR_KEYSEL_BHK		U(0x2)
-#define _SAES_CR_KEYSEL_BHU_XOR_BH_K	U(0x4)
-#define _SAES_CR_KEYSEL_TEST		U(0x7)
-#define _SAES_CR_KSHAREID_MASK		GENMASK_32(27, 26)
-#define _SAES_CR_KSHAREID_SHIFT		U(26)
-#define _SAES_CR_KSHAREID_CRYP		U(0x0)
-#define _SAES_CR_KEYMOD_MASK		GENMASK_32(25, 24)
-#define _SAES_CR_KEYMOD_SHIFT		U(24)
-#define _SAES_CR_KEYMOD_NORMAL		U(0x0)
-#define _SAES_CR_KEYMOD_WRAPPED		U(0x1)
-#define _SAES_CR_KEYMOD_SHARED		U(0x2)
-#define _SAES_CR_NPBLB_MASK		GENMASK_32(23, 20)
-#define _SAES_CR_NPBLB_SHIFT		U(20)
-#define _SAES_CR_KEYPROT		BIT(19)
-#define _SAES_CR_KEYSIZE		BIT(18)
-#define _SAES_CR_GCMPH_MASK		GENMASK_32(14, 13)
-#define _SAES_CR_GCMPH_SHIFT		U(13)
-#define _SAES_CR_GCMPH_INIT		U(0)
-#define _SAES_CR_GCMPH_HEADER		U(1)
-#define _SAES_CR_GCMPH_PAYLOAD		U(2)
-#define _SAES_CR_GCMPH_FINAL		U(3)
-#define _SAES_CR_DMAOUTEN		BIT(12)
-#define _SAES_CR_DMAINEN		BIT(11)
-#define _SAES_CR_CHMOD_MASK		(BIT(16) | GENMASK_32(6, 5))
-#define _SAES_CR_CHMOD_SHIFT		U(5)
-#define _SAES_CR_CHMOD_ECB		U(0x0)
-#define _SAES_CR_CHMOD_CBC		U(0x1)
-#define _SAES_CR_CHMOD_CTR		U(0x2)
-#define _SAES_CR_CHMOD_GCM		U(0x3)
-#define _SAES_CR_CHMOD_GMAC		U(0x3)
-#define _SAES_CR_CHMOD_CCM		U(0x800)
-#define _SAES_CR_MODE_MASK		GENMASK_32(4, 3)
-#define _SAES_CR_MODE_SHIFT		U(3)
-#define _SAES_CR_MODE_ENC		U(0)
-#define _SAES_CR_MODE_KEYPREP		U(1)
-#define _SAES_CR_MODE_DEC		U(2)
-#define _SAES_CR_DATATYPE_MASK		GENMASK_32(2, 1)
-#define _SAES_CR_DATATYPE_SHIFT		U(1)
-#define _SAES_CR_DATATYPE_NONE		U(0)
-#define _SAES_CR_DATATYPE_HALF_WORD	U(1)
-#define _SAES_CR_DATATYPE_BYTE		U(2)
-#define _SAES_CR_DATATYPE_BIT		U(3)
-#define _SAES_CR_EN			BIT(0)
-
-/* SAES status register fields */
-#define _SAES_SR_KEYVALID		BIT(7)
-#define _SAES_SR_BUSY			BIT(3)
-#define _SAES_SR_WRERR			BIT(2)
-#define _SAES_SR_RDERR			BIT(1)
-#define _SAES_SR_CCF			BIT(0)
-
-/* SAES interrupt registers fields */
-#define _SAES_I_RNG_ERR			BIT(3)
-#define _SAES_I_KEY_ERR			BIT(2)
-#define _SAES_I_RW_ERR			BIT(1)
-#define _SAES_I_CC			BIT(0)
+#if defined(CFG_STM32MP21)
+#include "stm32mp21_saes_regs.h"
+#else /* !defined(CFG_STM32MP21) */
+#include "stm32_saes_regs.h"
+#endif /* defined(CFG_STM32MP21) */
 
 #define SAES_TIMEOUT_US			U(100000)
 #define TIMEOUT_US_1MS			U(1000)
@@ -222,12 +124,12 @@ static TEE_Result wait_computation_completed(vaddr_t base)
 {
 	uint64_t timeout_ref = timeout_init_us(SAES_TIMEOUT_US);
 
-	while ((io_read32(base + _SAES_SR) & _SAES_SR_CCF) != _SAES_SR_CCF)
+	while ((io_read32(base + _SAES_ISR) & _SAES_I_CCF) != _SAES_I_CCF)
 		if (timeout_elapsed(timeout_ref))
 			break;
 
-	if ((io_read32(base + _SAES_SR) & _SAES_SR_CCF) != _SAES_SR_CCF) {
-		DMSG("CCF timeout");
+	if ((io_read32(base + _SAES_ISR) & _SAES_I_CCF) != _SAES_I_CCF) {
+		DMSG("Computation Complete flag timeout");
 		return TEE_ERROR_GENERIC;
 	}
 
@@ -236,7 +138,7 @@ static TEE_Result wait_computation_completed(vaddr_t base)
 
 static void clear_computation_completed(uintptr_t base)
 {
-	io_setbits32(base + _SAES_ICR, _SAES_I_CC);
+	io_setbits32(base + _SAES_ICR, _SAES_I_CCF);
 }
 
 static TEE_Result wait_key_valid(vaddr_t base)
@@ -319,28 +221,62 @@ static void saes_restore_suspend(struct stm32_saes_context *ctx)
 			   ctx->susp[i]);
 }
 
-static void saes_write_key(struct stm32_saes_context *ctx)
+static uint32_t saes_get_keysize(struct stm32_saes_context *ctx)
+{
+	int keysize;
+	uint32_t ret = 0;
+
+#ifdef CFG_STM32MP21
+	keysize = (ctx->cr & _SAES_CR_KEYSIZE_MASK) >> _SAES_CR_KEYSIZE_SHIFT;
+#else /* CFG_STM32MP21 */
+	keysize = (ctx->cr & _SAES_CR_KEYSIZE) >> _SAES_CR_KEYSIZE_SHIFT;
+#endif /* CFG_STM32MP21 */
+
+	switch (keysize) {
+	case _SAES_CR_KEYSIZE_256:
+		ret =  AES_KEYSIZE_256;
+		break;
+#ifdef CFG_STM32MP21
+	case _SAES_CR_KEYSIZE_192:
+		ret = AES_KEYSIZE_192;
+		break;
+#endif /* CFG_STM32MP21 */
+	case _SAES_CR_KEYSIZE_128:
+		ret = AES_KEYSIZE_128;
+		break;
+	default:
+		EMSG("Invalid keysize");
+	}
+
+	return ret;
+}
+
+static TEE_Result saes_write_key(struct stm32_saes_context *ctx)
 {
 	/* Restore the _SAES_KEYRx if SOFTWARE key */
 	if ((ctx->cr & _SAES_CR_KEYSEL_MASK) ==
 	    SHIFT_U32(_SAES_CR_KEYSEL_SOFT, _SAES_CR_KEYSEL_SHIFT)) {
 		size_t i = 0;
+		uint32_t ks = 0;
+
+		ks = saes_get_keysize(ctx);
+		if (!ks)
+			return TEE_ERROR_BAD_PARAMETERS;
 
 		for (i = 0; i < AES_KEYSIZE_128 / sizeof(uint32_t); i++)
 			io_write32(ctx->base + _SAES_KEYR0 + i *
-				   sizeof(uint32_t),
-				   ctx->key[i]);
+				   sizeof(uint32_t), ctx->key[i]);
 
-		if ((ctx->cr & _SAES_CR_KEYSIZE) == _SAES_CR_KEYSIZE) {
-			for (i = 0;
-			     i < (AES_KEYSIZE_256 / 2) / sizeof(uint32_t);
-			     i++) {
+		if (ks > AES_KEYSIZE_128) {
+			ks -= AES_KEYSIZE_128; /* writes only remaining bytes */
+			for (i = 0; i < ks / sizeof(uint32_t); i++) {
 				io_write32(ctx->base + _SAES_KEYR4 + i *
-					   sizeof(uint32_t),
-					   ctx->key[i + 4]);
+					   sizeof(uint32_t), ctx->key[i + 4]);
 			}
 		}
 	}
+
+	return TEE_SUCCESS;
 }
 
 static TEE_Result saes_prepare_key(struct stm32_saes_context *ctx)
@@ -351,12 +287,16 @@ static TEE_Result saes_prepare_key(struct stm32_saes_context *ctx)
 	io_clrbits32(ctx->base + _SAES_CR, _SAES_CR_EN);
 
 	/* Set key size */
+#ifndef CFG_STM32MP21
 	if ((ctx->cr & _SAES_CR_KEYSIZE))
 		io_setbits32(ctx->base + _SAES_CR, _SAES_CR_KEYSIZE);
 	else
 		io_clrbits32(ctx->base + _SAES_CR, _SAES_CR_KEYSIZE);
+#endif /* CFG_STM32MP21 */
 
-	saes_write_key(ctx);
+	res = saes_write_key(ctx);
+	if (res)
+		return res;
 
 	res = wait_key_valid(ctx->base);
 	if (res)
@@ -393,7 +333,7 @@ static TEE_Result saes_prepare_key(struct stm32_saes_context *ctx)
 
 static TEE_Result save_context(struct stm32_saes_context *ctx)
 {
-	if ((io_read32(ctx->base + _SAES_SR) & _SAES_SR_CCF)) {
+	if ((io_read32(ctx->base + _SAES_ISR) & _SAES_I_CCF)) {
 		/* Device should not be in a processing phase */
 		return TEE_ERROR_BAD_STATE;
 	}
@@ -607,6 +547,24 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 				_SAES_CR_DATATYPE_BYTE);
 
 	/* Configure keysize */
+#ifdef CFG_STM32MP21
+	switch (key_size) {
+	case AES_KEYSIZE_128:
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSIZE_MASK,
+					_SAES_CR_KEYSIZE_128);
+		break;
+	case AES_KEYSIZE_192:
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSIZE_MASK,
+					_SAES_CR_KEYSIZE_192);
+		break;
+	case AES_KEYSIZE_256:
+		ctx->cr = set_field_u32(ctx->cr, _SAES_CR_KEYSIZE_MASK,
+					_SAES_CR_KEYSIZE_256);
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+#else /* !CFG_STM32MP21 */
 	switch (key_size) {
 	case AES_KEYSIZE_128:
 		ctx->cr &=  ~_SAES_CR_KEYSIZE;
@@ -617,6 +575,7 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
+#endif /* CFG_STM32MP21 */
 
 	/* Configure key */
 	switch (key_select) {
@@ -637,6 +596,19 @@ TEE_Result stm32_saes_init(struct stm32_saes_context *ctx, bool is_dec,
 				 */
 			}
 			break;
+#ifdef CFG_STM32MP21
+		case AES_KEYSIZE_192:
+			for (i = 0; i < AES_KEYSIZE_192 / sizeof(uint32_t);
+			     i++) {
+				ctx->key[i] =
+					TEE_U32_TO_BIG_ENDIAN(key_u32[5 - i]);
+				/*
+				 * /!\ we save the key in HW byte order
+				 * and word order: key[i] is for _SAES_KEYRi.
+				 */
+			}
+			break;
+#endif /* CFG_STM32MP21 */
 		case AES_KEYSIZE_256:
 			for (i = 0; i < AES_KEYSIZE_256 / sizeof(uint32_t);
 			     i++) {
