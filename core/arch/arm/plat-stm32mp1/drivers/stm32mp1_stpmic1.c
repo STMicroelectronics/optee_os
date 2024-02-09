@@ -126,6 +126,7 @@ enum regu_lp_state_id {
 	REGU_LP_STATE_STANDBY,
 	REGU_LP_STATE_MEM,
 	REGU_LP_STATE_MEM_LOWVOLTAGE,
+	REGU_LP_STATE_MEM_LOWVOLTAGE_CPUOFF,
 	REGU_LP_STATE_COUNT
 };
 
@@ -134,6 +135,7 @@ static struct regu_lp_state regu_lp_state[REGU_LP_STATE_COUNT] = {
 	[REGU_LP_STATE_STANDBY] = { .name = "standby-ddr-sr", },
 	[REGU_LP_STATE_MEM] = { .name = "lp-stop", },
 	[REGU_LP_STATE_MEM_LOWVOLTAGE] = { .name = "lplv-stop", },
+	[REGU_LP_STATE_MEM_LOWVOLTAGE_CPUOFF] = { .name = "lplv-stop2", },
 };
 
 static unsigned int regu_lp_state2idx(const char *name)
