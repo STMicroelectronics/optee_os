@@ -485,8 +485,26 @@ static TEE_Result pmic_regu_pm(enum pm_op op, uint32_t pm_hint,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result pmic_regu_init(struct regulator *regulator,
-				 const void *fdt __unused, int node __unused)
+static TEE_Result pmic_regu_init(struct regulator *regulator)
+{
+	/* Default configuration for STPMIC regulators */
+	regulator->ramp_delay_uv_per_us = U(2200);
+	regulator->enable_ramp_delay_us = U(1000);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result pmic_sw_init(struct regulator *regulator)
+{
+	/* Default configuration for STPMIC power switch */
+	regulator->enable_ramp_delay_us = U(1000);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result pmic_supplied_init(struct regulator *regulator,
+				     const void *fdt __unused,
+				     int node __unused)
 {
 	struct pmic_regulator_data *priv = regulator->priv;
 	struct stpmic1_bo_cfg cfg = { };
@@ -526,14 +544,16 @@ static const struct regulator_ops pmic_regu_ops = {
 	.set_voltage = pmic_set_voltage,
 	.get_voltage = pmic_get_voltage,
 	.supported_voltages = pmic_list_voltages,
-	.supplied_init = pmic_regu_init,
+	.init = pmic_regu_init,
+	.supplied_init = pmic_supplied_init,
 };
 DECLARE_KEEP_PAGER_PM(pmic_regu_ops);
 
 static const struct regulator_ops pmic_sw_ops = {
 	.set_state = pmic_set_state,
 	.get_state = pmic_get_state,
-	.supplied_init = pmic_regu_init,
+	.init = pmic_sw_init,
+	.supplied_init = pmic_supplied_init,
 };
 DECLARE_KEEP_PAGER_PM(pmic_sw_ops);
 
