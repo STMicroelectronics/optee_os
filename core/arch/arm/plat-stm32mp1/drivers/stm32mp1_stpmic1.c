@@ -10,11 +10,14 @@
 #include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stpmic1.h>
 #include <drivers/stpmic1_regulator.h>
+#include <dt-bindings/mfd/st,stpmic1.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
+#include <kernel/interrupt.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
@@ -61,6 +64,17 @@ struct pmic_regulator_data {
 static struct i2c_handle_s *i2c_handle;
 static uint32_t pmic_i2c_addr;
 static int pmic_status = -1;
+
+struct pmic_it_handle_s {
+	uint8_t pmic_reg;
+	uint8_t pmic_bit;
+	uint8_t notif_id;
+
+	SLIST_ENTRY(pmic_it_handle_s) link;
+};
+
+static SLIST_HEAD(pmic_it_handle_head, pmic_it_handle_s) pmic_it_handle_list =
+	SLIST_HEAD_INITIALIZER(pmic_it_handle_list);
 
 /* CPU voltage supplier if found */
 static char cpu_supply_name[PMIC_REGU_SUPPLY_NAME_LEN];
@@ -695,6 +709,201 @@ static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 	return TEE_SUCCESS;
 }
 
+static void pmic_event_handler(void)
+{
+	uint8_t read_val = 0U;
+	unsigned int i = 0U;
+	uint8_t latch1 = 0U;
+	uint8_t latch2 = 0U;
+	uint8_t latch3 = 0U;
+	uint8_t latch4 = 0U;
+
+	FMSG("Stpmic1 irq handler");
+
+	stm32mp_get_pmic();
+
+	do {
+		for (i = 0U; i < 4U; i++) {
+			if (stpmic1_register_read(ITLATCH1_REG + i, &read_val))
+				panic();
+
+			if (read_val) {
+				struct pmic_it_handle_s *prv = NULL;
+
+				FMSG("Stpmic1 irq pending %u: %#"PRIx8, i,
+				     read_val);
+
+				if (stpmic1_register_write(ITCLEARLATCH1_REG +
+							   i, read_val))
+					panic();
+
+				SLIST_FOREACH(prv, &pmic_it_handle_list, link)
+					if ((prv->pmic_reg == ITCLEARMASK1_REG +
+					     i) &&
+					    (read_val & BIT(prv->pmic_bit))) {
+						FMSG("STPMIC1 send notif %u",
+						     prv->notif_id);
+
+						notif_send_it(prv->notif_id, 0);
+				}
+			}
+		}
+
+		stpmic1_register_read(ITLATCH1_REG, &latch1);
+		stpmic1_register_read(ITLATCH2_REG, &latch2);
+		stpmic1_register_read(ITLATCH3_REG, &latch3);
+		stpmic1_register_read(ITLATCH4_REG, &latch4);
+
+	} while ((latch1 != 0) || (latch2 != 0) || (latch3 != 0) ||
+		 (latch4 != 0));
+
+	stm32mp_put_pmic();
+}
+
+static void enable_stpmic1_interrupt(void)
+{
+	struct pmic_it_handle_s *prv = NULL;
+	stm32mp_get_pmic();
+
+	/* Enable requested interrupt */
+	SLIST_FOREACH(prv, &pmic_it_handle_list, link) {
+		if (stpmic1_register_update(prv->pmic_reg,
+					    BIT(prv->pmic_bit),
+					    BIT(prv->pmic_bit)))
+			panic();
+	}
+
+	stm32mp_put_pmic();
+}
+
+static void yielding_stm32mp1_stpmic1_notif(struct notif_driver *ndrv __unused,
+					    enum notif_event ev)
+{
+	switch (ev) {
+	case NOTIF_EVENT_DO_BOTTOM_HALF:
+		pmic_event_handler();
+		break;
+	case NOTIF_EVENT_STOPPED:
+		/*
+		 * Treat events pending by the time NOTIF_EVENT_SOPPED
+		 * is handled by OP-TEE notif framework.
+		 */
+		pmic_event_handler();
+		break;
+	default:
+		EMSG("Unknown event %d", ev);
+		panic();
+	}
+}
+
+static bool atomic_stm32mp1_stpmic1_notif(struct notif_driver *ndrv __unused,
+					  enum notif_event ev __maybe_unused,
+					  uint16_t guest_id __unused)
+{
+	assert(ev == NOTIF_EVENT_STARTED);
+
+	return true;
+}
+DECLARE_KEEP_PAGER(atomic_stm32mp1_stpmic1_notif);
+
+/* Structure below is not const to prevent it spreads in the unpaged sections */
+static struct notif_driver stm32mp1_stpmic1_notif = {
+	.atomic_cb = atomic_stm32mp1_stpmic1_notif,
+	.yielding_cb = yielding_stm32mp1_stpmic1_notif,
+};
+
+static enum itr_return pmic_it_handler(struct itr_handler *handler __unused)
+{
+	if (notif_async_is_started(0))
+		notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF, 0);
+	else
+		pmic_event_handler();
+
+	return ITRR_HANDLED;
+}
+DECLARE_KEEP_PAGER(pmic_it_handler);
+
+static TEE_Result stm32_pmic_init_it(const void *fdt, int node)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	const uint32_t *notif_ids = NULL;
+	struct itr_chip *itr_chip = NULL;
+	size_t itr_num = 0;
+	int nb_notif = 0;
+
+	if (IS_ENABLED(CFG_CORE_ASYNC_NOTIF))
+		notif_register_driver(&stm32mp1_stpmic1_notif);
+
+	res = interrupt_dt_get(fdt, node, &itr_chip, &itr_num);
+	/*
+	 * Allow to not handle interrupts.
+	 * On STM32MP15 interrupts can be handled by linux.
+	 */
+	if (IS_ENABLED(CFG_STM32MP15) && (res == TEE_ERROR_ITEM_NOT_FOUND))
+		return TEE_SUCCESS;
+
+	if (res)
+		return res;
+
+	notif_ids = fdt_getprop(fdt, node, "st,notif-it-id", &nb_notif);
+	if (!notif_ids)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	if (nb_notif > 0) {
+		struct pmic_it_handle_s *prv = NULL;
+		unsigned int i = 0;
+		const uint32_t *pmic_its = NULL;
+		int nb_it = 0;
+
+		pmic_its = fdt_getprop(fdt, node, "st,pmic-it-id", &nb_it);
+		if (!pmic_its)
+			return TEE_ERROR_ITEM_NOT_FOUND;
+
+		if (nb_it != nb_notif)
+			panic("st,notif-it-id incorrect description");
+
+		for (i = 0; i < (nb_notif / sizeof(uint32_t)); i++) {
+			uint8_t pmic_it = 0;
+
+			prv = calloc(1, sizeof(*prv));
+			if (!prv)
+				panic("pmic: Could not allocate pmic it");
+
+			pmic_it = fdt32_to_cpu(pmic_its[i]);
+
+			assert(pmic_it <= IT_SWIN_R);
+
+			prv->pmic_reg = ITCLEARMASK1_REG + pmic_it / U(8);
+			prv->pmic_bit = pmic_it % U(8);
+			prv->notif_id = fdt32_to_cpu(notif_ids[i]);
+
+			SLIST_INSERT_HEAD(&pmic_it_handle_list, prv, link);
+
+			FMSG("STPMIC1 forwards irq reg:%u bit:%u as notif:%u",
+			     prv->pmic_reg, prv->pmic_bit, prv->notif_id);
+		}
+	}
+
+	res = interrupt_create_handler(itr_chip, itr_num, pmic_it_handler,
+				       NULL, 0, NULL);
+	if (res)
+		panic("pmic: Could not create interrupt handler");
+
+	stm32_i2c_interrupt_access_lockdeps(i2c_handle, itr_chip, itr_num);
+
+	enable_stpmic1_interrupt();
+
+	interrupt_enable(itr_chip, itr_num);
+	if (fdt_getprop(fdt, node, "wakeup-source", NULL)) {
+		if (interrupt_can_set_wake(itr_chip))
+			interrupt_set_wake(itr_chip, itr_num, true);
+		else
+			DMSG("PMIC wakeup source ignored");
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result stm32_pmic_probe(const void *fdt, int node,
 				   const void *compat_data __unused)
 {
@@ -715,7 +924,7 @@ static TEE_Result stm32_pmic_probe(const void *fdt, int node,
 		panic();
 	}
 
-	return TEE_SUCCESS;
+	return stm32_pmic_init_it(fdt, node);
 }
 
 static const struct dt_device_match stm32_pmic_match_table[] = {
