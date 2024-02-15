@@ -356,6 +356,40 @@ static TEE_Result rproc_pta_release_resources(uint32_t pt,
 	return stm32_rproc_clean_up_memories(params[0].value.a);
 }
 
+static TEE_Result rproc_pta_get_mem(uint32_t pt,
+				    TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (rproc_ta_state != REMOTEPROC_OFF)
+		return TEE_ERROR_BAD_STATE;
+
+	return stm32_rproc_get_mem(params[0].value.a);
+}
+
+static TEE_Result rproc_pta_release_mem(uint32_t pt,
+					TEE_Param params[TEE_NUM_PARAMS])
+{
+	const uint32_t exp_pt = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE,
+						TEE_PARAM_TYPE_NONE);
+
+	if (pt != exp_pt)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (rproc_ta_state != REMOTEPROC_OFF)
+		return TEE_ERROR_BAD_STATE;
+
+	return stm32_rproc_release_mem(params[0].value.a);
+}
+
 static TEE_Result rproc_pta_invoke_command(void *session __unused,
 					   uint32_t cmd_id,
 					   uint32_t param_types,
@@ -380,6 +414,10 @@ static TEE_Result rproc_pta_invoke_command(void *session __unused,
 		return rproc_pta_tlv_param(param_types, params);
 	case PTA_REMOTEPROC_RELEASE:
 		return rproc_pta_release_resources(param_types, params);
+	case PTA_REMOTEPROC_GET_MEM:
+		return rproc_pta_get_mem(param_types, params);
+	case PTA_REMOTEPROC_RELEASE_MEM:
+		return rproc_pta_release_mem(param_types, params);
 	default:
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}

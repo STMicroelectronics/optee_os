@@ -177,4 +177,22 @@ static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
  */
 #define PTA_REMOTEPROC_TLV_PARAM	10
 
+/*
+ * Get remote processor memories access right.
+ *
+ * Request the access rights to the remote processor memories.
+ *
+ * [in]  params[0].value.a:	Unique 32bit remote processor identifier
+ */
+#define PTA_REMOTEPROC_GET_MEM		11
+
+/*
+ * Release remote processor memories access right.
+ *
+ * Release the access rights to the remote processor memories.
+ *
+ * [in]  params[0].value.a:	Unique 32bit remote processor identifier
+ */
+#define PTA_REMOTEPROC_RELEASE_MEM	12
+
 #endif /* __REMOTEPROC_PTA_H */
