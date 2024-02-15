@@ -740,6 +740,36 @@ static int remoteproc_clean_resources(struct remoteproc_context *ctx)
 	return res;
 }
 
+static TEE_Result remoteproc_get_mems(struct remoteproc_context *ctx)
+{
+	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+
+	params[0].value.a = ctx->rproc_id;
+
+	return TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
+				  PTA_REMOTEPROC_GET_MEM, param_types,
+				  params, NULL);
+}
+
+static TEE_Result remoteproc_release_mems(struct remoteproc_context *ctx)
+{
+	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE,
+					       TEE_PARAM_TYPE_NONE);
+	TEE_Param params[TEE_NUM_PARAMS] = { };
+
+	params[0].value.a = ctx->rproc_id;
+
+	return TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
+				  PTA_REMOTEPROC_RELEASE_MEM, param_types,
+				  params, NULL);
+}
+
 static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 					  uint32_t da, uint32_t mem_size,
 					  void *priv)
@@ -915,6 +945,7 @@ static TEE_Result remoteproc_load_fw(uint32_t pt,
 	struct remoteproc_context *ctx = NULL;
 	uint32_t rproc_id = params[0].value.a;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	TEE_Result res2 = TEE_ERROR_GENERIC;
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -938,19 +969,32 @@ static TEE_Result remoteproc_load_fw(uint32_t pt,
 	DMSG("Got base addr: %p size %#zx", params[1].memref.buffer,
 	     params[1].memref.size);
 
+	res = remoteproc_get_mems(ctx);
+	if (res) {
+		EMSG("Can't get access right to memories");
+		goto out;
+	}
+
 	res = remoteproc_verify_firmware(ctx, params[1].memref.buffer,
 					 params[1].memref.size);
 	if (res) {
 		EMSG("Can't Authenticate the firmware (res = %#"PRIx32")", res);
-		goto out;
+		goto put_mems;
 	}
 
 	res = remoteproc_load_elf(ctx);
 	if (res)
-		goto out;
+		goto put_mems;
 
 	ctx->state = REMOTEPROC_LOADED;
 
+put_mems:
+	res2 = remoteproc_release_mems(ctx);
+	if (res2 && ctx->state == REMOTEPROC_LOADED) {
+		remoteproc_clean_resources(ctx);
+		ctx->state = REMOTEPROC_OFF;
+		res = res2;
+	}
 out:
 	/* Clear reference to firmware image from shared memory */
 	ctx->fw_img = NULL;
