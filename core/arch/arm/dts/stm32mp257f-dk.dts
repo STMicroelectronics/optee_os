@@ -46,6 +46,10 @@
 	};
 };
 
+&hash {
+	status = "okay";
+};
+
 &hpdma1 {
 	status = "okay";
 };
