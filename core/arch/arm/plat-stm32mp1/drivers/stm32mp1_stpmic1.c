@@ -660,23 +660,6 @@ static void initialize_pmic_i2c(const void *fdt, int pmic_node)
 	stm32mp_put_pmic();
 }
 
-/*
- * Automated suspend/resume at system suspend/resume is expected
- * only when the PMIC is secure. If it is non secure, only atomic
- * execution context can get/put the PMIC resources.
- */
-static TEE_Result pmic_pm(enum pm_op op, uint32_t pm_hint __unused,
-			  const struct pm_callback_handle *pm_handle __unused)
-{
-	if (op == PM_OP_SUSPEND)
-		stm32_i2c_suspend(i2c_handle);
-	else
-		stm32_i2c_resume(i2c_handle);
-
-	return TEE_SUCCESS;
-}
-DECLARE_KEEP_PAGER(pmic_pm);
-
 /* stm32mp_get/put_pmic allows secure atomic sequences to use non secure PMIC */
 void stm32mp_get_pmic(void)
 {
@@ -724,8 +707,6 @@ static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 
 	DMSG("PMIC version = 0x%02lx", pmic_version);
 	stm32mp_put_pmic();
-
-	register_pm_driver_cb(pmic_pm, NULL, "stm32mp1-pmic");
 
 	parse_regulator_fdt_nodes(fdt, pmic_node);
 
