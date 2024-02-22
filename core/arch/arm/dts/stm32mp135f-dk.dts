@@ -150,6 +150,10 @@
 	status = "okay";
 };
 
+&hse_monitor {
+	status = "okay";
+};
+
 &i2c4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins_a>;
