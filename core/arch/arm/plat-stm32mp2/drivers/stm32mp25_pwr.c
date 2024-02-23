@@ -419,3 +419,22 @@ DEFINE_DT_DRIVER(stm32mp_pwr_dt_driver) = {
 	.match_table = stm32mp_pwr_match_table,
 	.probe = stm32mp_pwr_probe,
 };
+
+void stm32mp_pwr_monitoring_enable(enum pwr_monitoring monitoring)
+{
+	vaddr_t pwr_base = stm32_pwr_base();
+
+	switch (monitoring) {
+	case PWR_MON_V08CAP_TEMP:
+		io_setbits32(pwr_base + _PWR_CR2, _PWR_CR2_MONEN);
+		break;
+	case PWR_MON_VCORE:
+		io_setbits32(pwr_base + _PWR_CR5, _PWR_CR5_VCOREMONEN);
+		break;
+	case PWR_MON_VCPU:
+		io_setbits32(pwr_base + _PWR_CR6, _PWR_CR6_VCPUMONEN);
+		break;
+	default:
+		break;
+	}
+}

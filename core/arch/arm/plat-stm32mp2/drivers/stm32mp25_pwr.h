@@ -19,4 +19,6 @@ enum pwr_monitoring {
 
 vaddr_t stm32_pwr_base(void);
 
+void stm32mp_pwr_monitoring_enable(enum pwr_monitoring monitoring);
+
 #endif /*__STM32MP25_PWR_H*/
