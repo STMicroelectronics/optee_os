@@ -271,37 +271,6 @@
 #define TAMP_ACTIVE			BIT(17)
 #define TAMP_IN_DT			BIT(18)
 
-enum stm32_tamp_id {
-	INT_TAMP1 = 0,
-	INT_TAMP2,
-	INT_TAMP3,
-	INT_TAMP4,
-	INT_TAMP5,
-	INT_TAMP6,
-	INT_TAMP7,
-	INT_TAMP8,
-	INT_TAMP9,
-	INT_TAMP10,
-	INT_TAMP11,
-	INT_TAMP12,
-	INT_TAMP13,
-	INT_TAMP14,
-	INT_TAMP15,
-	INT_TAMP16,
-
-	EXT_TAMP1,
-	EXT_TAMP2,
-	EXT_TAMP3,
-	EXT_TAMP4,
-	EXT_TAMP5,
-	EXT_TAMP6,
-	EXT_TAMP7,
-	EXT_TAMP8,
-
-	LAST_TAMP,
-	INVALID_TAMP = 0xFFFF,
-};
-
 enum stm32_tamp_out_id {
 	OUT_TAMP1 = LAST_TAMP,
 	OUT_TAMP2,
@@ -1471,8 +1440,16 @@ static TEE_Result stm32_tamp_configure_int(struct stm32_tamp_tamper_data *tamp,
 					   uint32_t mode,
 					   uint32_t (*cb)(int id))
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
+
 	if (mode & TAMP_EVT_MASK)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	res = stm32_activate_internal_tamper(tamp->id);
+	if (res) {
+		EMSG("Could not activate internal tamper:%u", tamp->id + 1);
+		return res;
+	}
 
 	tamp->mode |= (mode & TAMP_MODE_MASK);
 	tamp->func = cb;

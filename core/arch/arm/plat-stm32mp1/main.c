@@ -13,10 +13,15 @@
 #include <drivers/pinctrl.h>
 #include <drivers/stm32_bsec.h>
 #include <drivers/stm32_gpio.h>
+#include <drivers/stm32_tamp.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#include <drivers/stm32mp1_pwr.h>
 #ifdef CFG_STM32MP15
 #include <drivers/stm32mp1_rcc.h>
+#endif
+#ifdef CFG_STM32MP13
+#include <drivers/stm32mp13_rcc.h>
 #endif
 #include <io.h>
 #include <kernel/boot.h>
@@ -731,3 +736,53 @@ void __noreturn do_reset(const char *str __maybe_unused)
 	/* Cannot occur */
 	panic();
 }
+
+/* Activate the SoC resources required by internal TAMPER */
+TEE_Result stm32_activate_internal_tamper(int id)
+{
+	TEE_Result res = TEE_ERROR_NOT_SUPPORTED;
+
+	switch (id) {
+	case INT_TAMP1: /* RTC/backup power domain voltage monitoring */
+	case INT_TAMP2: /* Temperature monitoring */
+		stm32mp_pwr_monitoring_enable();
+		res = TEE_SUCCESS;
+		break;
+
+	case INT_TAMP3: /* LSE monitoring (LSECSS) */
+		if (io_read32(stm32_rcc_base() + RCC_BDCR) & RCC_BDCR_LSECSSON)
+			res = TEE_SUCCESS;
+		break;
+
+	case INT_TAMP4: /* HSE monitoring (HSECSS) */
+		if (io_read32(stm32_rcc_base() + RCC_OCENSETR) &
+		    RCC_OCENR_HSECSSON)
+			res = TEE_SUCCESS;
+		break;
+
+#ifdef CFG_STM32MP13
+	case INT_TAMP5:
+	case INT_TAMP6:
+	case INT_TAMP7:
+	case INT_TAMP8:
+	case INT_TAMP9:
+	case INT_TAMP10:
+	case INT_TAMP11:
+	case INT_TAMP12:
+	case INT_TAMP13:
+		res = TEE_SUCCESS;
+		break;
+#endif
+#ifdef CFG_STM32MP15
+	case INT_TAMP5:
+	case INT_TAMP8:
+		res = TEE_SUCCESS;
+		break;
+#endif
+
+	default:
+		break;
+	}
+
+	return res;
+};

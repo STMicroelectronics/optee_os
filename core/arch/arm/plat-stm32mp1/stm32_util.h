@@ -89,4 +89,6 @@ static inline bool stm32mp1_ram_intersect_pager_ram(paddr_t base __unused,
 /* Print a message and reset the system */
 void __noreturn do_reset(const char *str);
 
+TEE_Result stm32_activate_internal_tamper(int id);
+
 #endif /*__STM32_UTIL_H__*/

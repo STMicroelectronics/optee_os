@@ -1,0 +1,41 @@
+/* SPDX-License-Identifier: BSD-3-Clause */
+/*
+ * Copyright (c) 2026, STMicroelectronics
+ */
+
+#ifndef __DRIVERS_STM32_TAMP_H__
+#define __DRIVERS_STM32_TAMP_H__
+
+/* Tamper ident */
+enum stm32_tamp_id {
+	INT_TAMP1 = 0,
+	INT_TAMP2,
+	INT_TAMP3,
+	INT_TAMP4,
+	INT_TAMP5,
+	INT_TAMP6,
+	INT_TAMP7,
+	INT_TAMP8,
+	INT_TAMP9,
+	INT_TAMP10,
+	INT_TAMP11,
+	INT_TAMP12,
+	INT_TAMP13,
+	INT_TAMP14,
+	INT_TAMP15,
+	INT_TAMP16,
+
+	EXT_TAMP1,
+	EXT_TAMP2,
+	EXT_TAMP3,
+	EXT_TAMP4,
+	EXT_TAMP5,
+	EXT_TAMP6,
+	EXT_TAMP7,
+	EXT_TAMP8,
+
+	LAST_TAMP,
+	INVALID_TAMP = 0xFFFF,
+};
+
+#endif /* __DRIVERS_STM32_TAMP_H__ */
