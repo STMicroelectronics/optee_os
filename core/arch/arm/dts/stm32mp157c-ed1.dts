@@ -130,6 +130,14 @@
 	st,digbypass;
 };
 
+&cpu0{
+	cpu-supply = <&vddcore>;
+};
+
+&cpu1{
+	cpu-supply = <&vddcore>;
+};
+
 &crc1 {
 	status = "disabled";
 };

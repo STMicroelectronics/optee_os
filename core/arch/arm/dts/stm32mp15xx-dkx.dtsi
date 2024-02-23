@@ -250,6 +250,14 @@
 	st,digbypass;
 };
 
+&cpu0{
+	cpu-supply = <&vddcore>;
+};
+
+&cpu1{
+	cpu-supply = <&vddcore>;
+};
+
 &i2c4 {
 	compatible = "st,stm32mp15-i2c-non-secure";
 	pinctrl-names = "default", "sleep";
