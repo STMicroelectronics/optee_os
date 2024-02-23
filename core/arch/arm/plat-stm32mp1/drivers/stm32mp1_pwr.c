@@ -290,3 +290,10 @@ DEFINE_DT_DRIVER(stm32mp1_pwr_regu_dt_driver) = {
 	.match_table = stm32mp1_pwr_regu_match_table,
 	.probe = stm32mp1_pwr_regu_probe,
 };
+
+void stm32mp_pwr_monitoring_enable(void)
+{
+	vaddr_t pwr_base = stm32_pwr_base();
+
+	io_setbits32(pwr_base + PWR_CR2_OFF, PWR_CR2_MONEN);
+}

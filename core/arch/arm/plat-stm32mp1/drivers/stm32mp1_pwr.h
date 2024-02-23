@@ -43,6 +43,9 @@
 
 #define PWR_CR2_BREN		BIT(0)
 #define PWR_CR2_RREN		BIT(1)
+#define PWR_CR2_MONEN		BIT(4)
+#define PWR_CR2_BRRDY		BIT(16)
+#define PWR_CR2_RRRDY		BIT(17)
 
 #define PWR_CR3_VBE		BIT(8)
 #define PWR_CR3_VBRS		BIT(9)
@@ -82,4 +85,6 @@ bool stm32mp1_pwr_regulator_is_enabled(enum pwr_regulator id);
 
 /* Returns the registered regulator related to @id or NULL */
 struct regulator *stm32mp1_pwr_get_regulator(enum pwr_regulator id);
+
+void stm32mp_pwr_monitoring_enable(void);
 #endif /*__STM32MP1_PWR_H*/
