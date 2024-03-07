@@ -413,6 +413,135 @@ static TEE_Result test_send_rcv(struct mbox_desc *desc, unsigned int id,
 	return TEE_SUCCESS;
 }
 
+#define MBOX_CLIENT_COMPAT	"st,test-mbox-cli"
+
+static struct mbox_chan *handle_receive_send;
+static struct mbox_chan *handle_send_receive;
+
+static TEE_Result test_ipcc_send_receive(int count)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	LOG("Send/receive IPCC : start");
+	if (!handle_send_receive) {
+		LOG("Send/receive IPCC : handle invalid");
+		return TEE_ERROR_BAD_STATE;
+	}
+
+	while (count > 0) {
+		res = mbox_send(handle_send_receive, false, NULL, 0);
+		if (res != TEE_SUCCESS) {
+			LOG("Send/receive IPCC : send failed");
+			return res;
+		}
+		LOG("Send/receive IPCC : send ok");
+		res = mbox_recv(handle_send_receive, true, NULL, 0);
+		if (res != TEE_SUCCESS)
+			LOG("Send/receive IPCC : received failed");
+		LOG("Send/receive IPCC : recv ok");
+		count--;
+	}
+	LOG("Send/receive IPCC : Done");
+
+	return TEE_SUCCESS;
+}
+
+static void receive_callback(void *cookie __unused)
+{
+	if (!IS_ENABLED(CFG_CORE_ASYNC_NOTIF)) {
+		TEE_Result res = mbox_recv(handle_receive_send, 0, NULL, 0);
+
+		if (res != TEE_SUCCESS)
+			panic();
+		/*  send response*/
+		res = mbox_send(handle_receive_send, 0, NULL, 0);
+		if (res != TEE_SUCCESS)
+			panic();
+	} else {
+		if (notif_async_is_started(0))
+			notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF, 0);
+		else
+			panic("no bottom half");
+	}
+}
+
+static void yielding_mbox_notif(struct notif_driver *ndrv __unused,
+				enum notif_event ev)
+{
+	TEE_Result res = TEE_SUCCESS;
+
+	switch (ev) {
+	case NOTIF_EVENT_DO_BOTTOM_HALF:
+		MSG("Asynchronous notifications ongoing");
+
+		res = mbox_recv(handle_receive_send, false, NULL, 0);
+		if (res == TEE_ERROR_NO_DATA) {
+			MSG("Asynchronous notifications: No Data");
+			break;
+		}
+		if (res != TEE_SUCCESS)
+			panic();
+		/*  send response*/
+		res = mbox_send(handle_receive_send, false, NULL, 0);
+		if (res != TEE_SUCCESS)
+			panic();
+		MSG("Ack Done");
+
+		break;
+	case NOTIF_EVENT_STOPPED:
+		MSG("Asynchronous notifications stopped");
+		break;
+	default:
+		EMSG("Unknown event %d", (int)ev);
+	}
+}
+
+static void atomic_mbox_notif(struct notif_driver *ndrv __unused,
+			      enum notif_event ev __maybe_unused,
+			      uint16_t guest_id  __maybe_unused)
+{
+	MSG("Asynchronous notifications started, event %d", (int)ev);
+}
+
+struct notif_driver mbox_notif = {
+	.atomic_cb = atomic_mbox_notif,
+	.yielding_cb = yielding_mbox_notif,
+};
+
+static TEE_Result ipcc_mailbox_test(void)
+{
+	TEE_Result res = TEE_SUCCESS;
+	void *fdt = NULL;
+	int node = 0;
+
+	fdt = get_embedded_dt();
+	node = fdt_node_offset_by_compatible(fdt, 0, MBOX_CLIENT_COMPAT);
+
+	if (node < 0)
+		/*  Test not activated in this dt configuration */
+		return TEE_SUCCESS;
+	MSG("TEST CLIENT MBOX");
+
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+		return TEE_SUCCESS;
+	res = mbox_dt_register_chan(receive_callback, NULL, NULL, fdt, node,
+				    &handle_receive_send);
+	if (res != TEE_SUCCESS)
+		EMSG("chan handle_receive_send %x", res);
+
+	notif_register_driver(&mbox_notif);
+
+	res = mbox_dt_register_chan_by_name(NULL, NULL, NULL, fdt, node,
+					    "test_client_m33",
+					    &handle_send_receive);
+	if (res != TEE_SUCCESS)
+		EMSG("chan handle_send_receive %x", res);
+
+	return res;
+}
+
+driver_init_late(ipcc_mailbox_test);
+
 struct mbox_desc *virt_mbox_desc;
 #define CHAN_TX 0 /*  tx initiated by target */
 #define CHAN_RX 1 /*  tx initited by copro   */
@@ -469,6 +598,9 @@ TEE_Result core_mbox_tests(uint32_t ptypes,
 			return TEE_ERROR_BAD_STATE;
 		return test_recv_send(virt_mbox_desc, CHAN_RX, count);
 
+	case PTA_MBOX_TEST_IPCC_SEND_RECEIVE:
+		count = params[0].value.b;
+		return test_ipcc_send_receive(count);
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}

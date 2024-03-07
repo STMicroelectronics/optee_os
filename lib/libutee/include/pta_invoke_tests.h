@@ -144,6 +144,8 @@
 #define PTA_MBOX_TEST_SEND_INCORRECT  8
 /* Test invalid receive command, n */
 #define PTA_MBOX_TEST_RECEIVE_INCORRECT  9
+/* Test with ipcc driver */
+#define PTA_MBOX_TEST_IPCC_SEND_RECEIVE 10
 /* Launch test of mailbox */
 #define PTA_INVOKE_TESTS_CMD_MBOX_TESTS 1000
 
