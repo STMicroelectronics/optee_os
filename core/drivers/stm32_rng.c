@@ -7,6 +7,7 @@
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
+#include <drivers/stm32_rng.h>
 #include <io.h>
 #include <keep.h>
 #include <kernel/delay.h>
@@ -307,7 +308,7 @@ static void disable_rng_clock(void)
 		clk_disable(stm32_rng->bus_clock);
 }
 
-static TEE_Result stm32_rng_init(void)
+TEE_Result stm32_rng_init(void)
 {
 	uint32_t entropy_mask = stm32_rng_get_entropy_mask();
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -395,7 +396,7 @@ static TEE_Result stm32_rng_init(void)
 				   RNG_READY_TIMEOUT_US))
 		return TEE_ERROR_BAD_STATE;
 
-	res =  TEE_SUCCESS;
+	res = TEE_SUCCESS;
 
 out:
 	disable_rng_clock();
@@ -403,7 +404,7 @@ out:
 	return res;
 }
 
-static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
+TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 {
 	TEE_Result rc = TEE_ERROR_GENERIC;
 	bool burst_timeout = false;
