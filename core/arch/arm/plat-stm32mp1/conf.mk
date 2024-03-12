@@ -307,6 +307,7 @@ CFG_STM32_RTC ?= y
 CFG_STM32_SAES ?= y
 CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
+CFG_STM32MP_PROVISIONING ?= y
 CFG_STPMIC1 ?= y
 CFG_TZC400 ?= y
 
@@ -324,6 +325,12 @@ endif
 ifeq ($(CFG_STPMIC1),y)
 $(call force,CFG_STM32_I2C,y)
 $(call force,CFG_STM32_GPIO,y)
+endif
+
+# Provisioning support for BSEC shadow OTP is dedicated to insecure
+# development configuration only.
+ifeq ($(CFG_STM32MP_PROVISIONING),y)
+$(call force,CFG_INSECURE,y,Required by CFG_STM32MP_PROVISIONING)
 endif
 
 # If any crypto driver is enabled, enable the crypto-framework layer
