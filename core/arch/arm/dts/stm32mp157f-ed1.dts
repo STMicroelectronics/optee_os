@@ -13,6 +13,7 @@
 #include "stm32mp15xxaa-pinctrl.dtsi"
 #include <dt-bindings/clock/stm32mp1-clksrc.h>
 #include <dt-bindings/mfd/st,stpmic1.h>
+#include <dt-bindings/soc/stm32mp-provisioning.h>
 
 / {
 	model = "STMicroelectronics STM32MP157F eval daughter";
@@ -29,6 +30,15 @@
 
 	aliases {
 		serial0 = &uart4;
+	};
+
+	shadow-prov {
+		compatible = "st,provisioning";
+		hw2_prov {
+			nvmem-cells = <&hw2_otp>;
+			st,shadow-value = <0x000001E0>;
+			st,shadow-lock = <STICKY_LOCK_SR>;
+		};
 	};
 
 	vin: vin {

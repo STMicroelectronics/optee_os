@@ -11,6 +11,7 @@
 #include "stm32mp15xxaa-pinctrl.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/mfd/st,stpmic1.h>
+#include <dt-bindings/soc/stm32mp-provisioning.h>
 
 / {
 	model = "STMicroelectronics STM32MP157C eval daughter";
@@ -75,6 +76,15 @@
 		gpu_reserved: gpu@e8000000 {
 			reg = <0xe8000000 0x8000000>;
 			no-map;
+		};
+	};
+
+	shadow-prov {
+		compatible = "st,provisioning";
+		hw2_prov {
+			nvmem-cells = <&hw2_otp>;
+			st,shadow-value = <0x000001E0>;
+			st,shadow-lock = <STICKY_LOCK_SR>;
 		};
 	};
 
