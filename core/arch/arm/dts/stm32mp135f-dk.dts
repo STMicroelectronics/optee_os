@@ -307,7 +307,7 @@
 				regulator-name = "vdd_sd";
 				regulator-min-microvolt = <3300000>;
 				regulator-max-microvolt = <3300000>;
-				regulator-boot-on;
+				st,regulator-warm-boot-on;
 
 				standby-ddr-sr {
 					regulator-off-in-suspend;
