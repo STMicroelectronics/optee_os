@@ -580,6 +580,52 @@ uint32_t thread_rpc_cmd(uint32_t cmd, size_t num_params,
 	return get_rpc_arg_res(arg, num_params, params);
 }
 
+/*
+ * The Ocall2 context setup by the Linux kernel does not provide an RPC
+ * argument reference related to memory object (struct mobj) but one will
+ * be needed if issuing a standard RPC from a RPC aware context. Therefore
+ * thread_rpc_ocall2_prepare() allocates one for the thread and
+ * thread_rpc_ocall2_unprepare() releases it and restores the original RPC
+ * argument reference in the thread context.
+ */
+TEE_Result thread_rpc_ocall2_prepare(struct optee_msg_arg **rpc_arg)
+{
+	struct thread_ctx *thr = threads + thread_get_id();
+
+	if (!thr->rpc_mobj) {
+		size_t sz = OPTEE_MSG_GET_ARG_SIZE(THREAD_RPC_MAX_NUM_PARAMS);
+		struct mobj *new_rpc_mobj = NULL;
+		struct optee_msg_arg *new_rpc_arg = NULL;
+
+		new_rpc_mobj = thread_rpc_alloc_arg(sz);
+		if (!new_rpc_mobj)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		new_rpc_arg = mobj_get_va(new_rpc_mobj, 0, sz);
+		if (!new_rpc_arg) {
+			thread_rpc_free_arg(mobj_get_cookie(new_rpc_mobj));
+			return TEE_ERROR_OUT_OF_MEMORY;
+		}
+
+		*rpc_arg = thr->rpc_arg;
+		thr->rpc_arg = new_rpc_arg;
+		thr->rpc_mobj = new_rpc_mobj;
+	}
+
+	return TEE_SUCCESS;
+}
+
+void thread_rpc_ocall2_unprepare(struct optee_msg_arg *rpc_arg)
+{
+	if (rpc_arg) {
+		struct thread_ctx *thr = threads + thread_get_id();
+
+		thread_rpc_free_arg(mobj_get_cookie(thr->rpc_mobj));
+		thr->rpc_arg = rpc_arg;
+		thr->rpc_mobj = NULL;
+	}
+}
+
 uint32_t thread_rpc_ocall2_cmd(uint32_t param[2])
 {
 	uint32_t rpc_args[THREAD_RPC_NUM_ARGS] = {

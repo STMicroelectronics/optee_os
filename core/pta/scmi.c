@@ -254,6 +254,8 @@ static TEE_Result cmd_scmi_ocall_smt_thread(uint32_t ptypes,
 
 	uint32_t channel_id = (int)params[0].value.a;
 	struct scmi_msg_channel *channel = NULL;
+	struct optee_msg_arg *rpc_arg = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (ptypes != exp_ptypes)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -265,14 +267,20 @@ static TEE_Result cmd_scmi_ocall_smt_thread(uint32_t ptypes,
 	if (!channel)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	res = thread_rpc_ocall2_prepare(&rpc_arg);
+	if (res)
+		return res;
+
 	FMSG("Enter Ocall thread on channel %u"PRIu32, channel_id);
 	while (1) {
 		switch (pta_scmi_ocall(channel_id, NULL)) {
 		case PTA_SCMI_OCALL_PROCESS_SMT_CHANNEL:
 			continue;
 		case PTA_SCMI_OCALL_CLOSE_THREAD:
+			thread_rpc_ocall2_unprepare(rpc_arg);
 			return TEE_SUCCESS;
 		default:
+			thread_rpc_ocall2_unprepare(rpc_arg);
 			return TEE_ERROR_GENERIC;
 		}
 	}
@@ -292,6 +300,8 @@ static TEE_Result cmd_scmi_ocall_msg_thread(uint32_t ptypes,
 		.out_max_size = params[2].memref.size,
 	};
 	unsigned int channel_id = params[0].value.a;
+	struct optee_msg_arg *rpc_arg = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
 
 	if (ptypes != exp_pt || !dyn_shm.in_buf || !dyn_shm.out_buf)
 		return TEE_ERROR_BAD_PARAMETERS;
@@ -300,14 +310,20 @@ static TEE_Result cmd_scmi_ocall_msg_thread(uint32_t ptypes,
 	    !plat_scmi_get_channel(channel_id))
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	res = thread_rpc_ocall2_prepare(&rpc_arg);
+	if (res)
+		return res;
+
 	while (1) {
 		switch (pta_scmi_ocall(channel_id, &dyn_shm)) {
 		case PTA_SCMI_OCALL_PROCESS_MSG_CHANNEL:
 			continue;
 		case PTA_SCMI_OCALL_CLOSE_THREAD:
+			thread_rpc_ocall2_unprepare(rpc_arg);
 			params[2].memref.size =  dyn_shm.out_size;
 			return TEE_SUCCESS;
 		default:
+			thread_rpc_ocall2_unprepare(rpc_arg);
 			return TEE_ERROR_GENERIC;
 		}
 	}
