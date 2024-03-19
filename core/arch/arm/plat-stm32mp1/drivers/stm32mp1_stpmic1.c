@@ -41,6 +41,7 @@
 
 /* PMIC private flags */
 #define PMIC_REGU_FLAG_MASK_RESET	BIT(0)
+#define PMIC_REGU_FLAG_WARM_BOOT_ON	BIT(1)
 
 static_assert(IS_ENABLED(CFG_DRIVERS_REGULATOR));
 
@@ -106,6 +107,9 @@ static void priv_dt_properties(const void *fdt, int regu_node,
 
 	if (fdt_getprop(fdt, regu_node, "st,mask-reset", NULL))
 		priv->flags |= PMIC_REGU_FLAG_MASK_RESET;
+
+	if (fdt_getprop(fdt, regu_node, "st,regulator-warm-boot-on", NULL))
+		priv->flags |= PMIC_REGU_FLAG_WARM_BOOT_ON;
 }
 
 /*
@@ -452,6 +456,35 @@ static TEE_Result pmic_list_voltages(struct regulator *regulator,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result pmic_regu_pm(enum pm_op op, uint32_t pm_hint,
+			       const struct pm_callback_handle *pm_handle)
+{
+	struct regulator *regulator = pm_handle->handle;
+	struct pmic_regulator_data *priv = regulator->priv;
+
+	/*
+	 * Enable regulators flagged warm-boot-on before entering suspend
+	 * to ensure it is enabled after standby when the boot-rom reloads
+	 * the binaries.
+	 */
+	if ((priv->flags & PMIC_REGU_FLAG_WARM_BOOT_ON) &&
+	    PM_HINT_IS_STATE(pm_hint, CONTEXT)) {
+		TEE_Result res = TEE_ERROR_GENERIC;
+
+		if (op == PM_OP_SUSPEND)
+			res = regulator_enable(regulator);
+		else if (op == PM_OP_RESUME)
+			res = regulator_disable(regulator);
+
+		if (res) {
+			EMSG("Failed to handle warm-boot-on");
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result pmic_regu_init(struct regulator *regulator,
 				 const void *fdt __unused, int node __unused)
 {
@@ -480,6 +513,9 @@ static TEE_Result pmic_regu_init(struct regulator *regulator,
 	}
 
 	stm32mp_put_pmic();
+
+	register_pm_core_service_cb(pmic_regu_pm, regulator,
+				    regulator_name(regulator));
 
 	return TEE_SUCCESS;
 }
