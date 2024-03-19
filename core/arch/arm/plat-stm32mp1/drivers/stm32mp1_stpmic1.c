@@ -39,13 +39,10 @@
 
 #define PMIC_REGU_COUNT			14
 
-enum {
-	PMIC_REGU_FLAG_MASK_RESET = 0,
-	PMIC_REGU_FLAG_COUNT
-};
+/* PMIC private flags */
+#define PMIC_REGU_FLAG_MASK_RESET	BIT(0)
 
 static_assert(IS_ENABLED(CFG_DRIVERS_REGULATOR));
-static_assert(PMIC_REGU_FLAG_COUNT <= UINT_MAX);
 
 /*
  * struct pmic_regulator_data - Platform specific data
