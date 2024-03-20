@@ -170,6 +170,7 @@
 				regulator-max-microvolt = <2900000>;
 				interrupts = <IT_CURLIM_LDO5 0>;
 				regulator-boot-on;
+				st,regulator-warm-boot-on;
 			};
 
 			v1v8: ldo6 {
