@@ -32,7 +32,8 @@ function checkpatch() {
 	# The first git 'format-patch' shows the commit message
 	# The second one produces the diff (might be empty if _CP_EXCL
 	# filters out all diffs)
-	(git format-patch $1^..$1 --stdout | sed -n '/^diff --git/q;p'; \
+	(git format-patch $1^..$1 --stdout | sed -n '/^diff --git/q;p' | \
+	 sed '/^Change-Id: /d'; \
 	 git format-patch $1^..$1 --stdout -- $_CP_EXCL . | \
 		sed -n '/^diff --git/,$p') | _checkpatch
 }
