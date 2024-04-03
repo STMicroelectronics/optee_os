@@ -44,6 +44,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vddcpu>;
+};
+
 &hash1 {
 	status = "okay";
 };
@@ -320,15 +324,13 @@
 	st,clk_opp {
 		st,ck_cpu1 {
 			cfg_1 {
-				hz = <1500000000>;
-				st,clksrc = <0>;
-				st,pll = <&pll1_cfg_1500MHz>;
+				hz = <1200000000>;
+				st,pll = <&pll1_cfg_1200MHz>;
 			};
 
 			cfg_2 {
-				hz = <1200000000>;
-				st,clksrc = <0>;
-				st,pll = <&pll1_cfg_1200MHz>;
+				hz = <1500000000>;
+				st,pll = <&pll1_cfg_1500MHz>;
 			};
 		};
 	};

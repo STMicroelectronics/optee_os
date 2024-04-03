@@ -45,6 +45,10 @@
 	};
 };
 
+&cpu0 {
+	cpu-supply = <&vddcpu>;
+};
+
 &hash {
 	status = "okay";
 };
@@ -404,6 +408,29 @@
 	vddio: vddio {
 		status = "okay";
 		vdd-supply = <&vddio_pmic>;
+	};
+};
+
+&rcc {
+	st,c1msrd = <2>;
+	st,clk_opp {
+		st,ck_cpu1 {
+			cfg_1 {
+				hz = <1200000000>;
+				st,pll = <&pll1_cfg_1200Mhz>;
+			};
+
+			cfg_2 {
+				hz = <1500000000>;
+				st,pll = <&pll1_cfg_1500Mhz>;
+			};
+		};
+		st,ck_gpu {
+			cfg_1 {
+				hz = <400000000>;
+				st,pll = <&pll3_cfg_400Mhz>;
+			};
+		};
 	};
 };
 
