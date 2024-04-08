@@ -10,6 +10,19 @@
 #include <drivers/stm32_gpio.h>
 #include <drivers/stm32_rif.h>
 #include <drivers/stm32_rtc.h>
+#include <drivers/stm32_tamp.h>
+#if defined(CFG_STM32MP15)
+#include <drivers/stm32mp1_rcc.h>
+#endif
+#if defined(CFG_STM32MP13)
+#include <drivers/stm32mp13_rcc.h>
+#endif
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23)
+#include <drivers/stm32mp25_rcc.h>
+#endif
+#if defined(CFG_STM32MP21)
+#include <drivers/stm32mp21_rcc.h>
+#endif
 #include <drivers/stm32mp_dt_bindings.h>
 #include <io.h>
 #include <kernel/dt.h>
@@ -1008,6 +1021,32 @@ static bool is_ext_tamp_id_valid(enum stm32_tamp_id id)
 	       _TAMP_HWCFGR1_TAMPER_SHIFT;
 }
 
+static void stm32_tamp_handle_lse_tamper(void)
+{
+	vaddr_t rcc_base = stm32_rcc_base();
+
+	/* Disable the LSE CSS feature */
+	io_clrbits32(rcc_base + RCC_BDCR, RCC_BDCR_LSECSSON);
+
+	/* Disable the LSE clock */
+	io_clrbits32(rcc_base + RCC_BDCR, RCC_BDCR_LSEON);
+
+	/* Clear the associated error flag */
+#if defined(CFG_STM32MP13) || defined(CFG_STM32MP15)
+	io_setbits32(rcc_base + RCC_MP_CIFR, RCC_MP_CIFR_LSECSSF);
+#else
+	if (io_read32(rcc_base + RCC_C1CIFCLRR) & RCC_C1CIFCLRR_LSECSSF)
+		io_setbits32((rcc_base + RCC_C1CIFCLRR), RCC_C1CIFCLRR_LSECSSF);
+#endif
+
+	/*
+	 * Fixme: Add logic to handle the LSE tamper here (e.g change RTC clock
+	 * source instead). This part is implementation specific.
+	 */
+
+	io_clrbits32(rcc_base + RCC_BDCR, RCC_BDCR_RTCCKEN);
+}
+
 static enum itr_return stm32_tamp_it_handler(struct itr_handler *h __unused)
 {
 	struct optee_rtc_time __maybe_unused tamp_ts = { };
@@ -1048,6 +1087,9 @@ static enum itr_return stm32_tamp_it_handler(struct itr_handler *h __unused)
 			if (ret & TAMP_CB_ACK)
 				io_setbits32(base + _TAMP_SCR,
 					     _TAMP_SCR_ITAMP(id));
+
+			if (id - INT_TAMP1 + 1 == INT_TAMPER_LSE_MONITORING)
+				stm32_tamp_handle_lse_tamper();
 
 			if (ret & TAMP_CB_RESET)
 				do_reset("Internal tamper event detected");
