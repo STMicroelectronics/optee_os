@@ -18,7 +18,7 @@
 #include "context.h"
 #include "power.h"
 
-#define DT_PWR_COMPAT			"st,stm32mp1,pwr-reg"
+#define DT_PWR_COMPAT			"st,stm32mp1-pwr-reg"
 #define SYSTEM_SUSPEND_SUPPORTED_MODES	"system_suspend_supported_soc_modes"
 #define SYSTEM_OFF_MODE			"system_off_soc_mode"
 #define RETRAM_ENABLED			"st,retram-enabled-in-standby-ddr-sr"
