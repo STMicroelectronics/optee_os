@@ -503,7 +503,6 @@
 
 &rcc {
 	compatible = "st,stm32mp1-rcc-secure";
-	status = "okay";
 
 	st,clksrc = <
 		CLK_MPU_PLL1P
