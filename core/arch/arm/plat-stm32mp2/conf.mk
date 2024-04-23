@@ -60,6 +60,17 @@ $(call force,CFG_STM32MP23,n)
 $(call force,CFG_STM32MP25,y)
 endif
 
+# CFG_STM32MP_PROFILE selects the profile of the services embedded in OP-TEE
+CFG_STM32MP_PROFILE ?= secure_and_system_services
+
+ifeq ($(filter $(CFG_STM32MP_PROFILE),system_services secure_and_system_services),)
+$(error CFG_STM32MP_PROFILE shall be one of system_services or secure_and_system_services)
+endif
+
+ifeq ($(CFG_STM32MP_PROFILE),system_services)
+include $(platform-dir)/conf.disable-secure-services.mk
+endif
+
 include core/arch/arm/cpu/cortex-armv8-0.mk
 supported-ta-targets ?= ta_arm64
 
@@ -213,7 +224,7 @@ CFG_STM32_SAES_SW_FALLBACK ?= y
 endif
 
 # Default enable HWRNG PTA support
-CFG_HWRNG_PTA ?= y
+CFG_HWRNG_PTA ?= $(CFG_STM32_RNG)
 ifeq ($(CFG_HWRNG_PTA),y)
 $(call force,CFG_STM32_RNG,y,Required by CFG_HWRNG_PTA)
 $(call force,CFG_WITH_SOFTWARE_PRNG,n,Required by CFG_HWRNG_PTA)
