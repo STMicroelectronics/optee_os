@@ -108,7 +108,6 @@ $(call force,CFG_WITH_SOFTWARE_PRNG,y)
 endif
 
 ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP15-HUK-DT)),)
-CFG_STM32MP15_HUK ?= y
 CFG_STM32_HUK_FROM_DT ?= y
 endif
 
@@ -141,6 +140,39 @@ $(error One of CFG_STM32MP15 CFG_STM32MP13 must be enabled)
 endif
 ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
 $(error Only one of CFG_STM32MP15 CFG_STM32MP13 must be enabled)
+endif
+
+# CFG_STM32MP_PROFILE selects the profile of the services embedded
+# in OP-TEE.
+
+ifeq ($(CFG_STM32MP13),y)
+# STM32MP13: default select secure_and_system_services.
+# Alternate system_services is supported.
+CFG_STM32MP_PROFILE ?= secure_and_system_services
+endif #CFG_STM32MP13
+
+ifeq ($(CFG_STM32MP15),y)
+# STM32MP15: default select system_services, OP-TEE executes in DDR
+# (i.e. CFG_STM32MP1_OPTEE_IN_SYSRAM=n).
+# Alternate secure_and_system_services executes in SRAM
+# (i.e. CFG_STM32MP1_OPTEE_IN_SYSRAM=y).
+ifeq ($(CFG_STM32MP1_OPTEE_IN_SYSRAM),y)
+$(call force,CFG_STM32MP_PROFILE,secure_and_system_services)
+endif
+CFG_STM32MP_PROFILE ?= system_services
+ifeq ($(CFG_STM32MP_PROFILE),secure_and_system_services)
+$(call force,CFG_STM32MP1_OPTEE_IN_SYSRAM,y,Required by secure_and_system_services profile)
+else
+$(call force,CFG_STM32MP1_OPTEE_IN_SYSRAM,n,Required by system_services profile)
+endif
+endif #CFG_STM32MP15
+
+ifeq ($(filter $(CFG_STM32MP_PROFILE),system_services secure_and_system_services),)
+$(error CFG_STM32MP_PROFILE shall be one of system_services or secure_and_system_services)
+endif
+
+ifeq ($(CFG_STM32MP_PROFILE),system_services)
+include $(platform-dir)/conf.disable-secure-services.mk
 endif
 
 # Force this mode to keep performance on RSA key operations
@@ -182,6 +214,7 @@ CFG_STM32_CPU_OPP ?= y
 CFG_STM32MP_OPP_COUNT ?= 3
 # Measured latency on STM32MP13 is around 650uS so set 1mS
 CFG_STM32MP_OPP_LATENCY_US ?= 1000
+CFG_STM32_ADC ?= y
 CFG_WITH_PAGER ?= n
 endif # CFG_STM32MP13
 
@@ -204,11 +237,6 @@ CFG_STM32MP1_OPTEE_IN_SYSRAM ?= n
 ifeq ($(CFG_STM32MP1_OPTEE_IN_SYSRAM),y)
 $(call force,CFG_WITH_PAGER,y)
 CFG_STM32MP15_HUK ?= y
-CFG_WITH_USER_TA ?= y
-else
-CFG_STM32MP15_HUK ?= n
-CFG_WITH_PAGER ?= n
-CFG_WITH_USER_TA ?= n
 endif
 endif # CFG_STM32MP15
 
