@@ -85,8 +85,13 @@
 #define _RISAF_REG_CFGR_BREN		BIT(_RISAF_REG_CFGR_BREN_SHIFT)
 #define _RISAF_REG_CFGR_SEC_SHIFT	U(8)
 #define _RISAF_REG_CFGR_SEC		BIT(_RISAF_REG_CFGR_SEC_SHIFT)
+#if defined(CFG_STM32MP21)
+#define _RISAF_REG_CFGR_ENC_SHIFT	U(14)
+#define _RISAF_REG_CFGR_ENC		GENMASK_32(15, 14)
+#else /* defined(CFG_STM32MP21) */
 #define _RISAF_REG_CFGR_ENC_SHIFT	U(15)
 #define _RISAF_REG_CFGR_ENC		BIT(_RISAF_REG_CFGR_ENC_SHIFT)
+#endif /* defined(CFG_STM32MP21) */
 #define _RISAF_REG_CFGR_PRIVC_SHIFT	U(16)
 #define _RISAF_REG_CFGR_PRIVC_MASK	GENMASK_32(23, 16)
 #define _RISAF_REG_CFGR_ALL_MASK	(_RISAF_REG_CFGR_BREN | \
@@ -107,6 +112,26 @@
 	((reg) & BIT((cid) + _RISAF_REG_CIDCFGR_WRENC_SHIFT))
 
 #define _RISAF_GET_REGION_ID(cfg)	((cfg) & DT_RISAF_REG_ID_MASK)
+#define _RISAF_GET_REGION_CFG(cfg) \
+	(((((cfg) & DT_RISAF_EN_MASK) >> DT_RISAF_EN_SHIFT) << \
+	  _RISAF_REG_CFGR_BREN_SHIFT) | \
+	 ((((cfg) & DT_RISAF_SEC_MASK) >> DT_RISAF_SEC_SHIFT) << \
+	  _RISAF_REG_CFGR_SEC_SHIFT) | \
+	 ((((cfg) & DT_RISAF_ENC_MASK) >> (DT_RISAF_ENC_SHIFT + 1)) << \
+	  _RISAF_REG_CFGR_ENC_SHIFT) | \
+	 ((((cfg) & DT_RISAF_PRIV_MASK) >> DT_RISAF_PRIV_SHIFT) << \
+	  _RISAF_REG_CFGR_PRIVC_SHIFT))
+#define _RISAF_GET_REGION_CID_CFG(cfg) \
+	(((((cfg) & DT_RISAF_WRITE_MASK) >> DT_RISAF_WRITE_SHIFT) << \
+	  _RISAF_REG_CIDCFGR_WRENC_SHIFT) | \
+	 ((((cfg) & DT_RISAF_READ_MASK) >> DT_RISAF_READ_SHIFT) << \
+	  _RISAF_REG_CIDCFGR_RDENC_SHIFT))
+
+#ifdef CFG_CORE_RESERVED_SHM
+#define TZDRAM_RESERVED_SIZE		(TZDRAM_SIZE + TEE_SHMEM_SIZE)
+#else
+#define TZDRAM_RESERVED_SIZE		TZDRAM_SIZE
+#endif
 
 #define _RISAF_NB_CID_SUPPORTED		U(8)
 
@@ -513,7 +538,12 @@ static TEE_Result stm32_risaf_pm_suspend(struct stm32_risaf_instance *risaf)
 		cfg = io_read32(base + _RISAF_REG_CFGR(id));
 		en = cfg & _RISAF_REG_CFGR_BREN;
 		sec = (cfg & _RISAF_REG_CFGR_SEC) >> _RISAF_REG_CFGR_SEC_SHIFT;
+#if defined(CFG_STM32MP21)
+		enc = ((cfg & _RISAF_REG_CFGR_ENC) >>
+		       _RISAF_REG_CFGR_ENC_SHIFT) << DT_RISAF_ENC_SHIFT;
+#else /* defined(CFG_STM32MP21) */
 		enc = (cfg & _RISAF_REG_CFGR_ENC) >> _RISAF_REG_CFGR_ENC_SHIFT;
+#endif /* defined(CFG_STM32MP21) */
 		priv = (cfg & _RISAF_REG_CFGR_PRIVC_MASK) >>
 		       _RISAF_REG_CFGR_PRIVC_SHIFT;
 
