@@ -63,8 +63,13 @@ static TEE_Result get_devices(uint32_t types,
 	buf =  params[0].memref.buffer;
 	blen = params[0].memref.size;
 
-	SCATTERED_ARRAY_FOREACH(ta, pseudo_tas, struct pseudo_ta_head)
+	SCATTERED_ARRAY_FOREACH(ta, pseudo_tas, struct pseudo_ta_head) {
+		/* PTA may dynamically request not be enumerated */
+		if (ta->ask_for_enumeration && !ta->ask_for_enumeration())
+			continue;
+
 		add_ta(ta->flags, &ta->uuid, buf, blen, &pos, rflags);
+	}
 
 	if (stmm_get_uuid())
 		add_ta(TA_FLAG_DEVICE_ENUM_TEE_STORAGE_PRIVATE,

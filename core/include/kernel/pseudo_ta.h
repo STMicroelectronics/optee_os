@@ -40,6 +40,7 @@ struct pseudo_ta_head {
 	TEE_Result (*invoke_command_entry_point)(void *pSessionContext,
 			uint32_t nCommandID, uint32_t nParamTypes,
 			TEE_Param pParams[TEE_NUM_PARAMS]);
+	bool (*ask_for_enumeration)(void);
 };
 
 #define pseudo_ta_register(...)	\
