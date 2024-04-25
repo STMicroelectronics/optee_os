@@ -368,6 +368,7 @@ enum crypto_rng_src {
 	CRYPTO_RNG_SRC_NONSECURE	= (1 << 1 | 0),
 };
 
+#if defined(CFG_WITH_SOFTWARE_PRNG) || defined(CFG_WITH_TRNG)
 /*
  * crypto_rng_init() - initialize the RNG
  * @data:	buffer with initial seed
@@ -400,6 +401,26 @@ void crypto_rng_add_event(enum crypto_rng_src sid, unsigned int *pnum,
  * function call.
  */
 TEE_Result crypto_rng_read(void *buf, size_t len);
+#else
+static inline TEE_Result crypto_rng_init(const void *data __unused,
+					 size_t dlen __unused)
+{
+	return TEE_SUCCESS;
+}
+
+static inline void crypto_rng_add_event(enum crypto_rng_src sid __unused,
+					unsigned int *pnum __unused,
+					const void *data __unused,
+					size_t dlen __unused)
+{
+}
+
+static inline TEE_Result crypto_rng_read(void *buf __unused,
+					 size_t len __unused)
+{
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
 
 /*
  * crypto_aes_expand_enc_key() - Expand an AES key

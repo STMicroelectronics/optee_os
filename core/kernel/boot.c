@@ -237,8 +237,12 @@ __weak void plat_get_random_stack_canaries(void *buf, size_t ncan, size_t size)
 	/*
 	 * With virtualization the RNG is not initialized in Nexus core.
 	 * Need to override with platform specific implementation.
+	 * Without software PRNG and a registered TRNG, fallback to a fixed
+	 * canary value.
 	 */
-	if (IS_ENABLED(CFG_NS_VIRTUALIZATION)) {
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) ||
+	    (!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
+	     !IS_ENABLED(CFG_WITH_TRNG))) {
 		IMSG("WARNING: Using fixed value for stack canary");
 		memset(buf, 0xab, ncan * size);
 		goto out;

@@ -79,6 +79,18 @@ endif
 # Otherwise, you need to implement hw_get_random_bytes() for your platform
 CFG_WITH_SOFTWARE_PRNG ?= y
 
+# TRNG configuration
+# CFG_WITH_TRNG is exclusively enabled towards CFG_WITH_SOFTWARE_PRNG
+ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
+CFG_WITH_TRNG ?= y
+else
+CFG_WITH_TRNG ?= n
+endif
+
+ifeq ($(call cfg-all-enabled,CFG_WITH_SOFTWARE_PRNG CFG_WITH_TRNG),y)
+$(error CFG_WITH_SOFTWARE_PRNG and CFG_WITH_TRNG are exclusive)
+endif
+
 # Define the maximum size, in bits, for big numbers in the TEE core (privileged
 # layer).
 # This value is an upper limit for the key size in any cryptographic algorithm
