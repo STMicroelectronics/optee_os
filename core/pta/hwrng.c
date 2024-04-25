@@ -74,7 +74,13 @@ static TEE_Result invoke_command(void *session __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
+static bool do_enumerate(void)
+{
+	return crypto_rng_hw_is_registered();
+}
+
 pseudo_ta_register(.uuid = PTA_RNG_UUID, .name = PTA_NAME,
 		   .flags = PTA_DEFAULT_FLAGS | TA_FLAG_CONCURRENT |
 			    TA_FLAG_DEVICE_ENUM,
-		   .invoke_command_entry_point = invoke_command);
+		   .invoke_command_entry_point = invoke_command,
+		   .ask_for_enumeration = do_enumerate);
