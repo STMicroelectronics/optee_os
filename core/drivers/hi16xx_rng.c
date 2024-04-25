@@ -58,6 +58,8 @@ static TEE_Result hi16xx_rng_init(void)
 	 */
 	io_write32(rng + RNG_CTRL, RNG_EN | RNG_RING_EN | RNG_SEED_SEL);
 
+	hw_register_get_random_bytes();
+
 	IMSG("Hi16xx RNG initialized");
 	return TEE_SUCCESS;
 }

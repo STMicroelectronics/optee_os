@@ -169,6 +169,8 @@ static TEE_Result xiphera_trng_probe(const void *fdt, int node,
 
 	io_write32(xiphera_trng_base + CONTROL_REG, HOST_TO_TRNG_ACK_ZEROIZE);
 
+	hw_register_get_random_bytes();
+
 	DMSG("TRNG initialized");
 
 	return TEE_SUCCESS;

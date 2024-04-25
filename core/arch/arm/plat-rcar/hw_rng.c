@@ -30,6 +30,12 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	uint8_t *buffer = buf;
 	size_t buffer_pos = 0;
 	uint8_t ret_val = 0;
+	static bool first_call = true;
+
+	if (first_call) {
+		hw_register_get_random_bytes();
+		first_call = false;
+	}
 
 	assert(rng_cache_pos < PLAT_RND_VECTOR_SZ);
 

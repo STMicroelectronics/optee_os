@@ -337,6 +337,8 @@ enum caam_status caam_rng_init(vaddr_t ctrl_addr)
 
 	if (retstatus != CAAM_NO_ERROR)
 		do_free();
+	else if (IS_ENABLED(CFG_NXP_CAAM_RNG_DRV))
+		hw_register_get_random_bytes();
 
 	return retstatus;
 }

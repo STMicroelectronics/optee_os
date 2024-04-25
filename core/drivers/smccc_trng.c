@@ -208,6 +208,8 @@ void plat_rng_init(void)
 
 		if (crypto_rng_init(seed, sizeof(seed)))
 			panic();
+
+		hw_register_get_random_bytes();
 	}
 }
 

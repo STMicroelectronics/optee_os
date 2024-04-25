@@ -105,6 +105,8 @@ static TEE_Result trng_node_probe(const void *fdt, int node,
 
 	atmel_trng_reset();
 
+	hw_register_get_random_bytes();
+
 	return TEE_SUCCESS;
 }
 

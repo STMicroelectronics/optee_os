@@ -88,6 +88,7 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	static int pos;
 
 	static int nbcall;  /* debug purpose - 0 is the initial value*/
+	static bool first_call = true;
 
 	volatile uint32_t tmpval[_LOCAL_FIFO_SIZE/2];
 	int i;
@@ -96,6 +97,10 @@ TEE_Result hw_get_random_bytes(void *buf, size_t len)
 	size_t buffer_pos = 0;
 
 	nbcall++;
+	if (first_call) {
+		hw_register_get_random_bytes();
+		first_call = false;
+	}
 
 	while (buffer_pos < len) {
 		/* Refill our FIFO */

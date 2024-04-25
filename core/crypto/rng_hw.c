@@ -45,5 +45,8 @@ TEE_Result crypto_rng_read(void *buf, size_t blen)
 	if (!buf)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	if (!registered)
+		return TEE_ERROR_NOT_SUPPORTED;
+
 	return hw_get_random_bytes(buf, blen);
 }

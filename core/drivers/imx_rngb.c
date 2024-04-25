@@ -214,6 +214,8 @@ static TEE_Result rngb_init(void)
 	rng_seed(&rngb);
 	rngb.ready = true;
 
+	hw_register_get_random_bytes();
+
 	return TEE_SUCCESS;
 }
 

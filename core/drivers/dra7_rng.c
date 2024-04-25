@@ -184,6 +184,8 @@ static TEE_Result dra7_rng_init(void)
 	val |= ENABLE_TRNG;
 	io_write32(rng + RNG_CONTROL, val);
 
+	hw_register_get_random_bytes();
+
 	IMSG("DRA7x TRNG initialized");
 
 	return TEE_SUCCESS;

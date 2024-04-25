@@ -26,6 +26,7 @@ static TEE_Result do_rng_read(void *buf, size_t blen)
 
 void plat_rng_init(void)
 {
+	hw_register_get_random_bytes();
 }
 
 TEE_Result hw_get_random_bytes(void *buf, size_t blen)

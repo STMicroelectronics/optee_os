@@ -490,7 +490,9 @@ init:
 
 	DMSG("PRNG seeded with RNG");
 }
-#else
+#endif
+
+#ifdef CFG_WITH_TRNG
 TEE_Result hw_get_random_bytes(void *out, size_t size)
 {
 	return stm32_rng_read(out, size);
@@ -722,6 +724,10 @@ static TEE_Result stm32_rng_probe(const void *fdt, int offs,
 	if (!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG))
 		register_pm_core_service_cb(stm32_rng_pm, &stm32_rng,
 					    "rng-service");
+
+	if (!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
+	    IS_ENABLED(CFG_WITH_TRNG))
+		hw_register_get_random_bytes();
 
 	return TEE_SUCCESS;
 

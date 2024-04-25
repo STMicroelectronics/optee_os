@@ -155,6 +155,8 @@ TEE_Result eip76d_rng_init(void)
 
 	eip76d_rng_init_seq();
 
+	hw_register_get_random_bytes();
+
 	IMSG("EIP76D TRNG initialized");
 
 	return TEE_SUCCESS;
