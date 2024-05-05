@@ -8,6 +8,24 @@
 #include <tee/tee_cryp_utl.h>
 #include <types_ext.h>
 
+static bool registered;
+
+void crypto_rng_register_hw(void)
+{
+	assert(!registered);
+	registered = true;
+}
+
+void crypto_rng_unregister_hw(void)
+{
+	registered = false;
+}
+
+bool crypto_rng_hw_is_registered(void)
+{
+	return registered;
+}
+
 /* This is a HW RNG, no need for seeding */
 TEE_Result crypto_rng_init(const void *data __unused, size_t dlen __unused)
 {

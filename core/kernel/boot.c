@@ -242,7 +242,7 @@ __weak void plat_get_random_stack_canaries(void *buf, size_t ncan, size_t size)
 	 */
 	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) ||
 	    (!IS_ENABLED(CFG_WITH_SOFTWARE_PRNG) &&
-	     !IS_ENABLED(CFG_WITH_TRNG))) {
+	     !crypto_rng_hw_is_registered())) {
 		IMSG("WARNING: Using fixed value for stack canary");
 		memset(buf, 0xab, ncan * size);
 		goto out;

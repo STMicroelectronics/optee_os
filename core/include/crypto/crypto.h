@@ -22,6 +22,7 @@
 #ifndef __CRYPTO_CRYPTO_H
 #define __CRYPTO_CRYPTO_H
 
+#include <stdbool.h>
 #include <tee/tee_obj.h>
 #include <tee_api_types.h>
 
@@ -419,6 +420,31 @@ static inline TEE_Result crypto_rng_read(void *buf __unused,
 					 size_t len __unused)
 {
 	return TEE_ERROR_NOT_SUPPORTED;
+}
+#endif
+
+#ifdef CFG_WITH_TRNG
+/* crypto_rng_register_hw() - register a true hardware random generator */
+void crypto_rng_register_hw(void);
+
+/* crypto_rng_unregister_hw() - unregister true hardware random generator */
+void crypto_rng_unregister_hw(void);
+
+/* crypto_rng_hw_is_registered() - return whether a TRNG is registered */
+bool crypto_rng_hw_is_registered(void);
+#else
+static inline void crypto_rng_register_hw(void)
+{
+}
+
+/* crypto_rng_unregister_hw() - unregister true hardware random generator */
+static inline void crypto_rng_unregister_hw(void)
+{
+}
+
+static inline bool crypto_rng_hw_is_registered(void)
+{
+	return false;
 }
 #endif
 
