@@ -32,6 +32,7 @@
 #define IPCC_C2PRIVCFGR			U(0x94)
 #define IPCC_C2CIDCFGR			U(0x98)
 #define IPCC_HWCFGR			U(0x3F0)
+#define IPCC_VER			U(0x3F4)
 
 #define IPCC_C1CR			U(0x00)
 #define IPCC_C1MR			U(0x04)
@@ -116,6 +117,7 @@ struct stm32_ipcc_mbx_data {
 	mbox_rx_callback_t rx_cb;
 	mbox_tx_callback_t tx_cb;
 	struct mbox_dev *cb_ctx;
+	uint32_t caps;
 };
 
 struct ipcc_pdata {
@@ -387,7 +389,8 @@ static enum itr_return stm32_ipcc_mbox_txf_isr(struct itr_handler *h)
 			if (data->tx_cb)
 				data->tx_cb(data->cb_ctx, i);
 			/* Disable txf interrupt */
-			ipcc_channel_transmit(pdata->lbase, i, false);
+			if (data->caps & MBOX_TX_NOTIF_CAP)
+				ipcc_channel_transmit(pdata->lbase, i, false);
 		}
 	}
 	return ITRR_HANDLED;
@@ -419,7 +422,8 @@ static TEE_Result stm32_ipcc_mbox_send(const struct mbox_desc *desc,
 	/* Set channel txs Flag */
 	io_write32(pdata->lbase + IPCC_SCR, BIT(id + IPCC_SCR_CH1S_POS));
 	/* Enable channel txf interrupt */
-	ipcc_channel_transmit(pdata->lbase, id, true);
+	if (data->caps & MBOX_TX_NOTIF_CAP)
+		ipcc_channel_transmit(pdata->lbase, id, true);
 
 	return TEE_SUCCESS;
 }
@@ -525,6 +529,14 @@ static TEE_Result stm32_ipcc_mbox_complete(const struct mbox_desc *desc,
 	return TEE_SUCCESS;
 }
 
+static uint32_t stm32_ipcc_mbox_capabilities(const struct mbox_desc *desc)
+{
+	struct ipcc_pdata *pdata = (struct ipcc_pdata *)desc->priv;
+	struct stm32_ipcc_mbx_data *data = &pdata->data;
+
+	return data->caps;
+}
+
 static const struct mbox_ops stm32_ipcc_mbox_ops = {
 	.send = stm32_ipcc_mbox_send,
 	.register_callback = stm32_ipcc_mbox_register_callback,
@@ -532,6 +544,7 @@ static const struct mbox_ops stm32_ipcc_mbox_ops = {
 	.max_channel_count = stm32_ipcc_mbox_channel_count,
 	.channel_interrupt = stm32_ipcc_mbox_enable,
 	.complete = stm32_ipcc_mbox_complete,
+	.capabilities = stm32_ipcc_mbox_capabilities,
 };
 
 static void stm32_ipcc_mbox_init(struct ipcc_pdata *pdata, const void *fdt,
@@ -551,11 +564,32 @@ static void stm32_ipcc_mbox_init(struct ipcc_pdata *pdata, const void *fdt,
 				       &pdata->itr_num[IPCC_ITR_RXO]);
 	if (res)
 		panic();
+	data->caps = MBOX_RX_NOTIF_CAP;
+
 	res = interrupt_dt_get_by_name(fdt, node, "tx",
 				       &pdata->itr_chip[IPCC_ITR_TXF],
 				       &pdata->itr_num[IPCC_ITR_TXF]);
-	if (res)
+	if (!res) {
+		/*
+		 * This support is possible, if non secure is not using ipcc
+		 * channel , this limitation come with channel interrupt mask
+		 * that can not be written in an atomic access , on ip version
+		 * major 2 and minor 0
+		 */
+		uint32_t ver = io_read32(pdata->base + IPCC_VER);
+		uint8_t major = ver >> 4 & 0xf;
+		uint8_t minor = ver & 0xf;
+
+		if (major == 0x2 && minor == 0)
+			panic();
+		data->caps |= MBOX_TX_NOTIF_CAP;
+	} else if (res != TEE_ERROR_GENERIC) {
+		/*
+		 *  TEE_ERROR_GENERIC is return if node is not present any
+		 *  other return value is unexpected
+		 */
 		panic();
+	}
 
 	desc = calloc(1, sizeof(*desc));
 	if (!desc)
@@ -600,20 +634,20 @@ static void stm32_ipcc_mbox_init(struct ipcc_pdata *pdata, const void *fdt,
 					  &pdata->itr[IPCC_ITR_RXO]);
 	if (res)
 		panic("Cannot register ipcc rx handler");
+	if (data->caps & MBOX_TX_NOTIF_CAP) {
+		res = interrupt_alloc_add_handler(pdata->itr_chip[IPCC_ITR_TXF],
+						  pdata->itr_num[IPCC_ITR_TXF],
+						  stm32_ipcc_mbox_txf_isr,
+						  ITRF_TRIGGER_LEVEL, pdata,
+						  &pdata->itr[IPCC_ITR_TXF]);
+		if (res)
+			panic("Cannot register ipcc tx handler");
 
-	res = interrupt_alloc_add_handler(pdata->itr_chip[IPCC_ITR_TXF],
-					  pdata->itr_num[IPCC_ITR_TXF],
-					  stm32_ipcc_mbox_txf_isr,
-					  ITRF_TRIGGER_LEVEL, pdata,
-					  &pdata->itr[IPCC_ITR_TXF]);
-	if (res)
-
-		panic("Cannot register ipcc tx handler");
-
+		interrupt_enable(pdata->itr_chip[IPCC_ITR_TXF],
+				 pdata->itr[IPCC_ITR_TXF]->it);
+	}
 	interrupt_enable(pdata->itr_chip[IPCC_ITR_RXO],
 			 pdata->itr[IPCC_ITR_RXO]->it);
-	interrupt_enable(pdata->itr_chip[IPCC_ITR_TXF],
-			 pdata->itr[IPCC_ITR_TXF]->it);
 
 	/* Register device to mailbox framework */
 	if (mbox_dt_register(fdt, node, desc))
