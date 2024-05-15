@@ -200,6 +200,17 @@ TEE_Result mbox_recv(const struct mbox_chan *handle, bool wait,
  */
 
 /**
+ * Capability flag definition
+ */
+enum mbox_capability {
+	MBOX_RX_NOTIF = 0,
+	MBOX_TX_NOTIF
+};
+
+#define MBOX_RX_NOTIF_CAP  BIT(MBOX_RX_NOTIF)
+#define MBOX_TX_NOTIF_CAP  BIT(MBOX_TX_NOTIF)
+
+/**
  * struct mbox_dev - Opaque mailbox framework device .
  */
 struct mbox_dev;
@@ -311,6 +322,16 @@ struct mbox_ops {
 	 * @retval: Return TEE_SUCCESS on success or error return code.
 	 */
 	TEE_Result (*complete)(const struct mbox_desc *desc, unsigned int id);
+
+	/**
+	 * @brief Callback API to get device capabality.
+	 *
+	 * @desc: Pointer to mailbox descriptor.
+	 *
+	 * @retval: Channel capabilities flags
+	 */
+	uint32_t (*capabilities)(const struct mbox_desc *desc);
+
 };
 
 /**

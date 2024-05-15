@@ -66,6 +66,7 @@ struct mbox_chan {
  *
  * @phandle: Device's handle
  * @num_chan: Number of @hdl array element
+ * $caps: Device capabilities
  * @desc: Mailbox descriptor
  * @link: Link to next mbox_dev
  * @hdl: Array for channel consumer handle
@@ -73,6 +74,7 @@ struct mbox_chan {
 struct mbox_dev {
 	int phandle;
 	size_t num_chan;
+	uint32_t caps;
 	const struct mbox_desc *desc;
 	SLIST_ENTRY(mbox_dev) link;
 	/* Flexible array size must be last */
@@ -183,6 +185,11 @@ static TEE_Result mbox_register_internal(const int phandle,
 	mdev->num_chan = num_chan;
 	for (i = 0; i < num_chan; i++)
 		mdev->hdl[i].lock = SPINLOCK_UNLOCK;
+	/* Retrieve device capabilities, if device api is available*/
+	if (desc->ops->capabilities)
+		mdev->caps = desc->ops->capabilities(desc);
+	else
+		mdev->caps = MBOX_RX_NOTIF_CAP | MBOX_TX_NOTIF_CAP;
 
 	/* Register incoming message mailbox Framework call bacK */
 	res = desc->ops->register_callback(desc, mbox_rx_callback,
@@ -225,6 +232,12 @@ static TEE_Result mbox_register_chan_internal(mbox_callback_t rcv_cb,
 	if (chan_id >= mbx_dev->num_chan)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	/*  Check Capability Support */
+	if ((!(mbx_dev->caps & MBOX_RX_NOTIF_CAP) && rcv_cb) ||
+	    (!(mbx_dev->caps & MBOX_TX_NOTIF_CAP) && txc_cb)
+	   )
+		return TEE_ERROR_NOT_SUPPORTED;
+
 	/* Protect against potential asynchronous event */
 	exceptions = cpu_spin_lock_xsave(&mbx_dev->hdl[chan_id].lock);
 	if (mbx_dev->hdl[chan_id].used) {
@@ -254,7 +267,7 @@ static TEE_Result mbox_register_chan_internal(mbox_callback_t rcv_cb,
 	hdl->cookie = cookie;
 	hdl->mbox_dev = mbx_dev;
 	hdl->id = chan_id;
-	if (!rcv_cb) {
+	if (!rcv_cb && (mbx_dev->caps & MBOX_RX_NOTIF_CAP)) {
 		res = notif_alloc_async_value(&hdl->notify_id[MBOX_EVENT_RX]);
 		if (res) {
 			cpu_spin_unlock_xrestore(&mbx_dev->hdl[chan_id].lock,
@@ -262,7 +275,7 @@ static TEE_Result mbox_register_chan_internal(mbox_callback_t rcv_cb,
 			return res;
 		}
 	}
-	if (!txc_cb) {
+	if (!txc_cb && (mbx_dev->caps & MBOX_TX_NOTIF_CAP)) {
 		res = notif_alloc_async_value(&hdl->notify_id[MBOX_EVENT_TX]);
 		if (res) {
 			cpu_spin_unlock_xrestore(&mbx_dev->hdl[chan_id].lock,
@@ -421,11 +434,14 @@ TEE_Result mbox_send(const struct mbox_chan *handle, bool wait,
 	uint32_t except = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	/* Check parameter */
-	if (ops->max_data_size(hdl->mbox_dev->desc) < size)
-		return TEE_ERROR_EXCESS_DATA;
+	if (wait && !(hdl->mbox_dev->caps & MBOX_TX_NOTIF_CAP))
+		return TEE_ERROR_NOT_SUPPORTED;
+
 	if (wait && hdl->cb[MBOX_EVENT_TX])
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (ops->max_data_size(hdl->mbox_dev->desc) < size)
+		return TEE_ERROR_EXCESS_DATA;
 
 	except = cpu_spin_lock_xsave(&hdl->lock);
 	if (hdl->notify[MBOX_EVENT_TX]) {
@@ -457,6 +473,9 @@ TEE_Result mbox_recv(const struct mbox_chan *handle, bool wait,
 	uint32_t except = 0;
 	void *copy_data = NULL;
 	vaddr_t s = 0;
+
+	if (wait && !(hdl->mbox_dev->caps & MBOX_RX_NOTIF_CAP))
+		return TEE_ERROR_NOT_SUPPORTED;
 
 	if (wait && hdl->cb[MBOX_EVENT_RX])
 		return TEE_ERROR_BAD_PARAMETERS;
