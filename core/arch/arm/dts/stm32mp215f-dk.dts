@@ -318,6 +318,9 @@
 	};
 };
 
+&saes {
+	status = "okay";
+};
 
 &scmi_regulator {
 	regulators {
