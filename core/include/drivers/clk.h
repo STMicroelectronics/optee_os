@@ -288,7 +288,8 @@ TEE_Result clk_get_duty_cycle(struct clk *clk,
  * clk_round_rate - Round the given rate for a clock
  * @clk: Clock for which the round rate is need
  * @rate: The rate which is to be rounded
- * Returns the closest rate actually supported by the clock.
+ * Returns the closest rate actually supported by the clock
+ * or zero when not supported
  */
 unsigned long clk_round_rate(struct clk *clk, unsigned long rate);
 

@@ -443,14 +443,37 @@ TEE_Result clk_get_duty_cycle(struct clk *clk,
 unsigned long clk_round_rate(struct clk *clk, unsigned long rate)
 {
 	struct clk *parent = clk->parent;
+	unsigned long parent_rate = 0;
+	unsigned long new_rate = rate;
 
-	if (clk->ops->round_rate)
-		return clk->ops->round_rate(clk, rate, clk->parent->rate);
+	/* find the closest rate */
+	if (clk->ops->determine_rate) {
+		struct clk_rate_request req = { };
+		TEE_Result res = TEE_ERROR_GENERIC;
 
-	if (parent && (clk->flags & CLK_SET_RATE_PARENT))
-		return clk_round_rate(parent, rate);
+		req.rate = rate;
 
-	return clk->rate;
+		clk_init_rate_req(clk, &req);
+
+		res = clk->ops->determine_rate(clk, &req);
+		if (res) {
+			DMSG("determine_rate() failed( %d)", res);
+			return 0;
+		}
+
+		new_rate = req.rate;
+	} else if (clk->ops->round_rate) {
+		if (parent)
+			parent_rate = parent->rate;
+		new_rate = clk->ops->round_rate(clk, rate, parent_rate);
+	} else if (parent && (clk->flags & CLK_SET_RATE_PARENT)) {
+		/* pass-through clock with adjustable parent */
+		new_rate = clk_round_rate(parent, rate);
+	} else {
+		new_rate  = rate;
+	}
+
+	return new_rate;
 }
 
 /* Return updated message buffer position of NULL on failure */
