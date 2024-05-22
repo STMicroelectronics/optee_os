@@ -114,44 +114,6 @@ void plat_console_init(void)
 	IMSG("Early console on UART#%u", CFG_STM32_EARLY_CONSOLE_UART);
 }
 
-static TEE_Result init_console_from_dt(void)
-{
-	struct stm32_uart_pdata *pd = NULL;
-	void *fdt = NULL;
-	int node = 0;
-	TEE_Result res = TEE_ERROR_GENERIC;
-
-	fdt = get_embedded_dt();
-	res = get_console_node_from_dt(fdt, &node, NULL, NULL);
-	if (res == TEE_ERROR_ITEM_NOT_FOUND) {
-		fdt = get_external_dt();
-		res = get_console_node_from_dt(fdt, &node, NULL, NULL);
-		if (res == TEE_ERROR_ITEM_NOT_FOUND)
-			return TEE_SUCCESS;
-		if (res != TEE_SUCCESS)
-			return res;
-	}
-
-	pd = stm32_uart_init_from_dt_node(fdt, node);
-	if (!pd) {
-		IMSG("DTB disables console");
-		register_serial_console(NULL);
-		return TEE_SUCCESS;
-	}
-
-	/* Replace early console with the new one */
-	console_flush();
-	console_data = *pd;
-	register_serial_console(&console_data.chip);
-	IMSG("DTB enables console");
-	free(pd);
-
-	return TEE_SUCCESS;
-}
-
-/* Probe console from DT once clock inits (service init level) are completed */
-service_init_late(init_console_from_dt);
-
 static uintptr_t stm32_dbgmcu_base(void)
 {
 	static void *va;
