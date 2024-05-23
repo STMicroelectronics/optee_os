@@ -33,6 +33,7 @@
 #include <stm32_util.h>
 #include <string.h>
 #include <trace.h>
+#include <util.h>
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB1_BASE, APB1_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB2_BASE, APB2_SIZE);
@@ -63,6 +64,7 @@ static TEE_Result platform_banner(void)
 	IMSG("Platform stm32mp1: flavor %s - DT %s",
 		ID2STR(PLATFORM_FLAVOR),
 		ID2STR(CFG_EMBED_DTB_SOURCE_FILE));
+	IMSG("OP-TEE ST profile: %s", TO_STR(CFG_STM32MP_PROFILE));
 
 	return TEE_SUCCESS;
 }
