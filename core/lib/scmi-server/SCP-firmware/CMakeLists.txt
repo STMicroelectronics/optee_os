@@ -556,7 +556,7 @@ endforeach()
 # Configure cmake-format.
 #
 
-find_package(CMakeFormat OPTIONAL_COMPONENTS Format Lint)
+find_package(CMakeFormat QUIET OPTIONAL_COMPONENTS Format Lint)
 
 if(TARGET CMakeFormat::Format)
     add_custom_target(
