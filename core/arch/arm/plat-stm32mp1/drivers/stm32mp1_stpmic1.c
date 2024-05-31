@@ -6,7 +6,6 @@
 #include <assert.h>
 #include <drivers/i2c.h>
 #include <drivers/regulator.h>
-#include <drivers/stm32_firewall.h>
 #include <drivers/stm32_i2c.h>
 #include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stpmic1.h>
@@ -728,16 +727,7 @@ void stm32mp_put_pmic(void)
 
 static void init_pmic_secure_state(void)
 {
-	TEE_Result res = TEE_SUCCESS;
-	const struct stm32_firewall_cfg sec_cfg[] = {
-		{ FWLL_SEC_RW | FWLL_MASTER(0) },
-		{ }, /* Null terminated */
-	};
-
-	res = stm32_firewall_check_access(i2c_handle->base.pa,
-					  0, sec_cfg);
-
-	if (!res)
+	if (i2c_handle->i2c_secure)
 		pmic_status = DT_STATUS_OK_SEC;
 	else
 		pmic_status = DT_STATUS_OK_NSEC;
