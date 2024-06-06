@@ -296,40 +296,58 @@ struct scmi_msg_channel *plat_scmi_get_channel(unsigned int channel_id)
 	return find_resource(confined_id)->channel;
 }
 
-static size_t __maybe_unused plat_scmi_protocol_count_paranoid(void)
+static uint8_t *plat_protocol_list;
+static size_t plat_protocol_list_count;
+
+static void add_protocol(uint8_t protocol_id)
+{
+	plat_protocol_list_count++;
+
+	plat_protocol_list = realloc(plat_protocol_list,
+				     plat_protocol_list_count *
+				     sizeof(*plat_protocol_list));
+	assert(plat_protocol_list);
+
+	plat_protocol_list[plat_protocol_list_count - 1] = protocol_id;
+}
+
+static void plat_scmi_set_protocol_list(void)
 {
 	unsigned int n = 0;
-	unsigned int count = 0;
 	const size_t channel_count = ARRAY_SIZE(scmi_channel);
+
+	if (plat_protocol_list_count)
+		return;
 
 	for (n = 0; n < channel_count; n++)
 		if (scmi_channel[n].clock_count)
 			break;
 	if (n < channel_count)
-		count++;
+		add_protocol(SCMI_PROTOCOL_ID_CLOCK);
 
 	for (n = 0; n < channel_count; n++)
 		if (scmi_channel[n].rd_count)
 			break;
 	if (n < channel_count)
-		count++;
+		add_protocol(SCMI_PROTOCOL_ID_RESET_DOMAIN);
 
 	for (n = 0; n < channel_count; n++)
 		if (IS_ENABLED(CFG_SCMI_MSG_REGULATOR_CONSUMER) &&
 		    plat_scmi_voltd_count(n))
 			break;
 	if (n < channel_count)
-		count++;
+		add_protocol(SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN);
 
 #ifdef CFG_SCMI_MSG_PERF_DOMAIN
 	for (n = 0; n < channel_count; n++)
 		if (scmi_channel[n].perfd_count)
 			break;
 	if (n < channel_count)
-		count++;
+		add_protocol(SCMI_PROTOCOL_ID_PERF);
 #endif
 
-	return count;
+	/* The array expects a terminal 0 ID value */
+	add_protocol(0);
 }
 
 static const char vendor[] = "ST";
@@ -345,33 +363,16 @@ const char *plat_scmi_sub_vendor_name(void)
 	return sub_vendor;
 }
 
-/* Currently supporting Clocks and Reset Domains */
-static const uint8_t plat_protocol_list[] = {
-	SCMI_PROTOCOL_ID_CLOCK,
-	SCMI_PROTOCOL_ID_RESET_DOMAIN,
-#ifdef CFG_SCMI_MSG_REGULATOR_CONSUMER
-	SCMI_PROTOCOL_ID_VOLTAGE_DOMAIN,
-#endif
-#ifdef CFG_SCMI_MSG_PERF_DOMAIN
-	SCMI_PROTOCOL_ID_PERF,
-#endif
-	0 /* Null termination */
-};
-
 size_t plat_scmi_protocol_count(void)
 {
-	const size_t count = ARRAY_SIZE(plat_protocol_list) - 1;
+	plat_scmi_set_protocol_list();
+	assert(plat_protocol_list_count);
 
-	assert(count == plat_scmi_protocol_count_paranoid());
-
-	return count;
+	return plat_protocol_list_count - 1;
 }
 
 const uint8_t *plat_scmi_protocol_list(unsigned int channel_id __unused)
 {
-	assert(plat_scmi_protocol_count_paranoid() ==
-	       (ARRAY_SIZE(plat_protocol_list) - 1));
-
 	return plat_protocol_list;
 }
 
