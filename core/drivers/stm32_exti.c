@@ -664,7 +664,7 @@ stm32_exti_pm(enum pm_op op, unsigned int pm_hint,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(stm32_exti_pm);
+DECLARE_KEEP_PAGER_PM(stm32_exti_pm);
 
 static enum itr_return stm32_exti_it_handler(struct itr_handler *h)
 {
