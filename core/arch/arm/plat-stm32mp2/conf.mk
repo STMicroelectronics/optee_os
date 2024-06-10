@@ -63,6 +63,7 @@ endif
 include core/arch/arm/cpu/cortex-armv8-0.mk
 supported-ta-targets ?= ta_arm64
 
+$(call force,CFG_ARM_GIC_PM,y)
 $(call force,CFG_ARM64_core,y)
 $(call force,CFG_CORE_ASYNC_NOTIF,y)
 $(call force,CFG_CORE_ASYNC_NOTIF_GIC_INTID,31)
