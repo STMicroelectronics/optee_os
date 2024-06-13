@@ -48,9 +48,20 @@ TEE_Result get_console_node_from_dt(void *fdt, int *offs_out,
  * the console to this device.
  */
 void configure_console_from_dt(void);
+
+#ifdef CFG_RAM_CONSOLE
+/* Allocate and initialize RAM console */
+void ram_console_init(void);
+#else
+static inline void ram_console_init(void)
+{
+}
+#endif /* CFG_RAM_CONSOLE */
+
 #else
 static inline void configure_console_from_dt(void)
-{}
+{
+}
 #endif /* !CFG_DT */
 
 #endif /* __CONSOLE_H */

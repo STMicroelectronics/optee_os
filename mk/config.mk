@@ -1313,6 +1313,13 @@ CFG_FFA_CONSOLE ?= n
 CFG_CONSOLE_RUNTIME_SET ?= n
 CFG_CONSOLE_RUNTIME_LOG_LEVEL ?= 0
 
+# CFG_RAM_CONSOLE, when enabled, stores in TA RAM all trace messages emitted
+# as soon as TA RAM memory pool is initialized. When a console driver registers,
+# it prints logged messages and frees the RAM console memory.
+# CFG_RAM_CONSOLE_SIZE defines the byte size of the RAM console buffer.
+CFG_RAM_CONSOLE ?= n
+CFG_RAM_CONSOLE_SIZE ?= 65536
+
 # CFG_CORE_UNSAFE_MODEXP, when enabled, makes modular exponentiation on TEE
 # core use 'unsafe' algorithm having better performance. To resist against
 # timing attacks, 'safe' one is designed to take constant-time that is

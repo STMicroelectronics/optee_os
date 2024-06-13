@@ -841,6 +841,9 @@ static void update_external_dt(void)
 
 void init_tee_runtime(void)
 {
+	/* Init RAM console if any */
+	ram_console_init();
+
 	/*
 	 * With virtualization we call this function when creating the
 	 * OP-TEE partition instead.

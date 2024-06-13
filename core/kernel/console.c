@@ -14,6 +14,7 @@
 #include <kernel/dt_driver.h>
 #include <kernel/panic.h>
 #include <libfdt.h>
+#include <mm/phys_mem.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string_ext.h>
@@ -35,6 +36,84 @@ void console_init(void)
 		plat_console_init();
 }
 
+#ifdef CFG_RAM_CONSOLE
+/*
+ * struct ram_console - RAM console to store messages in.
+ * ram_serial: Serial chip instance for the RAM console
+ * @mm: RAM console buffer allocate in TA RAM
+ * @logs: Virtual address of the buffer referenced by @mm
+ * @write_offset: Byte offset from @logs where to store next trace byte
+ */
+struct ram_console {
+	struct serial_chip ram_serial;
+	tee_mm_entry_t *mm;
+	char *logs;
+	size_t write_offset;
+};
+
+/* RAM console reference used to switch console in matching UART probe */
+static struct ram_console *ram_console;
+
+static void ram_console_putc(struct serial_chip *chip __unused, int ch)
+{
+	if (ram_console->write_offset < CFG_RAM_CONSOLE_SIZE) {
+		*(ram_console->logs + ram_console->write_offset) = ch;
+		ram_console->write_offset++;
+	}
+}
+
+static void ram_console_flush(struct serial_chip *chip)
+{
+	size_t n = 0;
+
+	if (ram_console && ram_console->write_offset) {
+		if (chip->ops->putc)
+			for (n = 0; n < ram_console->write_offset; n++)
+				chip->ops->putc(chip, ram_console->logs[n]);
+
+		if (chip->ops->flush)
+			chip->ops->flush(chip);
+		ram_console->write_offset = 0;
+	}
+}
+
+static const struct serial_ops ram_console_ops = {
+	.putc = ram_console_putc,
+};
+DECLARE_KEEP_PAGER(ram_console_ops);
+
+void ram_console_init(void)
+{
+	ram_console = calloc(1, sizeof(*ram_console));
+	if (!ram_console)
+		return;
+
+	ram_console->mm = phys_mem_ta_alloc(CFG_RAM_CONSOLE_SIZE);
+	if (!ram_console->mm) {
+		free(ram_console);
+		ram_console = NULL;
+		return;
+	}
+	ram_console->logs = phys_to_virt(tee_mm_get_smem(ram_console->mm),
+					 MEM_AREA_TA_RAM, CFG_RAM_CONSOLE_SIZE);
+
+	ram_console->ram_serial.ops = &ram_console_ops;
+	serial_console = &ram_console->ram_serial;
+
+	DMSG("RAM console registered");
+}
+
+static void release_ram_console(void)
+{
+	if (ram_console) {
+		tee_mm_free(ram_console->mm);
+		free(ram_console);
+		ram_console = NULL;
+		DMSG("RAM console released");
+	}
+}
+#endif /*CFG_RAM_CONSOLE*/
+
 void __weak console_putc(int ch)
 {
 	if (!serial_console)
@@ -55,7 +134,14 @@ void __weak console_flush(void)
 
 void register_serial_console(struct serial_chip *chip)
 {
+#ifdef CFG_RAM_CONSOLE
+	if (ram_console && chip)
+		ram_console_flush(chip);
+#endif /* CFG_RAM_CONSOLE */
 	serial_console = chip;
+#ifdef CFG_RAM_CONSOLE
+	release_ram_console();
+#endif /* CFG_RAM_CONSOLE */
 }
 
 #ifdef CFG_CONSOLE_RUNTIME_SET
