@@ -192,6 +192,17 @@ TEE_Result firewall_set_memory_configuration(struct firewall_query *fw,
 					     paddr_t paddr, size_t size);
 
 /**
+ * firewall_set_memory_alternate_conf() - Set an alternate firewall
+ * configuration on a given memory range.
+ *
+ * @conf: Pointer to the alternate configuration to set
+ * @paddr: Physical base address of the memory range
+ * @size: Size of the memory range
+ */
+TEE_Result firewall_set_memory_alternate_conf(struct firewall_alt_conf *conf,
+					      paddr_t paddr, size_t size);
+
+/**
  * firewall_put() - Release a firewall_query structure allocated by
  * firewall_dt_get_by_index() or firewall_dt_get_by_name()
  *
@@ -288,6 +299,20 @@ firewall_set_memory_configuration(struct firewall_query *fw __unused,
 
 static inline TEE_Result
 firewall_set_alternate_conf(struct firewall_alt_conf *conf __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+firewall_set_memory_configuration(struct firewall_query *fw __unused,
+				  paddr_t paddr __unused, size_t size __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+firewall_set_memory_alternate_conf(struct firewall_alt_conf *conf __unused,
+				   paddr_t paddr __unused, size_t size __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
