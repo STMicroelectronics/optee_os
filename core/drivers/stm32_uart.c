@@ -213,27 +213,6 @@ static void setup_resources(struct stm32_uart_pdata *pd)
 		panic();
 }
 
-struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
-{
-	struct stm32_uart_pdata *pd = NULL;
-
-	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
-		return NULL;
-
-	pd = calloc(1, sizeof(*pd));
-	if (!pd)
-		panic();
-
-	if (parse_dt(fdt, node, pd)) {
-		/* stm32_uart_init_from_dt_node() expects resources are ready */
-		panic();
-	}
-
-	setup_resources(pd);
-
-	return pd;
-}
-
 static bool uart_is_for_console(void *fdt, int node, char **params)
 {
 	static int uart_console_node = -1;
