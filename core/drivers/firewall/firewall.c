@@ -10,6 +10,7 @@
 #include <kernel/panic.h>
 #include <libfdt.h>
 #include <malloc.h>
+#include <stdio.h>
 #include <trace.h>
 
 /* The firewall framework requires device tree support */
@@ -56,6 +57,18 @@ void firewall_put(struct firewall_query *fw)
 	}
 }
 
+void firewall_alternate_conf_put(struct firewall_alt_conf *conf)
+{
+	if (conf) {
+		size_t i = 0;
+
+		for (i = 0; i < conf->nb_queries; i++)
+			firewall_put(conf->queries[i]);
+		free(conf->queries);
+		free(conf);
+	}
+}
+
 TEE_Result firewall_dt_get_by_index(const void *fdt, int node, uint32_t index,
 				    struct firewall_query **out_fw)
 {
@@ -80,6 +93,74 @@ TEE_Result firewall_dt_get_by_name(const void *fdt, int node, const char *name,
 	return firewall_dt_get_by_index(fdt, node, index, out_fw);
 }
 
+TEE_Result firewall_dt_get_alternate_conf(const void *fdt, int node,
+					  const char *conf_name,
+					  struct firewall_alt_conf **out_conf)
+{
+	struct firewall_alt_conf *conf = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	char *prop_name = NULL;
+	size_t nb_element = 0;
+	int max_len = 0;
+	size_t i = 0;
+
+	assert(conf_name && out_conf);
+
+	max_len = strlen(conf_name) + strlen("access-controllers-conf-") + 1;
+	prop_name = calloc(1, max_len);
+	if (!prop_name)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	snprintf(prop_name, max_len, "access-controllers-conf-%s", conf_name);
+	res = dt_driver_count_devices(prop_name, fdt, node, DT_DRIVER_FIREWALL,
+				      &nb_element);
+	if (res) {
+		if (res != TEE_ERROR_DEFER_DRIVER_INIT)
+			EMSG("Could not count devices for %s conf in node %s",
+			     prop_name, fdt_get_name(fdt, node, NULL));
+		goto out;
+	}
+
+	if (!nb_element) {
+		EMSG("No firewall alternate configuration: %s in node %s",
+		     prop_name, fdt_get_name(fdt, node, NULL));
+		res = TEE_ERROR_BAD_PARAMETERS;
+		goto out;
+	}
+
+	conf = calloc(1, sizeof(*conf));
+	if (!conf) {
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	conf->nb_queries = nb_element;
+	conf->queries = calloc(nb_element, sizeof(*conf->queries));
+	if (!conf->queries) {
+		free(conf);
+		res = TEE_ERROR_OUT_OF_MEMORY;
+		goto out;
+	}
+
+	for (i = 0; i < nb_element; i++) {
+		res = dt_driver_device_from_node_idx_prop(prop_name, fdt, node,
+							  i, DT_DRIVER_FIREWALL,
+							  conf->queries + i);
+		if (res) {
+			firewall_alternate_conf_put(conf);
+			goto out;
+		}
+	}
+
+	*out_conf = conf;
+	res = TEE_SUCCESS;
+
+out:
+	free(prop_name);
+
+	return res;
+}
+
 TEE_Result firewall_set_configuration(struct firewall_query *fw)
 {
 	assert(fw && fw->ctrl && fw->ctrl->ops);
@@ -88,6 +169,22 @@ TEE_Result firewall_set_configuration(struct firewall_query *fw)
 		return TEE_ERROR_NOT_SUPPORTED;
 
 	return fw->ctrl->ops->set_conf(fw);
+}
+
+TEE_Result firewall_set_alternate_conf(struct firewall_alt_conf *conf)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t i = 0;
+
+	assert(conf);
+
+	for (i = 0; i < conf->nb_queries; i++) {
+		res = firewall_set_configuration(conf->queries[i]);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result firewall_set_memory_configuration(struct firewall_query *fw,

@@ -15,6 +15,18 @@
 struct firewall_controller;
 
 /**
+ * struct firewall_alt_conf - Alternate firewall configuration for a device.
+ *
+ * @queries: Pointer referencing the firewall queries composing the alternate
+ * configuration
+ * @nb_queries: Number of firewall queries
+ */
+struct firewall_alt_conf {
+	struct firewall_query **queries;
+	size_t nb_queries;
+};
+
+/**
  * struct firewall_query - Information on a device's firewall.
  *
  * @ctrl: Pointer referencing a firewall controller of the device. It is opaque
@@ -64,12 +76,37 @@ TEE_Result firewall_dt_get_by_name(const void *fdt, int node, const char *name,
 				   struct firewall_query **out_fw);
 
 /**
+ * firewall_dt_get_alternate_conf() - Get the alternate firewall configuration
+ * associated to a given name for a device node. Alternate configurations
+ * are identified by "access-controllers-conf-[conf_name]". It is composed
+ * of one or more firewall queries.
+ *
+ * @fdt: FDT to work on
+ * @node: Device node to read from
+ * @conf_name: Name of the target firewall alternate configuration
+ * @conf: Pointer to the alternate configuration
+ *
+ * Returns TEE_SUCCESS on success, TEE_ERROR_ITEM_NOT_FOUND if the property is
+ * not found or appropriate TEE_Result error code if an error occurred.
+ */
+TEE_Result firewall_dt_get_alternate_conf(const void *fdt, int node,
+					  const char *conf_name,
+					  struct firewall_alt_conf **conf);
+
+/**
  * firewall_set_configuration() - Reconfigure the firewall controller associated
  * to the given firewall configuration with it.
  *
  * @fw:	Firewall query containing the configuration to set
  */
 TEE_Result firewall_set_configuration(struct firewall_query *fw);
+
+/**
+ * firewall_set_alternate_conf() - Set an alternate firewall configuration.
+ *
+ * @conf: Pointer to the alternate configuration to set
+ */
+TEE_Result firewall_set_alternate_conf(struct firewall_alt_conf *conf);
 
 /**
  * firewall_check_access() - Check if the access is authorized for a consumer
@@ -162,6 +199,14 @@ TEE_Result firewall_set_memory_configuration(struct firewall_query *fw,
  */
 void firewall_put(struct firewall_query *fw);
 
+/**
+ * firewall_alternate_conf_put() - Release a firewall_alt_conf structure
+ * allocated by firewall_dt_get_alternate_conf()
+ *
+ * @conf: Firewall alternate configuration to put
+ */
+void firewall_alternate_conf_put(struct firewall_alt_conf *conf);
+
 #else /* CFG_DRIVERS_FIREWALL */
 
 static inline TEE_Result
@@ -176,6 +221,14 @@ static inline TEE_Result
 firewall_dt_get_by_name(const void *fdt __unused, int node __unused,
 			const char *name __unused,
 			struct firewall_query **out_fw __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
+static inline TEE_Result
+firewall_dt_get_alternate_conf(const void *fdt __unused, int node __unused,
+			       const char *conf_name __unused,
+			       struct firewall_alt_conf **conf __unused)
 {
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
@@ -233,7 +286,18 @@ firewall_set_memory_configuration(struct firewall_query *fw __unused,
 	return TEE_ERROR_NOT_IMPLEMENTED;
 }
 
+static inline TEE_Result
+firewall_set_alternate_conf(struct firewall_alt_conf *conf __unused)
+{
+	return TEE_ERROR_NOT_IMPLEMENTED;
+}
+
 static inline void firewall_put(struct firewall_query *fw __unused)
+{
+}
+
+static inline void
+firewall_alternate_conf_put(struct firewall_alt_conf *conf __unused)
 {
 }
 
