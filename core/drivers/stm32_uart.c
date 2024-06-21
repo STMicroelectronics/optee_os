@@ -46,6 +46,25 @@
 #define USART_ISR_TXE_TXFNF		BIT(7)
 #define USART_ISR_TXFE			BIT(23)
 
+/*
+ * UART Configuration register 1
+ *
+ * Bit 0 UE: UART Enable
+ * Bit 2 RE: Reception Enable
+ * Bit 3 TE: Transmission Enable
+ * Bit 15 OVER8: Oversampling by 8
+ * Bit 29 FIFOEN: UART Fifo Enable
+ */
+#define UART_REG_CR1_UE			BIT(0)
+#define UART_REG_CR1_RE			BIT(2)
+#define UART_REG_CR1_TE			BIT(3)
+#define UART_REG_CR1_OVER8		BIT(15)
+#define UART_REG_CR1_FIFOEN		BIT(29)
+
+#define UART_MAX_PRESC			256
+#define UART_REG_BRR_M_SHIFT		4
+#define UART_REG_BRR_MASK		GENMASK_32(15, 0)
+
 static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 {
 	struct stm32_uart_pdata *pd = NULL;
@@ -109,52 +128,168 @@ void stm32_uart_init(struct stm32_uart_pdata *pd, vaddr_t base)
 	pd->chip.ops = &stm32_uart_serial_ops;
 }
 
-struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
+static TEE_Result stm32_uart_update_baudrate(struct stm32_uart_pdata *pd,
+					     char *params)
 {
-	TEE_Result res = TEE_ERROR_GENERIC;
-	struct stm32_uart_pdata *pd = NULL;
+	uint64_t clk_rate = 0;
+	uint32_t brr = 0;
+	uint32_t baudrate = 0;
+	uint32_t mantissa = 0;
+	uint32_t uartdiv = 0;
+	uint32_t fraction = 0;
+	unsigned int i = 0;
+	int oversampling = 0;
+	uint32_t over8 = 0;
+	vaddr_t uart_base = io_pa_or_va(&pd->base, 1);
+	uint32_t presc[] = { 1, 2, 6, 8, 10, 12, 16, 32, 64, 128, 256 };
+
+	clk_rate = clk_get_rate(pd->clock);
+	if (!clk_rate || clk_enable(pd->clock))
+		panic();
+
+	baudrate = strtoul(params, NULL, 10);
+
+	for (i = 0; i < ARRAY_SIZE(presc); i++) {
+		uartdiv = UDIV_ROUND_NEAREST(clk_rate, baudrate * presc[i]);
+		if (uartdiv < 16) {
+			oversampling = 8;
+			uartdiv = uartdiv * 2;
+			over8 = UART_REG_CR1_OVER8;
+		} else {
+			oversampling = 16;
+		}
+		mantissa = SHIFT_U32(uartdiv / oversampling,
+				     UART_REG_BRR_M_SHIFT);
+		fraction = uartdiv % oversampling;
+		brr = mantissa | fraction;
+		if (brr <= UART_REG_BRR_MASK)
+			break;
+		if (i == ARRAY_SIZE(presc))
+			return TEE_ERROR_GENERIC;
+	}
+	io_write32(uart_base + UART_REG_BRR, brr);
+	io_write32(uart_base + UART_REG_PRESC, presc[i]);
+	io_write32(uart_base + UART_REG_CR1, UART_REG_CR1_UE |
+			   UART_REG_CR1_RE | UART_REG_CR1_TE |
+			   UART_REG_CR1_FIFOEN | over8);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result parse_dt(void *fdt, int node, struct stm32_uart_pdata *pd)
+{
 	struct dt_node_info info = { };
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = clk_dt_get_by_index(fdt, node, 0, &pd->clock);
+	if (res)
+		return res;
+
+	res = pinctrl_get_state_by_name(fdt, node, "default", &pd->pinctrl);
+	if (res)
+		return res;
 
 	fdt_fill_device_info(fdt, &info, node);
-
-	if (info.status == DT_STATUS_DISABLED)
-		return NULL;
 
 	assert(info.reg != DT_INFO_INVALID_REG &&
 	       info.reg_size != DT_INFO_INVALID_REG_SIZE);
 
-	pd = calloc(1, sizeof(*pd));
-	if (!pd)
-		panic();
-
 	pd->chip.ops = &stm32_uart_serial_ops;
 	pd->base.pa = info.reg;
-
-	res = clk_dt_get_by_index(fdt, node, 0, &pd->clock);
-	if (res) {
-		EMSG("Failed to get clock: %#"PRIx32, res);
-		panic();
-	}
-
-	res = clk_enable(pd->clock);
-	if (res)
-		panic();
 
 	assert(cpu_mmu_enabled());
 	pd->base.va = (vaddr_t)phys_to_virt(pd->base.pa, MEM_AREA_IO_SEC,
 					    info.reg_size);
 
-	res = pinctrl_get_state_by_name(fdt, node, "default", &pd->pinctrl);
-	if (res)
+	return TEE_SUCCESS;
+}
+
+static void setup_resources(struct stm32_uart_pdata *pd)
+{
+	if (clk_enable(pd->clock))
 		panic();
 
-	res = pinctrl_get_state_by_name(fdt, node, "sleep", &pd->pinctrl_sleep);
-	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
+	if (pinctrl_apply_state(pd->pinctrl))
+		panic();
+}
+
+struct stm32_uart_pdata *stm32_uart_init_from_dt_node(void *fdt, int node)
+{
+	struct stm32_uart_pdata *pd = NULL;
+
+	if (fdt_get_status(fdt, node) == DT_STATUS_DISABLED)
+		return NULL;
+
+	pd = calloc(1, sizeof(*pd));
+	if (!pd)
 		panic();
 
-	res = pinctrl_apply_state(pd->pinctrl);
-	if (res)
+	if (parse_dt(fdt, node, pd)) {
+		/* stm32_uart_init_from_dt_node() expects resources are ready */
 		panic();
+	}
+
+	setup_resources(pd);
 
 	return pd;
 }
+
+static bool uart_is_for_console(void *fdt, int node, char **params)
+{
+	static int uart_console_node = -1;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (uart_console_node < 0) {
+		res = get_console_node_from_dt(fdt, &uart_console_node, NULL,
+					       params);
+		if (res == TEE_ERROR_ITEM_NOT_FOUND)
+			return false;
+		if (res != TEE_SUCCESS) {
+			EMSG("Error finding a console UART device");
+			return false;
+		}
+	}
+
+	return uart_console_node == node;
+}
+
+static TEE_Result stm32_uart_probe(const void *fdt, int node,
+				   const void *compt_data __unused)
+{
+	struct stm32_uart_pdata *pd = NULL;
+	static char *params;
+	TEE_Result res = TEE_SUCCESS;
+
+	pd = calloc(1, sizeof(*pd));
+	if (!pd)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	res = parse_dt((void *)fdt, node, pd);
+	if (res)
+		goto out;
+
+	setup_resources(pd);
+
+	if (uart_is_for_console((void *)fdt, node, &params) &&
+	    stm32_uart_update_baudrate(pd, params) == TEE_SUCCESS) {
+		register_serial_console(&pd->chip);
+	}
+
+out:
+	if (res)
+		free(pd);
+
+	return res;
+}
+
+static const struct dt_device_match stm32_uart_match_table[] = {
+	{ .compatible = "st,stm32h7-uart" },
+	{ }
+};
+
+DEFINE_DT_DRIVER(stm32_uart_dt_driver) = {
+	.name = "stm32_uart",
+	.type = DT_DRIVER_UART,
+	.match_table = stm32_uart_match_table,
+	.probe = &stm32_uart_probe,
+};

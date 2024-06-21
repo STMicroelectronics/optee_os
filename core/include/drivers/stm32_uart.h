@@ -18,7 +18,6 @@ struct stm32_uart_pdata {
 	struct serial_chip chip;
 	struct clk *clock;
 	struct pinctrl_state *pinctrl;
-	struct pinctrl_state *pinctrl_sleep;
 };
 
 /*
