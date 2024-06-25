@@ -70,6 +70,7 @@ cppflags-lib-y += -DFWK_LOG_LEVEL=$(CFG_SCPFW_LOG_LEVEL)
 ifneq ($(CFG_SCPFW_LOG_LEVEL),0)
 cppflags-lib-y += -DFMW_LOG_MINIMAL_BANNER=1
 endif
+cppflags-lib-$(CFG_SCP_ENABLE_LOG_PREFIX) += -DFWK_LOG_LEVEL_PREFIX
 
 cflags-lib-y += -Wno-cast-align \
 		-Wno-nonnull-compare \
