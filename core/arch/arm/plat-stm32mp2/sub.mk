@@ -6,3 +6,5 @@ subdirs-y += drivers
 subdirs-$(CFG_STM32_PSA_SERVICE) += psa_service
 
 subdirs-$(CFG_PSA_ADAC) += psa-adac
+
+srcs-$(CFG_DISPLAY) += display.c
