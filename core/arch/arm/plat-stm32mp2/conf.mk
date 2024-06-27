@@ -199,6 +199,7 @@ CFG_STM32_TAMP ?= y
 CFG_STM32_UART ?= y
 CFG_STM32_VREFBUF ?= y
 CFG_STPMIC2 ?= y
+CFG_WITH_TUI ?= y
 
 CFG_DRIVERS_I2C ?= $(CFG_STM32_I2C)
 CFG_REGULATOR_FIXED ?= y
@@ -377,3 +378,13 @@ endif
 # When CFG_DT_CACHED_NODE_INFO is enabled, boot time may be divided by 2 or
 # more (depending on DTB size).
 CFG_DT_CACHED_NODE_INFO ?= y
+
+# Trusted User Interface
+ifeq ($(CFG_WITH_TUI),y)
+$(call force,CFG_DISPLAY,y)
+$(call force,CFG_FRAME_BUFFER,y)
+$(call force,CFG_STM32_LTDC,y)
+# Provision virtual space to fit 10MByte plus the TUI frame buffer
+CFG_TUI_FRAME_BUFFER_SIZE_MAX ?= 0x01000000
+CFG_RESERVED_VASPACE_SIZE ?= (10 * 1024 * 1024 + $(CFG_TUI_FRAME_BUFFER_SIZE_MAX))
+endif
