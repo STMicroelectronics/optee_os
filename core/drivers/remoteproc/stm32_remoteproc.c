@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <config.h>
+#include <drivers/firewall_device.h>
 #include <drivers/rstctrl.h>
 #include <drivers/stm32_remoteproc.h>
 #ifdef CFG_STM32MP15
@@ -25,6 +26,9 @@
 
 #define INITVTOR_MASK	GENMASK_32(31, 7)
 
+#define FIREWALL_CONF_DEFAULT "default"
+#define FIREWALL_CONF_LOAD    "load"
+
 /**
  * struct stm32_rproc_mem - Memory regions used by the remote processor
  *
@@ -32,11 +36,16 @@
  * @da:		device address corresponding to the physical base address
  *		from remote processor space perspective
  * @size:	size of the region
+ * @default_conf: default firewall configuration applied on memory
+ * @load_conf:	  firewall configuration applied on memory to give access to the
+ *		  TEE remoteproc framework to load the firmware
  */
 struct stm32_rproc_mem {
 	paddr_t addr;
 	paddr_t da;
 	size_t size;
+	struct firewall_alt_conf *default_conf;
+	struct firewall_alt_conf *load_conf;
 };
 
 /**
@@ -372,6 +381,26 @@ TEE_Result stm32_rproc_enable_sec_boot(uint32_t rproc_id)
 	return TEE_SUCCESS;
 }
 
+static void stm32_rproc_free_regions(struct stm32_rproc_instance *rproc)
+{
+	struct stm32_rproc_mem *regions = rproc->regions;
+	int i = 0;
+
+	if (!regions)
+		return;
+
+	for (i = 0; i < (int)rproc->n_regions; i++) {
+		if (regions[i].default_conf)
+			firewall_alternate_conf_put(regions[i].default_conf);
+		if (regions[i].load_conf)
+			firewall_alternate_conf_put(regions[i].load_conf);
+	}
+
+	free(regions);
+	rproc->n_regions = 0;
+	rproc->regions = NULL;
+}
+
 /* Get device tree memory regions reserved for the Cortex-M and the IPC */
 static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 					 const void *fdt, int node)
@@ -395,20 +424,33 @@ static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 	if (!regions)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
+	rproc->n_regions = n_regions;
+	rproc->regions = regions;
+
 	for (i = 0; i < n_regions; i++) {
 		int pnode = 0;
 
 		pnode = fdt_node_offset_by_phandle(fdt, fdt32_to_cpu(list[i]));
 		if (pnode < 0) {
 			res = TEE_ERROR_GENERIC;
-			goto err;
+			return res;
 		}
 
 		if (fdt_reg_info(fdt, pnode, &regions[i].addr,
 				 &regions[i].size)) {
 			res = TEE_ERROR_GENERIC;
-			goto err;
+			return res;
 		}
+		res = firewall_dt_get_alternate_conf(fdt, pnode,
+						     FIREWALL_CONF_DEFAULT,
+						     &regions[i].default_conf);
+		if (res)
+			return res;
+		res = firewall_dt_get_alternate_conf(fdt, pnode,
+						     FIREWALL_CONF_LOAD,
+						     &regions[i].load_conf);
+		if (res)
+			return res;
 
 #if defined(CFG_STM32MP15)
 		if (stm32mp1_ram_intersect_pager_ram(regions[i].addr,
@@ -422,26 +464,18 @@ static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 
 		res = stm32_rproc_get_dma_range(&regions[i], fdt, node);
 		if (res)
-			goto err;
+			return res;
 
 		if (!regions[i].addr || !regions[i].size) {
 			res = TEE_ERROR_BAD_PARAMETERS;
-			goto err;
+			return res;
 		}
 
 		DMSG("register region %#"PRIxPA" size %#zx",
 		     regions[i].addr, regions[i].size);
 	}
 
-	rproc->n_regions = n_regions;
-	rproc->regions = regions;
-
 	return TEE_SUCCESS;
-
-err:
-	free(regions);
-
-	return res;
 }
 
 TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id)
@@ -475,7 +509,7 @@ TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id)
 
 static void stm32_rproc_cleanup(struct stm32_rproc_instance *rproc)
 {
-	free(rproc->regions);
+	stm32_rproc_free_regions(rproc);
 	free(rproc);
 }
 
