@@ -7,6 +7,7 @@
 #include <config.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/firewall_device.h>
 #include <drivers/rstctrl.h>
 #include <drivers/stm32_gpio.h>
 #include <io.h>
@@ -76,6 +77,7 @@ struct stm32_omm_pdata {
 	struct pinctrl_state *pinctrl_s;
 	struct stm32_ospi_pdata ospi_d[OSPI_NB];
 	struct stm32_mm_region region;
+	struct firewall_alt_conf *firewall_conf;
 	vaddr_t base;
 	uint32_t mux;
 	uint32_t cssel_ovr;
@@ -128,6 +130,10 @@ static TEE_Result stm32_omm_parse_fdt(const void *fdt, int node)
 	if (res && res != TEE_ERROR_ITEM_NOT_FOUND)
 		return res;
 
+	res = firewall_dt_get_alternate_conf(fdt, node, "default",
+					     &omm_d->firewall_conf);
+	if (res)
+		return res;
 	omm_d->mux = fdt_read_uint32_default(fdt, node, "st,omm-mux", 0);
 	omm_d->req2ack = fdt_read_uint32_default(fdt, node,
 						 "st,omm-req2ack-ns", 0);
@@ -320,6 +326,9 @@ static void stm32_omm_setup(void)
 	stm32_omm_set_mm();
 	stm32_omm_configure();
 	if (omm_d->pinctrl_d && pinctrl_apply_state(omm_d->pinctrl_d))
+		panic();
+
+	if (firewall_set_alternate_conf(omm_d->firewall_conf))
 		panic();
 }
 
