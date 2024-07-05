@@ -94,7 +94,8 @@ typedef TEE_Result (*pm_callback)(enum pm_op op, uint32_t pm_hint,
  *
  * Callback implementations should ensure their functions belong to unpaged
  * memory sections (see DECLARE_KEEP_PAGER()) since the callback is likely to
- * be called from an unpaged execution context.
+ * be called from an unpaged execution context unless
+ * CFG_PAGED_PSCI_SYSTEM_SUSPEND and CFG_PAGED_SYSTEM_OFF are enabled.
  *
  * Power Mamagement callback functions API:
  *

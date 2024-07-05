@@ -21,8 +21,17 @@ static size_t pm_cb_count;
 static const char no_name[] = "no-name";
 DECLARE_KEEP_PAGER(no_name);
 
+static bool need_unpaged_resources(void)
+{
+	return !IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_OFF) ||
+	       !IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_SUSPEND);
+}
+
 static void verify_cb_args(struct pm_callback_handle *pm_hdl)
 {
+	if (!need_unpaged_resources())
+		return;
+
 	if (is_unpaged((void *)(vaddr_t)pm_change_state) &&
 	    (!is_unpaged((void *)(vaddr_t)pm_hdl->callback) ||
 	     (pm_hdl->handle && !is_unpaged(pm_hdl->handle)))) {
@@ -44,7 +53,7 @@ void register_pm_cb(struct pm_callback_handle *pm_hdl)
 	if (!name)
 		name = no_name;
 
-	if (!is_unpaged((void *)name)) {
+	if (!is_unpaged((void *)name) && need_unpaged_resources()) {
 		name = strdup(name);
 		if (!name)
 			panic();

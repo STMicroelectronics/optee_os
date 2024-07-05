@@ -45,4 +45,15 @@
 
 #endif /* __ASSEMBLER__ */
 
+/*
+ * DECLARE_KEEP_PAGER_PM() makes resource unpaged unless both of
+ * CFG_PAGED_PSCI_SYSTEM_SUSPEND and CFG_PAGED_PSCI_SYSTEM_OFF
+ * are enabled.
+ */
+#if defined(CFG_PAGED_PSCI_SYSTEM_SUSPEND) && defined(CFG_PAGED_PSCI_SYSTEM_OFF)
+#define DECLARE_KEEP_PAGER_PM(sym)	static int __unused sym##__LINE__
+#else
+#define DECLARE_KEEP_PAGER_PM(sym)	DECLARE_KEEP_PAGER(sym)
+#endif
+
 #endif /*__KEEP_H*/
