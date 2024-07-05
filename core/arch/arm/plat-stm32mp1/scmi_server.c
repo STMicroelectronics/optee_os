@@ -262,7 +262,7 @@ struct stm32_scmi_perfd __maybe_unused scmi_performance_domain[] = {
 static const struct channel_resources scmi_channel[] = {
 	[0] = {
 		.channel = &(struct scmi_msg_channel){
-#ifdef SMT_BUFFER_BASE
+#if CFG_STM32MP1_SCMI_SHM_BASE
 			.shm_addr = { .pa = SMT_BUFFER_BASE },
 			.shm_size = SMT_BUF_SLOT_SIZE,
 #endif
@@ -902,7 +902,10 @@ static TEE_Result stm32mp1_init_scmi_server(void)
 	size_t i = 0;
 	size_t j = 0;
 
-	register_pm_driver_cb(stm32_scmi_pm, NULL, "scmi-server-driver");
+	/* Only need to reset the SYSRAM shared memory on PM resume */
+	if (IS_ENABLED(CFG_STM32MP1_SCMI_SHM_BASE))
+		register_pm_driver_cb(stm32_scmi_pm, NULL,
+				      "scmi-server-driver");
 
 	for (i = 0; i < ARRAY_SIZE(scmi_channel); i++) {
 		const struct channel_resources *res = scmi_channel + i;
