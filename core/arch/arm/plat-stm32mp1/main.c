@@ -96,7 +96,11 @@ service_init(platform_banner);
  */
 static struct stm32_uart_pdata console_data;
 
-void plat_console_init(void)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak plat_console_init(void)
 {
 	/* Early console initialization before MMU setup */
 	struct uart {
