@@ -409,7 +409,7 @@ static const struct stm32mp1_clk_gate stm32mp1_clk_gate[] = {
 };
 DECLARE_KEEP_PAGER(stm32mp1_clk_gate);
 
-const uint8_t stm32mp1_clk_on[] = {
+static const uint8_t stm32mp1_clk_on[] = {
 	CK_HSE, CK_CSI, CK_LSI, CK_LSE, CK_HSI, CK_HSE_DIV2,
 	PLL1_P, PLL1_Q, PLL1_R, PLL2_P, PLL2_Q, PLL2_R, PLL3_P, PLL3_Q, PLL3_R,
 	CK_AXI, CK_MPU, CK_MCU,
