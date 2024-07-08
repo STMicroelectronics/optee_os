@@ -496,8 +496,7 @@ void __noreturn stm32_pm_cpu_power_down_wfi(void)
 
 		/* STANDBY not reached: resume from retained SYSRAM */
 		stm32_exit_cstop();
-		stm32mp_cpu_reset_state();
-		reset_ep();
+		stm32mp_cpu_reset_state(reset_ep);
 		panic();
 	}
 

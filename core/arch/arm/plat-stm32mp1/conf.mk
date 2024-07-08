@@ -251,6 +251,10 @@ endif
 endif # CFG_STM32MP15
 
 ifeq ($(CFG_WITH_PAGER),y)
+# Default use pageable PM sequence to relax pressure on pager
+CFG_PAGED_PSCI_SYSTEM_OFF ?= y
+CFG_PAGED_PSCI_SYSTEM_SUSPEND ?= y
+# Default use 32bit MMU since it consumes a bit less of resident memory
 CFG_WITH_LPAE ?= n
 endif
 CFG_WITH_LPAE ?= y

@@ -25,6 +25,7 @@
 #include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <mm/core_memprot.h>
+#include <pm/stm32mp1_psci.h>
 #include <platform_config.h>
 #include <sm/pm.h>
 #include <sm/psci.h>
@@ -332,9 +333,13 @@ static bool plat_can_suspend(void)
 	return rc;
 }
 
-/* Override default psci_system_suspend() with platform specific sequence */
-int psci_system_suspend(uintptr_t entry, uint32_t context_id __unused,
-			struct sm_nsec_ctx *nsec)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+uint32_t __weak __psci_system_suspend(uintptr_t entry,
+				      uint32_t context_id __unused,
+				      struct sm_nsec_ctx *nsec)
 {
 	int ret = PSCI_RET_INVALID_PARAMETERS;
 	uint32_t soc_mode = 0;
@@ -363,7 +368,9 @@ int psci_system_suspend(uintptr_t entry, uint32_t context_id __unused,
 			return PSCI_RET_DENIED;
 #endif
 
-		sm_save_unbanked_regs(&nsec->ub_regs);
+		if (!IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_SUSPEND))
+			sm_save_unbanked_regs(&nsec->ub_regs);
+
 		/*
 		 * sm_pm_cpu_suspend(arg, func) saves the CPU core context in
 		 * TEE RAM then calls func(arg) to run the platform lower power
@@ -379,7 +386,8 @@ int psci_system_suspend(uintptr_t entry, uint32_t context_id __unused,
 			stm32_exit_cstop();
 #endif
 			plat_resume((uint32_t)soc_mode);
-			sm_restore_unbanked_regs(&nsec->ub_regs);
+			if (!IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_SUSPEND))
+				sm_restore_unbanked_regs(&nsec->ub_regs);
 		}
 	} else {
 		ret = plat_suspend((uint32_t)soc_mode);
@@ -394,14 +402,29 @@ int psci_system_suspend(uintptr_t entry, uint32_t context_id __unused,
 	return PSCI_RET_INTERNAL_FAILURE;
 }
 
-/* Override default psci_system_off() with platform specific sequence */
-void __noreturn psci_system_off(void)
+/* Override default psci_system_suspend() with platform specific sequence */
+int psci_system_suspend(uintptr_t entry, uint32_t context_id,
+			struct sm_nsec_ctx *nsec)
+{
+	return __psci_system_suspend(entry, context_id, nsec);
+}
+
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+void __weak __noreturn __psci_system_off(void)
 {
 	uint32_t soc_mode = stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_OFF);
 
 	DMSG("core %u", get_core_pos());
 
 	stm32_enter_cstop_shutdown(soc_mode);
+}
+
+void __noreturn psci_system_off(void)
+{
+	__psci_system_off();
 }
 
 /* Override default psci_system_reset() with platform specific sequence */

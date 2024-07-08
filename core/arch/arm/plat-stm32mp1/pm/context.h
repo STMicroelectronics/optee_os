@@ -79,7 +79,7 @@ extern const uint8_t stm32mp_bkpsram_image_end[];
 void stm32mp_bkpsram_resume(void);
 void stm32mp_sysram_resume(void);
 
-void stm32mp_cpu_reset_state(void);
+void stm32mp_cpu_reset_state(void *resume_ep);
 
 TEE_Result stm32mp_pm_save_context(unsigned int soc_mode);
 void stm32mp_pm_restore_context(unsigned int soc_mode);

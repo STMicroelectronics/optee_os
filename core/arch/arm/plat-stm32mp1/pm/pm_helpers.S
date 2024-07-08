@@ -11,6 +11,7 @@
 #include <boot_api.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <generated/context_asm_defines.h>
+#include <keep.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/tz_proc_def.h>
 #include <kernel/tz_ssvce_def.h>
@@ -108,6 +109,19 @@
  */
 FUNC stm32mp_bkpsram_resume , :
 UNWIND(	.cantunwind)
+	/*
+	 * Ensure aligned on a page so that pager does not swap memory during
+	 * the TEE RAM encryption process. With this alignment, page may map
+	 * stm32mp_bkpsram_resume() (that includes the full TEE RAM encryption
+	 * sequence) at entry (stm32mp_ccm_teeram) but will not need to swap
+	 * anything until stm32mp_ccm_teeram is done.
+	 */
+	.balign 4096
+
+#ifdef CFG_PAGED_PSCI_SYSTEM_SUSPEND
+	/* Restore supervisor mode where pager is supported */
+	cps	#CPSR_MODE_SVC
+#endif
 
 	PRINT_CHAR r0, r1, '0'
 
@@ -165,6 +179,13 @@ UNWIND(	.cantunwind)
 
 	/* Resume into the restored TEE RAM */
 	ldr	r1, [r11, #PM_CTX_RESUME_PA]
+
+#ifdef CFG_PAGED_PSCI_SYSTEM_SUSPEND
+	/* Restore supervisor mode where pager is supported */
+	cps	#CPSR_MODE_SVC
+#endif
+
+	/* We're done */
 	bx	r1
 
 _failed:
@@ -694,12 +715,15 @@ level_done:
 	dsb	sy
 	isb
 
+#if !defined(CFG_PAGED_PSCI_SYSTEM_SUSPEND)
 	/* Resume sequence executes in Monitor mode */
 	cps	#CPSR_MODE_MON
+#endif
 
 	blx	plat_cpu_reset_early
 	b	sm_pm_cpu_resume
 END_FUNC stm32mp_sysram_resume
+DECLARE_KEEP_PAGER stm32mp_sysram_resume
 
 /*
  * stm32mp_cpu_reset_state - set CPU in a reset like state
@@ -708,8 +732,7 @@ END_FUNC stm32mp_sysram_resume
  * Preserve the execution mode in CPSR.
  */
 FUNC stm32mp_cpu_reset_state, :
-	push	{r12, lr}
-UNWIND(	.save	{r12, lr})
+	mov	r12, r0
 
 	cpsid	aif
 
@@ -725,5 +748,5 @@ UNWIND(	.save	{r12, lr})
 	dsb	sy
 	isb
 
-	pop	{r12, pc}
+	bx	r12
 END_FUNC stm32mp_cpu_reset_state
