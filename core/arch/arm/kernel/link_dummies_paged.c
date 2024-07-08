@@ -54,6 +54,14 @@ __thread_std_smc_entry(uint32_t a0 __unused, uint32_t a1 __unused,
 	return 0;
 }
 
+uint32_t __section(".text.dummy.__thread_pm_entry")
+__thread_pm_entry(uint32_t a0 __unused, uint32_t a1 __unused,
+		  uint32_t a2 __unused, uint32_t a3 __unused,
+		  uint32_t a4 __unused, uint32_t a5 __unused)
+{
+	return 0;
+}
+
 const struct mobj_ops mobj_reg_shm_ops __rodata_dummy;
 const struct mobj_ops mobj_phys_ops __rodata_dummy;
 const struct mobj_ops mobj_virt_ops __rodata_dummy;

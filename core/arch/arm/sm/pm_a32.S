@@ -16,6 +16,22 @@
 
 .section .text
 
+	.macro save_regs mode
+	cps	\mode
+	mrs	r1, spsr
+	str	r1, [r0], #4
+	str	sp, [r0], #4
+	str	lr, [r0], #4
+	.endm
+
+	.macro restore_regs mode
+	cps	\mode
+	ldr	r1, [r0], #4
+	ldr	sp, [r0], #4
+	ldr	lr, [r0], #4
+	msr	spsr_fsxc, r1
+	.endm
+
 /*
  * int sm_pm_cpu_suspend(uint32_t arg, int (*fn)(uint32_t))
  * @arg will be passed to fn as argument
@@ -90,7 +106,17 @@ a5_a7_suspend:
 	read_vbar r8
 	read_nsacr r9
 	read_sctlr r10
-	stmia	r0, {r4 - r10}
+	stmia	r0!, {r4 - r10}
+
+#ifdef CFG_PAGED_PSCI_SYSTEM_SUSPEND
+	add	r0, r0, #4
+	save_regs	#CPSR_MODE_IRQ
+	save_regs	#CPSR_MODE_FIQ
+	save_regs	#CPSR_MODE_ABT
+	save_regs	#CPSR_MODE_UND
+	save_regs	#CPSR_MODE_MON
+	cps	#CPSR_MODE_SVC
+#endif
 
 	pop	{r4 - r11}
 	bx	lr
@@ -127,6 +153,7 @@ UNWIND(	.cantunwind)
 	/* Need to use r0!, because sm_pm_cpu_do_resume needs it */
 	ldmia	r0!, {sp, pc}
 END_FUNC sm_pm_cpu_resume
+DECLARE_KEEP_PAGER sm_pm_cpu_resume
 
 /*
  * The following will be located in text section whose attribute is
@@ -141,6 +168,9 @@ _suspend_sp:
 .extern __get_core_pos
 _core_pos:
 	.long	__get_core_pos - .
+
+DECLARE_KEEP_PAGER _suspend_sp
+DECLARE_KEEP_PAGER _core_pos
 
 /*
  * void sm_pm_cpu_do_resume(paddr suspend_regs) __noreturn;
@@ -198,6 +228,17 @@ a5_a7_resume:
 	write_vbar r8
 	write_nsacr r9
 	write_bpiall
+
+#ifdef CFG_PAGED_PSCI_SYSTEM_SUSPEND
+	add r0, r0, #4
+	restore_regs	#CPSR_MODE_IRQ
+	restore_regs	#CPSR_MODE_FIQ
+	restore_regs	#CPSR_MODE_ABT
+	restore_regs	#CPSR_MODE_UND
+	restore_regs	#CPSR_MODE_MON
+	cps	#CPSR_MODE_SVC
+#endif
+
 	isb
 	dsb
 	/* MMU will be enabled here */
@@ -207,4 +248,5 @@ a5_a7_resume:
 	mov	r0, #0
 	b	suspend_return
 END_FUNC sm_pm_cpu_do_resume
+DECLARE_KEEP_PAGER sm_pm_cpu_do_resume
 

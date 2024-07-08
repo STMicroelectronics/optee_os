@@ -130,6 +130,18 @@ void thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 uint32_t __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 				uint32_t a3, uint32_t a4, uint32_t a5);
 
+/*
+ * Assembly function as the first function in a PM thread sequence.
+ * Handles the PM call, a0-a3 holds the parameters, a5 hold the
+ * target PM function to be called.
+ * Hands over to __thread_pm_entry() when everything is set up and
+ * does some post processing once __thread_pm_entry() returns.
+ */
+void thread_pm_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+		     uint32_t a4, uint32_t a5);
+uint32_t __thread_pm_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+			   uint32_t a3, uint32_t a4, uint32_t a5);
+
 void thread_sp_alloc_and_run(struct thread_smc_args *args);
 
 /*
@@ -192,6 +204,10 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 void thread_resume_from_rpc(uint32_t thread_id, uint32_t a0, uint32_t a1,
 			    uint32_t a2, uint32_t a3);
 
+/* Allocate and enter a thread context for a PM uninterruptoble sequence */
+void thread_pm_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			     uint32_t a4, uint32_t pc);
+
 /*
  * The thread_rpc() function suspends current thread and temporarily exits
  * to non-secure world.  This function returns later when non-secure world
@@ -251,6 +267,16 @@ void thread_handle_fast_smc(struct thread_smc_args *args);
 uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 			       uint32_t a3, uint32_t a4, uint32_t a5,
 			       uint32_t a6, uint32_t a7);
+
+/*
+ * Called from assembly only, vector_thread_pm_entry(). Called for fastcall
+ * SMCs that require a thread context with foreign interrupt masked. Useful
+ * for PM sequences that need to leverage pager support.
+ * Argument @a6 is the entrypoint for the thread context.
+ */
+uint32_t thread_handle_pm(uint32_t a0, uint32_t a1, uint32_t a2,
+			  uint32_t a3, uint32_t a4, uint32_t a5,
+			  uint32_t a6, uint32_t a7);
 
 /* Called from assembly only. Handles a SVC from user mode. */
 void thread_scall_handler(struct thread_scall_regs *regs);

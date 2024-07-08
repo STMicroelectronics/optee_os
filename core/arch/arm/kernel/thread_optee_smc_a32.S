@@ -67,6 +67,24 @@ UNWIND(	.cantunwind)
 	panic_at_smc_return
 END_FUNC vector_fast_smc_entry
 
+FUNC vector_thread_pm_entry , : , .identity_map
+UNWIND(	.cantunwind)
+	readjust_pc
+	push	{r4-r7}
+	bl	thread_handle_pm
+	add	sp, sp, #(4 * 4)
+	/*
+	 * Normally thread_handle_pm() should return via thread_exit()
+	 * but if thread_handle_pm() hasn't switched stack (error detected)
+	 * it will do a normal "C" return.
+	 */
+	mov	r1, r0
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
+	smc	#0
+	/* SMC should not return */
+	panic_at_smc_return
+END_FUNC vector_thread_pm_entry
+
 FUNC vector_fiq_entry , : , .identity_map
 UNWIND(	.cantunwind)
 	readjust_pc
@@ -192,6 +210,30 @@ UNWIND(	.cantunwind)
 	/* SMC should not return */
 	panic_at_smc_return
 END_FUNC thread_std_smc_entry
+
+FUNC thread_pm_entry , :
+UNWIND(	.cantunwind)
+	push	{r4, r5} /* Pass these following the arm32 calling convention */
+	bl	__thread_pm_entry
+	add	sp, sp, #8 /* There's nothing return, just restore the sp */
+	mov	r4, r0	/* Save return value for later */
+
+	/* Disable interrupts before switching to temporary stack */
+	cpsid	aif
+	bl	thread_get_tmp_sp
+	mov	sp, r0
+
+	bl	thread_state_free
+
+	ldr	r0, =TEESMC_OPTEED_RETURN_CALL_DONE
+	mov	r1, r4
+	mov	r2, #0
+	mov	r3, #0
+	mov	r4, #0
+	smc	#0
+	/* SMC should not return */
+	panic_at_smc_return
+END_FUNC thread_pm_entry
 
 /* void thread_rpc(uint32_t rv[THREAD_RPC_NUM_ARGS]) */
 FUNC thread_rpc , :

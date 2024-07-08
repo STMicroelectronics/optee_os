@@ -41,14 +41,13 @@ static const TEE_UUID uuid = {
 	{0x98, 0xd2, 0x74, 0xf4, 0x38, 0x27, 0x98, 0xbb},
 };
 
-void smc_std_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
+uint32_t smc_std_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec,
+			 uint32_t *thread_pm_handler)
 {
 	uint32_t smc_fid = args->a0;
 
-	if (is_psci_fid(smc_fid)) {
-		tee_psci_handler(args, nsec);
-		return;
-	}
+	if (is_psci_fid(smc_fid))
+		return tee_psci_handler(args, nsec, thread_pm_handler);
 
 	switch (smc_fid) {
 	case ARM_STD_SVC_CALL_COUNT:
@@ -75,4 +74,6 @@ void smc_std_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
 	}
+
+	return SM_EXIT_TO_NON_SECURE;
 }

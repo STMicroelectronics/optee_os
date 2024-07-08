@@ -156,11 +156,18 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 
 	/*
 	 * Stdcalls starts in SVC mode with masked foreign interrupts, masked
-	 * Asynchronous abort and unmasked native interrupts.
+	 * Asynchronous abort and masked/unmasked native interrupts upon
+	 * thread->flags.
 	 */
 	thread->regs.cpsr = read_cpsr() & ARM32_CPSR_E;
 	thread->regs.cpsr |= CPSR_MODE_SVC | CPSR_A |
 			(THREAD_EXCP_FOREIGN_INTR << ARM32_CPSR_F_SHIFT);
+
+	/* PM sequence in thread context requires native interrupt disabled */
+	if (thread->flags & THREAD_FLAGS_PM_SEQUENCE)
+		thread->regs.cpsr |= THREAD_EXCP_NATIVE_INTR <<
+				     ARM32_CPSR_F_SHIFT;
+
 	/* Enable thumb mode if it's a thumb instruction */
 	if (thread->regs.pc & 1)
 		thread->regs.cpsr |= CPSR_T;
@@ -195,6 +202,10 @@ static void init_regs(struct thread_ctx *thread, uint32_t a0, uint32_t a1,
 	 */
 	thread->regs.cpsr = SPSR_64(SPSR_64_MODE_EL1, SPSR_64_MODE_SP_EL0,
 				THREAD_EXCP_FOREIGN_INTR | DAIFBIT_ABT);
+
+	/* Aarch64 does not implement pageable thread context */
+	assert(!(thread->flags & THREAD_FLAGS_PM_SEQUENCE));
+
 	/* Reinitialize stack pointer */
 	thread->regs.sp = thread->stack_va_end;
 
@@ -269,6 +280,17 @@ void thread_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 	__thread_alloc_and_run(a0, a1, a2, a3, a4, a5, 0, 0,
 			       thread_std_smc_entry, 0);
 }
+
+#ifdef ARM32
+void thread_pm_alloc_and_run(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			     uint32_t a4, uint32_t pc)
+{
+	thread_check_canaries();
+
+	__thread_alloc_and_run(a0, a1, a2, a3, a4, pc, 0, 0, thread_pm_entry,
+			       THREAD_FLAGS_PM_SEQUENCE);
+}
+#endif
 
 #ifdef CFG_SECURE_PARTITION
 void thread_sp_alloc_and_run(struct thread_smc_args *args __maybe_unused)

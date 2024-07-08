@@ -16,10 +16,16 @@
 #include <util.h>
 #include <kernel/thread_arch.h>
 
+/* Copy RPC returned arguments in thread context */
 #define THREAD_FLAGS_COPY_ARGS_ON_RETURN	BIT(0)
+/* Foreign interrupt is enabled when thread issues an RPC */
 #define THREAD_FLAGS_FOREIGN_INTR_ENABLE	BIT(1)
+/* Thread issues an RPC for a foreign interrupt */
 #define THREAD_FLAGS_EXIT_ON_FOREIGN_INTR	BIT(2)
+/* Thread executes an FFA invocation */
 #define THREAD_FLAGS_FFA_ONLY			BIT(3)
+/* Thread context for powermanagement (PM) sequence */
+#define THREAD_FLAGS_PM_SEQUENCE		BIT(4)
 
 /* Thread context for non-secure no-irq sequence */
 #define THREAD_FLAGS_NSEC_NOIRQ			BIT(5)

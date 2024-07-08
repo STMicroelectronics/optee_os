@@ -79,6 +79,29 @@ uint32_t thread_handle_std_smc(uint32_t a0, uint32_t a1, uint32_t a2,
 	return rv;
 }
 
+#ifdef ARM32
+uint32_t thread_handle_pm(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			  uint32_t a4, uint32_t a5 __unused, uint32_t pc,
+			  uint32_t a7)
+{
+	thread_check_canaries();
+
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION) && virt_set_guest(a7))
+		return OPTEE_SMC_RETURN_ENOTAVAIL;
+
+	/*
+	 * thread_pm_alloc_and_run() only return on error.
+	 * Successful return is done via thread_exit().
+	 */
+	thread_pm_alloc_and_run(a0, a1, a2, a3, a4, pc);
+
+	if (IS_ENABLED(CFG_NS_VIRTUALIZATION))
+		virt_unset_guest();
+
+	return OPTEE_SMC_RETURN_ETHREAD_LIMIT;
+}
+#endif
+
 /**
  * Free physical memory previously allocated with thread_rpc_alloc_arg()
  *
@@ -315,6 +338,22 @@ uint32_t __weak __thread_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 		virt_on_stdcall();
 
 	return std_smc_entry(a0, a1, a2, a3);
+}
+
+/*
+ * Helper routine for the assembly function thread_pm_entry()
+ *
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+uint32_t __weak __thread_pm_entry(uint32_t a0, uint32_t a1, uint32_t a2,
+				  uint32_t a3, uint32_t a4 __unused,
+				  uint32_t a5)
+{
+	uint32_t (*function)(uint32_t a0, uint32_t a1, uint32_t a2,
+			     uint32_t a3) = (void *)(vaddr_t)a5;
+
+	return function(a0, a1, a2, a3);
 }
 
 bool thread_disable_prealloc_rpc_cache(uint64_t *cookie)

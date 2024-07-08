@@ -58,6 +58,8 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 {
 	uint32_t *nsec_r0 = (uint32_t *)(&ctx->nsec.r0);
 	struct thread_smc_args *args = (struct thread_smc_args *)nsec_r0;
+	uint32_t ret = SM_EXIT_TO_NON_SECURE;
+	uint32_t thread_pm_handler = 0;
 
 	/*
 	 * Check that struct sm_ctx has the different parts properly
@@ -78,8 +80,13 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 	switch (OPTEE_SMC_OWNER_NUM(args->a0)) {
 	case OPTEE_SMC_OWNER_STANDARD:
 		if (IS_ENABLED(CFG_PSCI_ARM32)) {
-			smc_std_handler(args, &ctx->nsec);
-			return SM_EXIT_TO_NON_SECURE;
+			ret = smc_std_handler(args, &ctx->nsec,
+					      &thread_pm_handler);
+			if (ret == SM_EXIT_TO_NON_SECURE)
+				return ret;
+
+			assert(ret == SM_EXIT_TO_PM_THREAD &&
+			       thread_pm_handler);
 		}
 		break;
 	case OPTEE_SMC_OWNER_ARCH:
@@ -99,10 +106,14 @@ uint32_t sm_from_nsec(struct sm_ctx *ctx)
 		ctx->sec.mon_spsr |= CPSR_F;
 	}
 
-	if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0))
+	if (ret == SM_EXIT_TO_PM_THREAD) {
+		ctx->sec.r6 = thread_pm_handler;
+		ctx->sec.mon_lr = (uint32_t)vector_thread_pm_entry;
+	} else if (OPTEE_SMC_IS_FAST_CALL(ctx->sec.r0)) {
 		ctx->sec.mon_lr = (uint32_t)vector_fast_smc_entry;
-	else
+	} else {
 		ctx->sec.mon_lr = (uint32_t)vector_std_smc_entry;
+	}
 
 	return SM_EXIT_TO_SECURE;
 }

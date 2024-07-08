@@ -2,6 +2,7 @@
 /*
  * Copyright (C) 2016 Freescale Semiconductor, Inc.
  * All rights reserved.
+ * Copyright (C) 2024 STMicroelectronics
  *
  * Peng Fan <peng.fan@nxp.com>
  *
@@ -28,6 +29,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <config.h>
 #include <console.h>
 #include <kernel/boot.h>
 #include <kernel/thread.h>
@@ -147,7 +149,8 @@ __weak int psci_stat_count(uint32_t cpu_id __unused,
 	return PSCI_RET_NOT_SUPPORTED;
 }
 
-void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
+uint32_t tee_psci_handler(struct thread_smc_args *args,
+			  struct sm_nsec_ctx *nsec, uint32_t *thread_pm_handler)
 {
 	uint32_t smc_fid = args->a0;
 	uint32_t a1 = args->a1;
@@ -180,6 +183,11 @@ void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 		args->a0 = psci_migrate_info_up_cpu();
 		break;
 	case PSCI_SYSTEM_OFF:
+		if (IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_OFF)) {
+			*thread_pm_handler = (vaddr_t)psci_system_off;
+
+			return SM_EXIT_TO_PM_THREAD;
+		}
 		psci_system_off();
 		while (1)
 			;
@@ -205,7 +213,16 @@ void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 		args->a0 = psci_node_hw_state(a1, a2);
 		break;
 	case PSCI_SYSTEM_SUSPEND:
+		if (IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_SUSPEND)) {
+			args->a0 = a1;
+			args->a1 = a2;
+			args->a2 = (vaddr_t)nsec;
+			*thread_pm_handler = (vaddr_t)psci_system_suspend;
+
+			return SM_EXIT_TO_PM_THREAD;
+		}
 		args->a0 = psci_system_suspend(a1, a2, nsec);
+
 		break;
 	case PSCI_PSCI_SET_SUSPEND_MODE:
 		args->a0 = psci_set_system_suspend_mode(a1);
@@ -214,4 +231,6 @@ void tee_psci_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec)
 		args->a0 = OPTEE_SMC_RETURN_UNKNOWN_FUNCTION;
 		break;
 	}
+
+	return SM_EXIT_TO_NON_SECURE;
 }

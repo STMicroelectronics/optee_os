@@ -39,5 +39,11 @@
 #define is_psci_fid(_fid) \
 	(((_fid) & PSCI_FID_MASK) == PSCI_FID_VALUE)
 
-void smc_std_handler(struct thread_smc_args *args, struct sm_nsec_ctx *nsec);
+/*
+ * Return SM_EXIT_TO_NON_SECURE if request was handled.
+ * Return SM_EXIT_TO_PM_THREAD if request is to be handled in a thread.
+ */
+uint32_t smc_std_handler(struct thread_smc_args *args,
+			 struct sm_nsec_ctx *nsec,
+			 uint32_t *thread_pm_handler);
 #endif

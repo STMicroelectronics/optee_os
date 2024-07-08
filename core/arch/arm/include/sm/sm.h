@@ -133,6 +133,8 @@ void vector_std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			  uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
 void vector_fast_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 			   uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
+void vector_thread_pm_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
+			    uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
 void vector_fiq_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 		      uint32_t a4, uint32_t a5, uint32_t a6, uint32_t a7);
 
@@ -141,5 +143,6 @@ void vector_fiq_entry(uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3,
 /* 32 bit return value for sm_from_nsec() */
 #define SM_EXIT_TO_NON_SECURE		0
 #define SM_EXIT_TO_SECURE		1
+#define SM_EXIT_TO_PM_THREAD		2
 
 #endif /*__SM_SM_H*/
