@@ -245,6 +245,10 @@ endif
 
 # Co-processor public key verification against OTP fuses.
 CFG_REMOTEPROC_PUB_KEY_VERIFY ?= n
+
+# Increase the RESERVED VA SPACE to be able to map reserved-memory regions
+# assigned to the remote processor.
+CFG_RESERVED_VASPACE_SIZE = 32 * 1024 * 1024
 endif
 
 ifeq ($(CFG_STM32_HSE_MONITORING),y)
