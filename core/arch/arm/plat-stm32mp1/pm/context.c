@@ -16,9 +16,9 @@
 #include <generated/context_asm_defines.h>
 #include <initcall.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/delay.h>
-#include <keep.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <mm/core_memprot.h>
