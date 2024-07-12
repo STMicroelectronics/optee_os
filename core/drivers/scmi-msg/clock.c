@@ -192,12 +192,13 @@ static void scmi_clock_rate_get(struct scmi_msg *msg)
 	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
 
-static void scmi_clock_round_rate_get(struct scmi_msg *msg)
+#ifdef CFG_STM32_OTSL_SCMI_CLOCK_SUPPORT
+static void scmi_clock_ostl_round_rate_get(struct scmi_msg *msg)
 {
-	const struct scmi_clock_rate_set_a2p *in_args = (void *)msg->in;
-	unsigned long rate = 0;
-	struct scmi_clock_rate_get_p2a return_values = { };
+	const struct scmi_clock_ostl_round_rate_a2p *in_args = (void *)msg->in;
+	struct scmi_clock_ostl_round_rate_p2a return_values = { };
 	unsigned int clock_id = 0;
+	unsigned long rate = 0;
 	uint64_t rate_64 = 0;
 
 	if (msg->in_size != sizeof(*in_args)) {
@@ -222,6 +223,7 @@ static void scmi_clock_round_rate_get(struct scmi_msg *msg)
 
 	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
+#endif
 
 static void scmi_clock_rate_set(struct scmi_msg *msg)
 {
@@ -252,12 +254,14 @@ static void scmi_clock_rate_set(struct scmi_msg *msg)
 	scmi_status_response(msg, status);
 }
 
-static void scmi_clock_duty_cycle_get(struct scmi_msg *msg)
+#ifdef CFG_STM32_OTSL_SCMI_CLOCK_SUPPORT
+static void scmi_clock_ostl_duty_cycle_get(struct scmi_msg *msg)
 {
 	const struct scmi_clock_duty_cycle_get_a2p *in_args = (void *)msg->in;
 	struct scmi_clock_duty_cycle_get_p2a return_values = { };
-	struct clk_duty duty = { 1, 2};
+	struct clk_duty_cycle duty = { 1, 2 };
 	unsigned int clock_id = 0;
+	int ret = SCMI_SUCCESS;
 
 	if (msg->in_size != sizeof(*in_args)) {
 		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
@@ -272,25 +276,24 @@ static void scmi_clock_duty_cycle_get(struct scmi_msg *msg)
 	clock_id = confine_array_index(in_args->clock_id,
 				       plat_scmi_clock_count(msg->channel_id));
 
-	plat_scmi_clock_get_duty_cycle(msg->channel_id, clock_id, &duty);
+	ret = plat_scmi_clock_get_duty_cycle(msg->channel_id, clock_id, &duty);
 
-	return_values.num = duty.num;
-	return_values.den = duty.den;
-
-	scmi_write_response(msg, &return_values, sizeof(return_values));
+	if (ret != SCMI_SUCCESS && ret != SCMI_NOT_SUPPORTED) {
+		scmi_status_response(msg, ret);
+	} else {
+		return_values.num = duty.num;
+		return_values.den = duty.den;
+		scmi_write_response(msg, &return_values, sizeof(return_values));
+	}
 }
+#endif
 
-static void scmi_clock_config_set(struct scmi_msg *msg)
+static void scmi_clock_config_set_v1(struct scmi_msg *msg)
 {
 	const struct scmi_clock_config_set_a2p *in_args = (void *)msg->in;
 	int32_t status = SCMI_GENERIC_ERROR;
-	bool enable = false;
 	unsigned int clock_id = 0;
-
-	if (msg->in_size != sizeof(*in_args)) {
-		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
-		return;
-	}
+	bool enable = false;
 
 	if (in_args->clock_id >= plat_scmi_clock_count(msg->channel_id)) {
 		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
@@ -305,6 +308,121 @@ static void scmi_clock_config_set(struct scmi_msg *msg)
 	status = plat_scmi_clock_set_state(msg->channel_id, clock_id, enable);
 
 	scmi_status_response(msg, status);
+}
+
+static void scmi_clock_config_set_v2(struct scmi_msg *msg)
+{
+	const struct scmi_clock_config_set_v2_a2p *in_args = (void *)msg->in;
+	int32_t status = SCMI_GENERIC_ERROR;
+	unsigned int clock_id = 0;
+	bool enable = false;
+
+	if (in_args->clock_id >= plat_scmi_clock_count(msg->channel_id)) {
+		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
+		return;
+	}
+
+	clock_id = confine_array_index(in_args->clock_id,
+				       plat_scmi_clock_count(msg->channel_id));
+
+	switch (in_args->attributes & SCMI_CLOCK_CONFIG_SET_EXT_TYPE_MASK) {
+	case SCMI_CLOCK_CONFIG_SET_EXT_TYPE_UNUSED:
+		enable = in_args->attributes &
+			 SCMI_CLOCK_CONFIG_SET_ENABLE_MASK;
+
+		status = plat_scmi_clock_set_state(msg->channel_id, clock_id,
+						   enable);
+		break;
+	default:
+		EMSG("Extended type %#"PRIx32" is not supported",
+		     (in_args->attributes &
+		      SCMI_CLOCK_CONFIG_SET_EXT_TYPE_MASK) >>
+		     SCMI_CLOCK_CONFIG_SET_EXT_TYPE_POS);
+		status = SCMI_NOT_SUPPORTED;
+		break;
+	}
+
+	scmi_status_response(msg, status);
+}
+
+static void scmi_clock_config_set(struct scmi_msg *msg)
+{
+	/* Support both old and new protocol base on message size */
+	if (msg->in_size == sizeof(struct scmi_clock_config_set_a2p))
+		scmi_clock_config_set_v1(msg);
+	else if (msg->in_size == sizeof(struct scmi_clock_config_set_v2_a2p))
+		scmi_clock_config_set_v2(msg);
+	else
+		scmi_status_response(msg, SCMI_PROTOCOL_ERROR);
+}
+
+static int get_duty_cycle(unsigned int channel_id, unsigned int clock_id,
+			  uint32_t *duty_cycle_percent)
+{
+	struct clk_duty_cycle duty = { };
+	int status = SCMI_SUCCESS;
+
+	status = plat_scmi_clock_get_duty_cycle(channel_id, clock_id, &duty);
+
+	if (status != SCMI_SUCCESS)
+		return status;
+
+	if (!duty.den)
+		return SCMI_GENERIC_ERROR;
+
+	*duty_cycle_percent = ((unsigned long long)duty.num * 100) / duty.den;
+
+	return SCMI_SUCCESS;
+}
+
+static void scmi_clock_config_get(struct scmi_msg *msg)
+{
+	const struct scmi_clock_config_get_a2p *in_args = (void *)msg->in;
+	struct scmi_clock_config_get_p2a return_values = { };
+	int32_t status = SCMI_GENERIC_ERROR;
+	unsigned int clock_id = 0;
+	int ret = 0;
+
+	if (in_args->clock_id >= plat_scmi_clock_count(msg->channel_id)) {
+		scmi_status_response(msg, SCMI_INVALID_PARAMETERS);
+		return;
+	}
+
+	clock_id = confine_array_index(in_args->clock_id,
+				       plat_scmi_clock_count(msg->channel_id));
+
+	switch (in_args->flags & SCMI_CLOCK_CONFIG_GET_EXT_TYPE_MASK) {
+	case SCMI_CLOCK_EXTENDED_CONFIG_TYPE_UNUSED:
+		break;
+	case SCMI_CLOCK_EXTENDED_CONFIG_TYPE_DUTY_CYCLE:
+		status = get_duty_cycle(msg->channel_id, clock_id,
+					&return_values.extended_config_val);
+		if (status == SCMI_NOT_SUPPORTED) {
+			return_values.extended_config_val = 50;
+			status = SCMI_SUCCESS;
+		}
+		break;
+	default:
+		EMSG("Extended type %#"PRIx32" is not supported",
+		     in_args->flags & SCMI_CLOCK_CONFIG_GET_EXT_TYPE_MASK);
+		status = SCMI_NOT_SUPPORTED;
+		break;
+	}
+
+	if (status != SCMI_SUCCESS) {
+		scmi_status_response(msg, status);
+		return;
+	}
+
+	ret = plat_scmi_clock_get_state(msg->channel_id, clock_id);
+	if (ret < 0 || ret > 1) {
+		scmi_status_response(msg, SCMI_GENERIC_ERROR);
+		return;
+	}
+
+	return_values.config = ret;
+
+	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
 
 #define SCMI_RATES_BY_ARRAY(_nb_rates, _rem_rates) \
@@ -432,8 +550,7 @@ static const scmi_msg_handler_t scmi_clock_handler_table[] = {
 	[SCMI_CLOCK_RATE_SET] = scmi_clock_rate_set,
 	[SCMI_CLOCK_RATE_GET] = scmi_clock_rate_get,
 	[SCMI_CLOCK_CONFIG_SET] = scmi_clock_config_set,
-	[SCMI_CLOCK_DUTY_CYCLE_GET] = scmi_clock_duty_cycle_get,
-	[SCMI_CLOCK_ROUND_RATE_GET] = scmi_clock_round_rate_get,
+	[SCMI_CLOCK_CONFIG_GET] = scmi_clock_config_get,
 };
 
 static bool message_id_is_supported(unsigned int message_id)
@@ -441,6 +558,26 @@ static bool message_id_is_supported(unsigned int message_id)
 	return message_id < ARRAY_SIZE(scmi_clock_handler_table) &&
 	       scmi_clock_handler_table[message_id];
 }
+
+#ifdef CFG_STM32_OTSL_SCMI_CLOCK_SUPPORT
+/*
+ * Special case to support OSTLv5 duty-cycle requests:
+ * based on input message size, distinguish standard
+ * SCMI clock protocol v3.0 SCMI_CLOCK_CONFIG_GET
+ * from OSTLv4/v5 SCMI_CLOCK_DUTY_CYCLE_GET.
+ */
+static_assert(sizeof(struct scmi_clock_config_get_a2p) !=
+	      sizeof(struct scmi_clock_duty_cycle_get_a2p));
+
+/*
+ * Special case to support OSTLv5 duty-cycle requests:
+ * based on input message size, distinguish standard
+ * SCMI clock protocol v3.0 SCMI_CLOCK_POSSIBLE_PARENT_GET
+ * from OSTLv4/v5 SCMI_CLOCK_ROUND_RATE_GET.
+ */
+static_assert(sizeof(struct scmi_clock_possible_parent_a2p) !=
+	      sizeof(struct scmi_clock_ostl_round_rate_a2p));
+#endif /* CFG_STM32_OTSL_SCMI_CLOCK_SUPPORT */
 
 scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg)
 {
@@ -453,6 +590,23 @@ scmi_msg_handler_t scmi_msg_get_clock_handler(struct scmi_msg *msg)
 	}
 
 	message_id = confine_array_index(msg->message_id, array_size);
+
+#ifdef CFG_STM32_OTSL_SCMI_CLOCK_SUPPORT
+	switch (msg->message_id) {
+	case SCMI_CLOCK_DUTY_CYCLE_GET:
+		if (msg->in_size ==
+		    sizeof(struct scmi_clock_duty_cycle_get_a2p))
+			return scmi_clock_ostl_duty_cycle_get;
+		break;
+	case SCMI_CLOCK_ROUND_RATE_GET:
+		if (msg->in_size ==
+		    sizeof(struct scmi_clock_ostl_round_rate_a2p))
+			return scmi_clock_ostl_round_rate_get;
+		break;
+	default:
+		break;
+	}
+#endif
 
 	return scmi_clock_handler_table[message_id];
 }
