@@ -445,17 +445,48 @@ const char *plat_scmi_clock_get_name(unsigned int channel_id,
 	return clock->name;
 }
 
-int32_t plat_scmi_clock_rates_array(unsigned int channel_id __unused,
-				    unsigned int scmi_id __unused,
-				    size_t start_index __unused,
-				    unsigned long *array __unused,
-				    size_t *nb_elts __unused)
+int32_t plat_scmi_clock_rates_array(unsigned int channel_id,
+				    unsigned int scmi_id, size_t start_index,
+				    unsigned long *array, size_t *nb_elts)
 {
 	/*
-	 * Explicitly do not expose clock rates by array since not
-	 * fully supported by Linux kernel as of v5.4.24.
+	 * Be warned that Linux kernel as of v5.4.24 may not fully support
+	 * clock rates by array description.
 	 */
-	return SCMI_NOT_SUPPORTED;
+	struct stm32_scmi_clk *clock = find_clock(channel_id, scmi_id);
+	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
+
+	assert(nb_elts && (!*nb_elts || array));
+
+	if (!clock)
+		return SCMI_NOT_FOUND;
+
+	if (!nsec_can_access_resource(clock->etzpc_id))
+		return SCMI_DENIED;
+
+	switch (scmi_id) {
+	case CK_SCMI_MPU:
+		/* MPU clock shall use plat_scmi_clock_rates_by_step() */
+		return SCMI_NOT_SUPPORTED;
+#ifdef CFG_STM32MP13
+	case CK_SCMI_PLL4_Q:
+		res = clk_get_rates_array(clock->clk, start_index, array,
+					  nb_elts);
+		if (res == TEE_ERROR_NOT_SUPPORTED)
+			return SCMI_NOT_SUPPORTED;
+		if (res)
+			return SCMI_GENERIC_ERROR;
+		return SCMI_SUCCESS;
+#endif
+	default:
+		if (start_index)
+			return SCMI_INVALID_PARAMETERS;
+		if (*nb_elts)
+			*array = clk_get_rate(clock->clk);
+		*nb_elts = 1;
+
+		return SCMI_SUCCESS;
+	}
 }
 
 int32_t plat_scmi_clock_rates_by_step(unsigned int channel_id,
@@ -479,22 +510,10 @@ int32_t plat_scmi_clock_rates_by_step(unsigned int channel_id,
 		array[0] = 0U;
 		array[1] = UINT32_MAX;
 		array[2] = 1U;
-		break;
-#ifdef CFG_STM32MP13
-	case CK_SCMI_PLL4_Q:
-		array[0] = 0U;
-		array[1] = UINT32_MAX;
-		array[2] = 0U;
-		break;
-#endif
+		return SCMI_SUCCESS;
 	default:
-		array[0] = clk_get_rate(clock->clk);
-		array[1] = array[0];
-		array[2] = 0U;
-		break;
+		return SCMI_NOT_SUPPORTED;
 	}
-
-	return SCMI_SUCCESS;
 }
 
 int32_t plat_scmi_clock_set_rate(unsigned int channel_id, unsigned int scmi_id,
