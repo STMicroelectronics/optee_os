@@ -175,9 +175,8 @@ static int get_state(fwk_id_t dev_id, enum mod_clock_state *state)
 static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
 {
     struct optee_clock_dev_ctx *ctx = elt_id_to_ctx(dev_id);
-    unsigned long rate;
     size_t rate_count;
-    size_t rate_idx;
+    size_t count;
     TEE_Result res;
 
     if ((ctx == NULL) || (range == NULL)) {
@@ -223,18 +222,13 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
     range->min = UINT64_MAX;
     range->max = 0;
 
-    for (rate_idx = 0; rate_idx < rate_count; rate_idx++) {
-        size_t count = 1;
+    count = 1;
+    res = clk_get_rates_array(ctx->clk, 0, &range->min, &count);
+    fwk_assert(!res && count == 1);
 
-        res = clk_get_rates_array(ctx->clk, rate_idx, &rate, &count);
-        fwk_assert(!res && count == 1);
-
-        if (rate > range->max) {
-            range->max = rate;
-        } else if (rate < range->min) {
-            range->min = rate;
-        }
-    }
+    count = 1;
+    res = clk_get_rates_array(ctx->clk, rate_count - 1, &range->max, &count);
+    fwk_assert(!res && count == 1);
 
     return FWK_SUCCESS;
 }
