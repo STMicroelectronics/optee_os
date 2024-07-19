@@ -372,8 +372,26 @@
 
 &ltdc {
 	pinctrl-0 = <&ltdc_pins_a>;
-	access-controllers-conf-nsec = <&etzpc DECPROT(STM32MP1_ETZPC_LTDC_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>;
-	access-controllers-conf-sec = <&etzpc DECPROT(STM32MP1_ETZPC_LTDC_ID, DECPROT_S_RW, DECPROT_UNLOCK)>;
+	access-controllers-conf-nsec =
+		<&etzpc DECPROT(STM32MP1_ETZPC_LTDC_ID, DECPROT_NS_RW, DECPROT_UNLOCK)>,
+		<&gpioa (GPIO_STM32_NSEC | TZPROT(15))>,
+		<&gpiob (GPIO_STM32_NSEC | TZPROT(6) | TZPROT(12))>,
+		<&gpioc (GPIO_STM32_NSEC | TZPROT(6) | TZPROT(7))>,
+		<&gpiod (GPIO_STM32_NSEC | TZPROT(5) | TZPROT(9) | TZPROT(10) | TZPROT(14))>,
+		<&gpioe (GPIO_STM32_NSEC | TZPROT(0) | TZPROT(7) | TZPROT(9) | TZPROT(13))>,
+		<&gpiof (GPIO_STM32_NSEC | TZPROT(1) | TZPROT(2) | TZPROT(3))>,
+		<&gpiog (GPIO_STM32_NSEC | TZPROT(0) | TZPROT(4) | TZPROT(7))>,
+		<&gpioh (GPIO_STM32_NSEC | TZPROT(9) | TZPROT(13) | TZPROT(14))>;
+	access-controllers-conf-sec =
+		<&etzpc DECPROT(STM32MP1_ETZPC_LTDC_ID, DECPROT_NS_R_S_W, DECPROT_UNLOCK)>,
+		<&gpioa (TZPROT(15))>,
+		<&gpiob (TZPROT(6) | TZPROT(12))>,
+		<&gpioc (TZPROT(6) | TZPROT(7))>,
+		<&gpiod (TZPROT(5) | TZPROT(9) | TZPROT(10) | TZPROT(14))>,
+		<&gpioe (TZPROT(0) | TZPROT(7) | TZPROT(9) | TZPROT(13))>,
+		<&gpiof (TZPROT(1) | TZPROT(2) | TZPROT(3))>,
+		<&gpiog (TZPROT(0) | TZPROT(4) | TZPROT(7))>,
+		<&gpioh (TZPROT(9) | TZPROT(13) | TZPROT(14))>;
 	status = "okay";
 };
 
