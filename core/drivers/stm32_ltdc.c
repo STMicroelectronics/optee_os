@@ -411,7 +411,7 @@ static TEE_Result stm32_ltdc_probe(const void *fdt, int node,
 	struct dt_node_info dt_info = { };
 	uint32_t hwid = 0;
 	TEE_Result ret = TEE_ERROR_GENERIC;
-	struct io_pa_va io_base;
+	struct io_pa_va io_base = { };
 
 	ldev = calloc(1, sizeof(*ldev));
 	if (!ldev)
