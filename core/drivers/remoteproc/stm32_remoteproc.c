@@ -17,6 +17,7 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <mm/core_mmu.h>
+#include <stdint.h>
 #if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
 #include <stm32_sysconf.h>
 #endif
@@ -374,10 +375,15 @@ static TEE_Result stm32_rproc_get_dma_range(struct stm32_rproc_mem *region,
 					    const void *fdt, int node)
 {
 	const fdt32_t *list = NULL;
+	uint32_t size = 0;
 	int ahb_node = 0;
-	int len = 0;
+	int elt_size = 0;
+	uint32_t da = 0;
 	int nranges = 0;
+	paddr_t pa = 0;
+	int len = 0;
 	int i = 0;
+	int j = 0;
 
 	/*
 	 * The match between local and remote processor memory mapping is
@@ -395,15 +401,25 @@ static TEE_Result stm32_rproc_get_dma_range(struct stm32_rproc_mem *region,
 		return TEE_SUCCESS;
 	}
 
-	if ((len % (sizeof(uint32_t) * 3)))
-		return TEE_ERROR_GENERIC;
+	/* A dma-ranges element is constructed with:
+	 *  - the 32-bit remote processor address
+	 *  - the cpu address which depends on the CPU arch (32-bit or 64-bit)
+	 *  - the 32-bit remote processor memory mapping size
+	 */
+	elt_size = sizeof(uint32_t) + sizeof(paddr_t) + sizeof(uint32_t);
 
-	nranges = len / sizeof(uint32_t);
+	if (len % elt_size)
+		return TEE_ERROR_BAD_PARAMETERS;
 
-	for (i = 0; i < nranges; i += 3) {
-		uint32_t da = fdt32_to_cpu(list[i]);
-		uint32_t pa = fdt32_to_cpu(list[i + 1]);
-		uint32_t size = fdt32_to_cpu(list[i + 2]);
+	nranges = len / elt_size;
+
+	for (i = 0, j = 0; i < nranges; i++) {
+		da = fdt32_to_cpu(list[j++]);
+		pa = fdt32_to_cpu(list[j++]);
+#if defined(__LP64__)
+		pa = SHIFT_U64(pa, 32) | list[j++];
+#endif
+		size = fdt32_to_cpu(list[j++]);
 
 		if (core_is_buffer_inside(region->addr, region->size,
 					  pa, size)) {
