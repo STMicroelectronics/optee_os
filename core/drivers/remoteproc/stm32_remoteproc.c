@@ -30,6 +30,12 @@
 #define FIREWALL_CONF_DEFAULT "default"
 #define FIREWALL_CONF_LOAD    "load"
 
+enum reset_id {
+	MCU_RESET,
+	MCU_HOLD_BOOT,
+	NB_RESET_ID,
+};
+
 /**
  * struct stm32_rproc_mem - Memory regions used by the remote processor
  *
@@ -49,6 +55,21 @@ struct stm32_rproc_mem {
 	struct firewall_alt_conf *load_conf;
 };
 
+struct stm32_rproc_instance;
+
+/**
+ * struct stm32_rproc_reset - Reset line description, exposed to non secure
+ *
+ * @id:		reset identifier
+ * @rproc:	remoteproc device pointer (stm32_rproc_instance)
+ * @rstctrl:	backend reset control to use, when access is granted
+ */
+struct stm32_rproc_reset {
+	unsigned int id;
+	const struct stm32_rproc_instance *rproc;
+	struct rstctrl rstctrl;
+};
+
 /**
  * struct stm32_rproc_instance - rproc instance context
  *
@@ -63,6 +84,7 @@ struct stm32_rproc_mem {
  * @boot_addr:	boot address
  * @tzen:	indicate if the remote processor should enable the TrustZone
  * @m_get_cnt:	counter used for the memory region get/release balancing
+ * @reset:	array of reset line description (stm32_rproc_reset)
  */
 struct stm32_rproc_instance {
 	const struct stm32_rproc_compat_data *cdata;
@@ -76,6 +98,7 @@ struct stm32_rproc_instance {
 	paddr_t boot_addr;
 	bool tzen;
 	uint32_t m_get_cnt;
+	struct stm32_rproc_reset reset[NB_RESET_ID];
 };
 
 /**
@@ -645,11 +668,119 @@ static void stm32_rproc_a35ss_cfg(struct stm32_rproc_instance *rproc __unused)
 #endif
 }
 
+/* Functions to managed reset line exported to non secure world with SCMI */
+static struct stm32_rproc_reset *to_rproc_reset(struct rstctrl *rstctrl)
+{
+	assert(rstctrl);
+
+	return container_of(rstctrl, struct stm32_rproc_reset, rstctrl);
+}
+
+static TEE_Result stm32_rproc_reset_update(struct rstctrl *rstctrl, bool status,
+					   unsigned int to_us)
+{
+	struct stm32_rproc_reset *reset = to_rproc_reset(rstctrl);
+	const struct stm32_rproc_instance *rproc = reset->rproc;
+	struct rstctrl *rproc_rstctrl  = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	unsigned int id = reset->id;
+
+	assert(rproc);
+
+	switch (id) {
+	case MCU_RESET:
+		rproc_rstctrl = rproc->mcu_rst;
+		/* Deassert not possible for mcu_rst, cleared by hardware */
+		if (!status)
+			return TEE_ERROR_NOT_SUPPORTED;
+		break;
+	case MCU_HOLD_BOOT:
+		rproc_rstctrl = rproc->hold_boot;
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (!rproc->cdata->ns_loading)
+		return TEE_ERROR_ACCESS_DENIED;
+
+	if (status)
+		res = rstctrl_assert_to(rproc_rstctrl, to_us);
+	else
+		res = rstctrl_deassert_to(rproc_rstctrl, to_us);
+
+	return res;
+}
+
+static TEE_Result stm32_rproc_reset_assert(struct rstctrl *rstctrl,
+					   unsigned int to_us)
+{
+	return stm32_rproc_reset_update(rstctrl, true, to_us);
+}
+
+static TEE_Result stm32_rproc_reset_deassert(struct rstctrl *rstctrl,
+					     unsigned int to_us)
+{
+	return stm32_rproc_reset_update(rstctrl, false, to_us);
+}
+
+static const char *stm32_rproc_reset_get_name(struct rstctrl *rstctrl)
+{
+	struct stm32_rproc_reset *reset = to_rproc_reset(rstctrl);
+	const struct stm32_rproc_instance *rproc = reset->rproc;
+	struct rstctrl *rproc_rstctrl = NULL;
+	unsigned int id = reset->id;
+
+	assert(rproc);
+
+	switch (id) {
+	case MCU_RESET:
+		rproc_rstctrl = rproc->mcu_rst;
+		break;
+	case MCU_HOLD_BOOT:
+		rproc_rstctrl = rproc->hold_boot;
+		break;
+	default:
+		return NULL;
+	}
+
+	return rstctrl_name(rproc_rstctrl);
+}
+
+static const struct rstctrl_ops stm32_rproc_rstctrl_ops = {
+	.assert_level = stm32_rproc_reset_assert,
+	.deassert_level = stm32_rproc_reset_deassert,
+	.get_name = stm32_rproc_reset_get_name,
+};
+
+static TEE_Result stm32_rproc_rstctrl_get_dev(struct dt_pargs *arg,
+					      void *priv_data,
+					      struct rstctrl **out_device)
+{
+	struct stm32_rproc_instance *rproc = priv_data;
+	uint32_t id = 0;
+
+	assert(arg);
+	assert(out_device);
+
+	if (arg->args_count != 1)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	id = arg->args[0];
+	if (id >= NB_RESET_ID)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*out_device = &rproc->reset[id].rstctrl;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 				    const void *comp_data)
 {
 	struct stm32_rproc_instance *rproc = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	uint32_t id = 0;
 
 	rproc = calloc(1, sizeof(*rproc));
 	if (!rproc)
@@ -685,6 +816,21 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 	res = rstctrl_dt_get_by_name(fdt, node, "hold_boot", &rproc->hold_boot);
 	if (res)
 		goto err;
+
+	/* Expose reset line to SCMI server for non-secure access */
+	if (fdt_getprop(fdt, node, "#reset-cells", NULL)) {
+		for (id = 0; id < NB_RESET_ID; id++) {
+			rproc->reset[id].id = id;
+			rproc->reset[id].rproc = rproc;
+			rproc->reset[id].rstctrl.ops = &stm32_rproc_rstctrl_ops;
+		}
+
+		res = rstctrl_register_provider(fdt, node,
+						stm32_rproc_rstctrl_get_dev,
+						rproc);
+		if (res)
+			goto err;
+	}
 
 	/* Ensure that the MCU is HOLD */
 	if (!rproc->cdata->ns_loading) {
