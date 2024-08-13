@@ -83,7 +83,7 @@ unsigned int stm32_cpu_opp_count(void)
  * the function may adjust the input parameter volt_uv to a higher
  * supported value and still return true.
  */
-static bool opp_voltage_is_supported(struct regulator *regul, uint32_t *volt_uv)
+bool opp_voltage_is_supported(struct regulator *regul, uint32_t *volt_uv)
 {
 	int target_volt_uv = 0;
 	int new_volt_uv = 0;
