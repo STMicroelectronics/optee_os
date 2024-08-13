@@ -6,4 +6,31 @@
 #include "stm32mp253.dtsi"
 
 / {
+	gpu_opp_table: opp-table-gpu {
+		compatible = "operating-points-v2";
+
+		opp-800000000 {
+			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <800000>;
+			opp-supported-hw = <0x3>;
+			st,opp-default;
+		};
+
+		opp-900000000 {
+			opp-hz = /bits/ 64 <900000000>;
+			opp-microvolt = <900000>;
+			opp-supported-hw = <0x2>;
+		};
+	};
+};
+
+&rifsc {
+	gpu: gpu@48280000 {
+		compatible = "vivante,gc";
+		reg = <0x48280000 0x800>;
+		gpu-supply = <&vddgpu>;
+		clocks = <&rcc CK_KER_GPU>;
+		operating-points-v2 = <&gpu_opp_table>;
+		access-controllers = <&rifsc STM32MP25_RIFSC_GPU_ID>;
+	};
 };
