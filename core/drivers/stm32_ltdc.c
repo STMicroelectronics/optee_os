@@ -157,9 +157,6 @@ static TEE_Result stm32_ltdc_init(void *device)
 		goto err;
 	}
 
-	if (ldev->pinctrl)
-		stm32_pinctrl_set_secure_cfg(ldev->pinctrl, true);
-
 	/* Force the LTDC to secure access */
 	ret = firewall_set_alternate_conf(ldev->sec_conf);
 	if (ret)
