@@ -75,20 +75,23 @@ static TEE_Result rproc_pta_load_segment(uint32_t pt,
 						TEE_PARAM_TYPE_MEMREF_INPUT,
 						TEE_PARAM_TYPE_VALUE_INPUT,
 						TEE_PARAM_TYPE_MEMREF_INPUT);
+	struct rproc_pta_seg_info *seg_info = params[3].memref.buffer;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	paddr_t pa = 0;
 	void *dst = NULL;
 	uint8_t *src = params[1].memref.buffer;
 	size_t size = params[1].memref.size;
-	uint8_t *hash = params[3].memref.buffer;
 	paddr_t da = (paddr_t)reg_pair_to_64(params[2].value.b,
 					     params[2].value.a);
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (!hash || params[3].memref.size != TEE_SHA256_HASH_SIZE)
+	if (!seg_info || params[3].memref.size != sizeof(*seg_info))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (seg_info->hash_algo != TEE_ALG_SHA256)
+		return TEE_ERROR_NOT_SUPPORTED;
 
 	if (rproc_ta_state != REMOTEPROC_OFF)
 		return TEE_ERROR_BAD_STATE;
@@ -107,7 +110,7 @@ static TEE_Result rproc_pta_load_segment(uint32_t pt,
 	memcpy(dst, src, size);
 
 	/* Verify that loaded segment is valid */
-	res = hash_sha256_check(hash, dst, size);
+	res = hash_sha256_check(seg_info->hash, dst, size);
 	if (res)
 		memset(dst, 0, size);
 
@@ -398,7 +401,7 @@ static TEE_Result rproc_pta_invoke_command(void *session __unused,
 	switch (cmd_id) {
 	case PTA_RPROC_HW_CAPABILITIES:
 		return rproc_pta_capabilities(param_types, params);
-	case PTA_RPROC_LOAD_SEGMENT_SHA256:
+	case PTA_RPROC_LOAD_SEGMENT:
 		return rproc_pta_load_segment(param_types, params);
 	case PTA_RPROC_SET_MEMORY:
 		return rproc_pta_set_memory(param_types, params);

@@ -682,9 +682,10 @@ static TEE_Result get_tlv_images_size(struct remoteproc_context *ctx,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result get_segment_hash(struct remoteproc_context *ctx, uint8_t *src,
-				   uint32_t size, uint32_t da,
-				   uint32_t mem_size, uint8_t **hash)
+static TEE_Result get_hash_seg_info(struct remoteproc_context *ctx,
+				    uint8_t *src, uint32_t size, uint32_t da,
+				    uint32_t mem_size,
+				    struct rproc_pta_seg_info *seg_info)
 {
 	struct remoteproc_segment *peh = NULL;
 	unsigned int i = 0;
@@ -711,7 +712,8 @@ static TEE_Result get_segment_hash(struct remoteproc_context *ctx, uint8_t *src,
 		    (src + peh->phdr.p_filesz) > (ctx->fw_img + ctx->fw_img_sz))
 			return TEE_ERROR_BAD_PARAMETERS;
 
-		*hash = peh->hash;
+		memcpy(seg_info->hash, peh->hash, TEE_SHA256_HASH_SIZE);
+		seg_info->hash_algo = TEE_ALG_SHA256;
 
 		return TEE_SUCCESS;
 	}
@@ -728,9 +730,9 @@ static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 					       TEE_PARAM_TYPE_MEMREF_INPUT,
 					       TEE_PARAM_TYPE_VALUE_INPUT,
 					       TEE_PARAM_TYPE_MEMREF_INPUT);
+	struct rproc_pta_seg_info seg_info = { };
 	TEE_Param params[TEE_NUM_PARAMS] = { };
 	TEE_Result res = TEE_ERROR_GENERIC;
-	uint8_t *hash = NULL;
 
 	/*
 	 * Invoke platform remoteproc PTA to load the segment in remote
@@ -740,7 +742,7 @@ static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 	DMSG("Load segment %#"PRIx32" size %"PRIu32" (%"PRIu32")", da, size,
 	     mem_size);
 
-	res = get_segment_hash(ctx, src, size, da, mem_size, &hash);
+	res = get_hash_seg_info(ctx, src, size, da, mem_size, &seg_info);
 	if (res)
 		return res;
 
@@ -748,12 +750,12 @@ static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 	params[1].memref.buffer = src;
 	params[1].memref.size = size;
 	params[2].value.a = da;
-	params[3].memref.buffer = hash;
+	params[3].memref.buffer = &seg_info;
 	params[3].memref.size = TEE_SHA256_HASH_SIZE;
 
 	if (size) {
 		res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
-					  PTA_RPROC_LOAD_SEGMENT_SHA256,
+					  PTA_RPROC_LOAD_SEGMENT,
 					  param_types, params, NULL);
 		if (res != TEE_SUCCESS) {
 			EMSG("Fails to load segment, res = 0x%#"PRIx32, res);

@@ -7,6 +7,7 @@
 #define __REMOTEPROC_PTA_H
 
 #include <stdint.h>
+#include <utee_defines.h>
 #include <util.h>
 
 /*
@@ -34,6 +35,8 @@
 #define PTA_REMOTEPROC_TLV_BOOTADDR_LGTH	U(4)
 #define PTA_REMOTEPROC_TLV_BOOT_SEC_LGTH	U(4)
 
+#define PTA_REMOTEPROC_MAX_HASH_SIZE	U(64)
+
 /**
  * struct rproc_pta_key_info - public key information
  * @algo:	Algorithm, defined by public key algorithms TEE_ALG_*
@@ -44,6 +47,16 @@ struct rproc_pta_key_info {
 	uint32_t algo;
 	uint32_t info_size;
 	uint8_t info[];
+};
+
+/*
+ * struct rproc_pta_seg_info -  segment info for authentication and decryption
+ * @hash_algo: Algorithm used for hash calculation
+ * @hash:      Hash associated to the program segment.
+ */
+struct rproc_pta_seg_info {
+	uint32_t hash_algo;
+	uint8_t hash[PTA_REMOTEPROC_MAX_HASH_SIZE];
 };
 
 static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
@@ -78,7 +91,7 @@ static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
 #define PTA_RPROC_FIRMWARE_LOAD		2
 
 /*
- * Load a segment with a SHA256 hash.
+ * Load a segment with a hash.
  *
  * This command is used when the platform secure memory is too constrained to
  * save the whole firmware image. Upon segment load, a successful completion
@@ -88,9 +101,9 @@ static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)
  * [in]  params[1].memref:	Section data to load
  * [in]  params[2].value.a:	32bit LSB load device segment address
  * [in]  params[2].value.b:	32bit MSB load device segment address
- * [in]  params[3].memref:	Expected hash (SHA256) of the payload
+ * [in]  params[3].memref:	Segment information (struct rproc_pta_seg_info)
  */
-#define PTA_RPROC_LOAD_SEGMENT_SHA256	3
+#define PTA_RPROC_LOAD_SEGMENT		3
 
 /*
  * Memory set.
