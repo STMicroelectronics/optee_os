@@ -66,15 +66,20 @@ enum remoteproc_state {
 #define RPROC_HDR_MAGIC		0x3543A468
 #define HEADER_VERSION		1
 
+#define REMOTEPROC_INVALID_TYPE 0xFF
+
 /* Supported signature algorithm */
 enum remoteproc_sign_type {
 	RPROC_RSASSA_PKCS1_v1_5_SHA256 = 1,
 	RPROC_ECDSA_SHA256 = 2,
 };
 
+enum remoteproc_hash_type {
+	REMOTEPROC_HASH_SHA256 = 1,
+};
+
 enum remoteproc_img_type {
 	REMOTEPROC_ELF_TYPE = 1,
-	REMOTEPROC_INVALID_TYPE = 0xFF
 };
 
 /* remoteproc_tlv structure offsets */
@@ -94,6 +99,7 @@ enum remoteproc_img_type {
 #define RPROC_PLAT_TLV_TYPE_MAX	U(0x00020000)
 
 #define RPROC_TLV_SIGNTYPE_LGTH U(1)
+#define RPROC_TLV_HASHTYPE_LGTH U(1)
 
 #define ROUNDUP_64(x) ROUNDUP((x), sizeof(uint64_t))
 
@@ -160,6 +166,18 @@ struct remoteproc_sig_algo {
 };
 
 /*
+ * struct remoteproc_hash_algo - hash algorithm information
+ * @sign_type: Encryption type
+ * @id:        Encryption algorithm identifier TEE_ALG_*
+ * @len:       Hash length
+ */
+struct remoteproc_hash_algo {
+	enum remoteproc_hash_type type;
+	uint32_t id;
+	size_t len;
+};
+
+/*
  * struct remoteproc_context - firmware context
  * @rproc_id:    Unique Id of the processor
  * @sec_cpy:     Location of a secure copy of the header, TLVs and signature
@@ -174,6 +192,8 @@ struct remoteproc_sig_algo {
  * @state:       Remote-processor state
  * @hw_fmt:      Image format capabilities of the remoteproc PTA
  * @hw_img_prot: Image protection capabilities of the remoteproc PTA
+ * @hash_algo:   Algorithm used to compute segment hashes
+ * @hash_sz:     Size of the hash associated with hash_algo
  * @link:        Linked list element
  */
 struct remoteproc_context {
@@ -190,6 +210,8 @@ struct remoteproc_context {
 	enum remoteproc_state state;
 	uint32_t hw_fmt;
 	uint32_t hw_img_prot;
+	uint32_t hash_algo;
+	uint32_t hash_sz;
 	TAILQ_ENTRY(remoteproc_context) link;
 };
 
@@ -208,6 +230,14 @@ static const struct remoteproc_sig_algo rproc_ta_sign_algo[] = {
 		.sign_type = RPROC_ECDSA_SHA256,
 		.id = TEE_ALG_ECDSA_P256,
 		.hash_len = TEE_SHA256_HASH_SIZE,
+	},
+};
+
+static const struct remoteproc_hash_algo rproc_ta_hash_algo[] = {
+	{
+		.type = REMOTEPROC_HASH_SHA256,
+		.id = TEE_ALG_SHA256,
+		.len = TEE_SHA256_HASH_SIZE,
 	},
 };
 
@@ -492,6 +522,37 @@ static TEE_Result get_rproc_pta_capabilities(struct remoteproc_context *ctx)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result get_tlv_hash_type(struct remoteproc_context *ctx)
+{
+	uint8_t hash_type = REMOTEPROC_INVALID_TYPE;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t *tlv_value = NULL;
+	size_t length = 0;
+	uint32_t i = 0;
+
+	/* Get the type of the image to load from TLV data */
+	res = remoteproc_get_tlv(ctx->tlvs, ctx->tlvs_sz, RPROC_TLV_HASHTYPE,
+				 &tlv_value, &length);
+	if (res)
+		return res;
+
+	if (length != RPROC_TLV_HASHTYPE_LGTH)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	hash_type = tlv_value[0];
+
+	for (i = 0; i < ARRAY_SIZE(rproc_ta_hash_algo); i++)
+		if (hash_type == rproc_ta_hash_algo[i].type) {
+			ctx->hash_algo = rproc_ta_hash_algo[i].id;
+			ctx->hash_sz = rproc_ta_hash_algo[i].len;
+			return TEE_SUCCESS;
+		}
+
+	DMSG("Invalid hash ID %#"PRIx8, hash_type);
+
+	return TEE_ERROR_NOT_SUPPORTED;
+}
+
 static TEE_Result remoteproc_verify_firmware(struct remoteproc_context *ctx,
 					     uint8_t *fw_orig,
 					     uint32_t fw_orig_size)
@@ -526,6 +587,11 @@ static TEE_Result remoteproc_verify_firmware(struct remoteproc_context *ctx,
 	ctx->tlvs = FW_TLV_PTR(ctx->sec_cpy, hdr);
 
 	res = remoteproc_verify_signature(ctx);
+	if (res)
+		goto free_sec_cpy;
+
+	/* Get hash type */
+	res = get_tlv_hash_type(ctx);
 	if (res)
 		goto free_sec_cpy;
 
@@ -800,7 +866,7 @@ static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 	params[1].memref.size = size;
 	params[2].value.a = da;
 	params[3].memref.buffer = &seg_info;
-	params[3].memref.size = TEE_SHA256_HASH_SIZE;
+	params[3].memref.size = sizeof(seg_info);
 
 	if (size) {
 		res = TEE_InvokeTACommand(pta_session, TEE_TIMEOUT_INFINITE,
