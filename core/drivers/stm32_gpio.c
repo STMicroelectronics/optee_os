@@ -17,6 +17,7 @@
 #include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/pinctrl/stm32-pinfunc.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
@@ -811,7 +812,7 @@ static TEE_Result consumed_gpios_pm(enum pm_op op,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(consumed_gpios_pm);
+DECLARE_KEEP_PAGER_PM(consumed_gpios_pm);
 
 static TEE_Result stm32_gpio_get_dt(struct dt_pargs *pargs, void *data,
 				    struct gpio **out_gpio)
@@ -1616,7 +1617,7 @@ stm32_gpio_sec_config_pm(enum pm_op op, unsigned int pm_hint,
 
 	return ret;
 }
-DECLARE_KEEP_PAGER(stm32_gpio_sec_config_pm);
+DECLARE_KEEP_PAGER_PM(stm32_gpio_sec_config_pm);
 
 /*
  * Several pinctrl nodes can be probed. Their bank will be put in the unique
