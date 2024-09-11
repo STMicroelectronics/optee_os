@@ -78,8 +78,13 @@ enum remoteproc_hash_type {
 	REMOTEPROC_HASH_SHA256 = 1,
 };
 
+enum remoteproc_enc_type {
+	REMOTEPROC_AES_CBC = 1,
+};
+
 enum remoteproc_img_type {
 	REMOTEPROC_ELF_TYPE = 1,
+	REMOTEPROC_ENC_ELF_TYPE = 2,
 };
 
 /* remoteproc_tlv structure offsets */
@@ -92,14 +97,18 @@ enum remoteproc_img_type {
 #define RPROC_TLV_NUM_IMG	U(0x00000003)
 #define RPROC_TLV_IMGTYPE	U(0x00000004)
 #define RPROC_TLV_IMGSIZE	U(0x00000005)
+#define RPROC_TLV_ENCTYPE	U(0x00000006)
+
 #define RPROC_TLV_HASHTABLE	U(0x00000010)
 #define RPROC_TLV_PKEYINFO	U(0x00000011)
+#define RPROC_TLV_ENCTABLE	U(0x00000012)
 
 #define RPROC_PLAT_TLV_TYPE_MIN	U(0x00010000)
 #define RPROC_PLAT_TLV_TYPE_MAX	U(0x00020000)
 
 #define RPROC_TLV_SIGNTYPE_LGTH U(1)
 #define RPROC_TLV_HASHTYPE_LGTH U(1)
+#define RPROC_TLV_ENCTYPE_LGTH  U(1)
 
 #define ROUNDUP_64(x) ROUNDUP((x), sizeof(uint64_t))
 
@@ -120,9 +129,21 @@ struct remoteproc_tlv {
  * @phdr: program header
  * @hash: hash associated to the program segment.
  */
-struct remoteproc_segment {
+struct remoteproc_hash_segment {
 	Elf32_Phdr phdr;
 	uint8_t hash[TEE_SHA256_HASH_SIZE];
+};
+
+/*
+ * struct remoteproc_segment - program header with hash structure
+ * @phdr: Program header
+ * @hash: Hash associated to the program segment.
+ * @iv:   Initialisation vector for segment decryption
+ */
+struct remoteproc_enc_segment {
+	Elf32_Phdr phdr;
+	uint8_t hash[TEE_SHA256_HASH_SIZE];
+	uint8_t iv[TEE_AES_BLOCK_SIZE];
 };
 
 /*
@@ -178,6 +199,16 @@ struct remoteproc_hash_algo {
 };
 
 /*
+ * struct remoteproc_enc_algo - encryption algorithm information
+ * @sign_type: Encryption type
+ * @id:        Encryption algorithm identifier TEE_ALG_*
+ */
+struct remoteproc_enc_algo {
+	enum remoteproc_enc_type type;
+	uint32_t id;
+};
+
+/*
  * struct remoteproc_context - firmware context
  * @rproc_id:    Unique Id of the processor
  * @sec_cpy:     Location of a secure copy of the header, TLVs and signature
@@ -186,6 +217,7 @@ struct remoteproc_hash_algo {
  * @fw_img:      Firmware image
  * @fw_img_sz:   Byte size of the firmware image
  * @hash_table:  Location of a copy of the segment's hash table
+ * @enc_table:   Location of a copy of the segment's encryption table
  * @nb_segment:  number of segment to load
  * @rsc_pa:      Physical address of the firmware resource table
  * @rsc_size:    Byte size of the firmware resource table
@@ -195,6 +227,7 @@ struct remoteproc_hash_algo {
  * @hash_algo:   Algorithm used to compute segment hashes
  * @hash_sz:     Size of the hash associated with hash_algo
  * @link:        Linked list element
+ * @enc_algo:    Encryption algorithm
  */
 struct remoteproc_context {
 	uint32_t rproc_id;
@@ -203,7 +236,8 @@ struct remoteproc_context {
 	size_t tlvs_sz;
 	uint8_t *fw_img;
 	size_t fw_img_sz;
-	struct remoteproc_segment *hash_table;
+	struct remoteproc_enc_segment *enc_table;
+	struct remoteproc_hash_segment *hash_table;
 	uint32_t nb_segment;
 	paddr_t rsc_pa;
 	size_t rsc_size;
@@ -213,6 +247,7 @@ struct remoteproc_context {
 	uint32_t hash_algo;
 	uint32_t hash_sz;
 	TAILQ_ENTRY(remoteproc_context) link;
+	uint32_t enc_algo;
 };
 
 TAILQ_HEAD(remoteproc_firmware_head, remoteproc_context);
@@ -241,6 +276,12 @@ static const struct remoteproc_hash_algo rproc_ta_hash_algo[] = {
 	},
 };
 
+static const struct remoteproc_enc_algo rproc_ta_enc_algo[] = {
+	{
+		.type = REMOTEPROC_AES_CBC,
+		.id = TEE_ALG_AES_CBC_NOPAD,
+	},
+};
 static size_t session_refcount;
 static TEE_TASessionHandle pta_session;
 
@@ -331,6 +372,18 @@ static const struct remoteproc_sig_algo *remoteproc_get_algo(uint32_t sign_type)
 	for (i = 0; i < ARRAY_SIZE(rproc_ta_sign_algo); i++)
 		if (sign_type == rproc_ta_sign_algo[i].sign_type)
 			return &rproc_ta_sign_algo[i];
+
+	return NULL;
+}
+
+static const struct remoteproc_enc_algo *
+remoteproc_get_enc_algo(uint32_t enc_type)
+{
+	unsigned int i = 0;
+
+	for (i = 0; i < ARRAY_SIZE(rproc_ta_enc_algo); i++)
+		if (enc_type == rproc_ta_enc_algo[i].type)
+			return &rproc_ta_enc_algo[i];
 
 	return NULL;
 }
@@ -607,12 +660,17 @@ static TEE_Result remoteproc_verify_firmware(struct remoteproc_context *ctx,
 		return res;
 
 	/* Secure the firmware image depending on strategy */
-	if (!(ctx->hw_img_prot & PTA_RPROC_HWCAP_PROT_HASH_TABLE) ||
-	    ctx->hw_fmt != PTA_RPROC_HWCAP_FMT_ELF) {
+	if (!(ctx->hw_img_prot & PTA_RPROC_HWCAP_PROT_HASH_TABLE)) {
 		/*
 		 * Only hash table for ELF format support implemented
 		 * in a first step.
 		 */
+		return TEE_ERROR_NOT_IMPLEMENTED;
+	}
+
+	if (!(ctx->hw_fmt &
+	      (PTA_RPROC_HWCAP_FMT_ELF | PTA_RPROC_HWCAP_FMT_ENC_ELF))) {
+		/* Only standard ELF and encrypted ELF format supported */
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 
@@ -704,7 +762,8 @@ static TEE_Result remoteproc_parse_rsc_table(struct remoteproc_context *ctx,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	Elf32_Word size = 0;
 
-	res = e32_parser_find_rsc_table(fw_img, fw_img_sz, &da, &size, true);
+	res = e32_parser_find_rsc_table(fw_img, fw_img_sz, &da, &size,
+					ctx->enc_algo == RPROC_PTA_ENC_NONE);
 	if (res)
 		return res;
 
@@ -724,7 +783,7 @@ static TEE_Result get_hash_table(struct remoteproc_context *ctx)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t *tlv_hash = NULL;
-	struct remoteproc_segment *hash_table = NULL;
+	struct remoteproc_hash_segment *hash_table = NULL;
 	size_t length = 0;
 
 	/* Get the segment's hash table from TLV data */
@@ -733,7 +792,7 @@ static TEE_Result get_hash_table(struct remoteproc_context *ctx)
 	if (res)
 		return res;
 
-	if (length % sizeof(struct remoteproc_segment))
+	if (length % sizeof(struct remoteproc_hash_segment))
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* We can not ensure that tlv_hash is memory aligned so make a copy */
@@ -744,7 +803,36 @@ static TEE_Result get_hash_table(struct remoteproc_context *ctx)
 	memcpy(hash_table, tlv_hash, length);
 
 	ctx->hash_table = hash_table;
-	ctx->nb_segment = length / sizeof(struct remoteproc_segment);
+	ctx->nb_segment = length / sizeof(struct remoteproc_hash_segment);
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result get_enc_table(struct remoteproc_context *ctx)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t *tlv_enc = NULL;
+	struct remoteproc_enc_segment *enc_table = NULL;
+	size_t length = 0;
+
+	/* Get the segment's hash table from TLV data */
+	res = remoteproc_get_tlv(ctx->tlvs, ctx->tlvs_sz, RPROC_TLV_ENCTABLE,
+				 &tlv_enc, &length);
+	if (res)
+		return res;
+
+	if (length % sizeof(struct remoteproc_enc_segment))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* We can not ensure that tlv_enc is memory aligned so make a copy */
+	enc_table = TEE_Malloc(length, TEE_MALLOC_FILL_ZERO);
+	if (!enc_table)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	memcpy(enc_table, tlv_enc, length);
+
+	ctx->enc_table = enc_table;
+	ctx->nb_segment = length / sizeof(struct remoteproc_enc_segment);
 
 	return TEE_SUCCESS;
 }
@@ -800,7 +888,7 @@ static TEE_Result get_hash_seg_info(struct remoteproc_context *ctx,
 				    uint32_t mem_size,
 				    struct rproc_pta_seg_info *seg_info)
 {
-	struct remoteproc_segment *peh = NULL;
+	struct remoteproc_hash_segment *peh = NULL;
 	unsigned int i = 0;
 	unsigned int nb_entry = ctx->nb_segment;
 
@@ -827,6 +915,47 @@ static TEE_Result get_hash_seg_info(struct remoteproc_context *ctx,
 
 		memcpy(seg_info->hash, peh->hash, TEE_SHA256_HASH_SIZE);
 		seg_info->hash_algo = TEE_ALG_SHA256;
+
+		return TEE_SUCCESS;
+	}
+
+	return TEE_ERROR_NO_DATA;
+}
+
+static TEE_Result get_enc_seg_info(struct remoteproc_context *ctx, uint8_t *src,
+				   uint32_t size, uint32_t da,
+				   uint32_t mem_size,
+				   struct rproc_pta_seg_info *seg_info)
+{
+	struct remoteproc_enc_segment *pee = NULL;
+	unsigned int i = 0;
+	unsigned int nb_entry = ctx->nb_segment;
+
+	pee = (void *)(ctx->enc_table);
+
+	for (i = 0; i < nb_entry; pee++, i++) {
+		if (pee->phdr.p_paddr != da)
+			continue;
+
+		/*
+		 * Segment metadata are read from a non-secure memory.
+		 * Validate them using hash table data stored in secure memory.
+		 */
+		if (pee->phdr.p_type != PT_LOAD)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		if (pee->phdr.p_filesz != size || pee->phdr.p_memsz != mem_size)
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		if (src < ctx->fw_img ||
+		    src >  (ctx->fw_img + ctx->fw_img_sz) ||
+		    (src + pee->phdr.p_filesz) > (ctx->fw_img + ctx->fw_img_sz))
+			return TEE_ERROR_BAD_PARAMETERS;
+
+		memcpy(seg_info->hash, pee->hash, ctx->hash_sz);
+		seg_info->hash_algo = TEE_ALG_SHA256;
+		seg_info->enc_algo = ctx->enc_algo;
+		memcpy(seg_info->iv, pee->iv, TEE_AES_BLOCK_SIZE);
 
 		return TEE_SUCCESS;
 	}
@@ -904,7 +1033,11 @@ static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 	DMSG("Load segment %#"PRIx32" size %"PRIu32" (%"PRIu32")", da, size,
 	     mem_size);
 
-	res = get_hash_seg_info(ctx, src, size, da, mem_size, &seg_info);
+	if (ctx->enc_algo == TEE_ALG_AES_CBC_NOPAD)
+		res = get_enc_seg_info(ctx, src, size, da, mem_size, &seg_info);
+	else
+		res = get_hash_seg_info(ctx, src, size, da, mem_size,
+					&seg_info);
 	if (res)
 		return res;
 
@@ -947,6 +1080,7 @@ static TEE_Result remoteproc_load_segment(uint8_t *src, uint32_t size,
 
 static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 {
+	const struct remoteproc_enc_algo *algo = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	unsigned int num_img = 0;
 	unsigned int i = 0;
@@ -964,7 +1098,30 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 		return res;
 	}
 
-	res = get_hash_table(ctx);
+	/* Get encryption information */
+	res = remoteproc_get_tlv(ctx->tlvs, ctx->tlvs_sz, RPROC_TLV_ENCTYPE,
+				 &tlv, &length);
+
+	if (res && res != TEE_ERROR_NO_DATA)
+		return res;
+
+	if (res == TEE_ERROR_NO_DATA) {
+		ctx->enc_algo = RPROC_PTA_ENC_NONE;
+	} else {
+		if (length != RPROC_TLV_ENCTYPE_LGTH)
+			return TEE_ERROR_BAD_PARAMETERS;
+		algo = remoteproc_get_enc_algo(*tlv);
+		if (!algo) {
+			EMSG("Unsupported encryption type %"PRId8, *tlv);
+			return TEE_ERROR_NOT_SUPPORTED;
+		}
+		ctx->enc_algo = algo->id;
+	}
+
+	if (ctx->enc_algo)
+		res = get_enc_table(ctx);
+	else
+		res = get_hash_table(ctx);
 	if (res)
 		return res;
 
@@ -973,6 +1130,7 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 				 &tlv, &length);
 	if (res)
 		goto out;
+
 	if (length != sizeof(uint8_t)) {
 		res = TEE_ERROR_BAD_FORMAT;
 		goto out;
@@ -995,7 +1153,14 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 		res = get_tlv_images_type(ctx, num_img, i, &img_type);
 		if (res)
 			goto out;
-		if (img_type != REMOTEPROC_ELF_TYPE) {
+		if (img_type != REMOTEPROC_ELF_TYPE &&
+		    img_type != REMOTEPROC_ENC_ELF_TYPE) {
+			res = TEE_ERROR_BAD_FORMAT;
+			goto out;
+		}
+
+		if ((img_type == REMOTEPROC_ELF_TYPE && ctx->enc_algo) ||
+		    (img_type == REMOTEPROC_ENC_ELF_TYPE && !ctx->enc_algo)) {
 			res = TEE_ERROR_BAD_FORMAT;
 			goto out;
 		}
@@ -1044,6 +1209,8 @@ out:
 		remoteproc_clean_resources(ctx);
 	TEE_Free(ctx->hash_table);
 	ctx->hash_table = NULL;
+	TEE_Free(ctx->enc_table);
+	ctx->enc_table = NULL;
 
 	return res;
 }
