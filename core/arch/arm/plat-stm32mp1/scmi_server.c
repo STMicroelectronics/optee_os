@@ -892,7 +892,7 @@ static TEE_Result stm32_scmi_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(stm32_scmi_pm);
+DECLARE_KEEP_PAGER_PM(stm32_scmi_pm);
 
 /*
  * Initialize platform SCMI resources
