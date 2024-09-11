@@ -493,6 +493,23 @@ short int __noprof thread_get_id_may_fail(void)
 	return ct;
 }
 
+bool __noprof thread_is_for_pm(void)
+{
+	/*
+	 * thread_get_core_local() requires foreign interrupts to be disabled
+	 */
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_core_local *l = thread_get_core_local();
+	short int ct = l->curr_thread;
+	bool rc = false;
+
+	rc = (ct == THREAD_ID_INVALID) ||
+	     (threads[ct].flags & THREAD_FLAGS_PM_SEQUENCE);
+
+	thread_unmask_exceptions(exceptions);
+	return rc;
+}
+
 bool __noprof thread_is_for_nsec_noirq(void)
 {
 	/*

@@ -127,6 +127,11 @@ short int thread_get_id(void);
 short int thread_get_id_may_fail(void);
 
 /*
+ * Returns true if the thread is for used for PM, false otherwise.
+ */
+bool thread_is_for_pm(void);
+
+/*
  * Returns true if the thread is for used for non-secure no-irq
  * sequence (that is when non-secure world executes with its
  * interrupts masked), false otherwise.
