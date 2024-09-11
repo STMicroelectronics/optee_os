@@ -313,7 +313,7 @@ static TEE_Result cpu_opp_pm(enum pm_op op, unsigned int pm_hint,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(cpu_opp_pm);
+DECLARE_KEEP_PAGER_PM(cpu_opp_pm);
 
 static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 {

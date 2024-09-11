@@ -10,6 +10,7 @@
 #include <drivers/stm32mp1_pwr.h>
 #include <drivers/stm32mp1_syscfg.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/delay.h>
 #include <kernel/dt_driver.h>
 #include <kernel/panic.h>
@@ -171,7 +172,7 @@ static const struct regu_dt_desc stm32mp1_pwr_regu_dt_desc[] = {
 	[PWR_REG18] = DEFINE_REG(PWR_REG18, "reg18", "vdd"),
 	[PWR_USB33] = DEFINE_REG(PWR_USB33, "usb33", "vdd_3v3_usbfs"),
 };
-DECLARE_KEEP_PAGER(stm32mp1_pwr_regu_dt_desc);
+DECLARE_KEEP_PAGER_PM(stm32mp1_pwr_regu_dt_desc);
 
 struct regulator *stm32mp1_pwr_get_regulator(enum pwr_regulator id)
 {
@@ -189,7 +190,7 @@ static TEE_Result vdd_hslv_pm(enum pm_op op, uint32_t pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(vdd_hslv_pm);
+DECLARE_KEEP_PAGER_PM(vdd_hslv_pm);
 
 static TEE_Result set_fixed_vdd_hslv_mode(struct regulator *vdd_supply)
 {

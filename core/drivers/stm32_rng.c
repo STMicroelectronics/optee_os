@@ -8,6 +8,7 @@
 #include <drivers/clk_dt.h>
 #include <drivers/rstctrl.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
@@ -581,7 +582,7 @@ stm32_rng_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return res;
 }
-DECLARE_KEEP_PAGER(stm32_rng_pm);
+DECLARE_KEEP_PAGER_PM(stm32_rng_pm);
 
 static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 {
@@ -703,7 +704,7 @@ static const struct stm32_rng_driver_data mp15_data[] = {
 		.has_power_optim = false,
 	},
 };
-DECLARE_KEEP_PAGER(mp15_data);
+DECLARE_KEEP_PAGER_PM(mp15_data);
 
 static const struct stm32_rng_driver_data mp21_data[] = {
 	{

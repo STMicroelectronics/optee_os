@@ -13,6 +13,7 @@
 #include <config.h>
 #include <drivers/stm32_bsec.h>
 #include <dt-bindings/soc/stm32mp-provisioning.h>
+#include <keep.h>
 #include <kernel/boot.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>

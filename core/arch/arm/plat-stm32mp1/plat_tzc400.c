@@ -467,7 +467,7 @@ static TEE_Result stm32mp1_tzc_pm(enum pm_op op,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(stm32mp1_tzc_pm);
+DECLARE_KEEP_PAGER_PM(stm32mp1_tzc_pm);
 
 static TEE_Result stm32mp1_tzc_probe(const void *fdt, int node,
 				     const void *compt_data __unused)

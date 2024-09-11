@@ -476,14 +476,14 @@ static const struct regulator_ops pmic_regu_ops = {
 	.supported_voltages = pmic_list_voltages,
 	.supplied_init = pmic_regu_init,
 };
-DECLARE_KEEP_PAGER(pmic_regu_ops);
+DECLARE_KEEP_PAGER_PM(pmic_regu_ops);
 
 static const struct regulator_ops pmic_sw_ops = {
 	.set_state = pmic_set_state,
 	.get_state = pmic_get_state,
 	.supplied_init = pmic_regu_init,
 };
-DECLARE_KEEP_PAGER(pmic_sw_ops);
+DECLARE_KEEP_PAGER_PM(pmic_sw_ops);
 
 /*
  * STPMIC1 regulator names, used in the DT as regulator node name and

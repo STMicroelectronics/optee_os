@@ -1264,7 +1264,7 @@ static TEE_Result stm32_cryp_pm(enum pm_op op, uint32_t pm_hint,
 		return TEE_ERROR_NOT_IMPLEMENTED;
 	}
 }
-DECLARE_KEEP_PAGER(stm32_cryp_pm);
+DECLARE_KEEP_PAGER_PM(stm32_cryp_pm);
 
 static TEE_Result stm32_cryp_probe(const void *fdt, int node,
 				   const void *compt_data __unused)

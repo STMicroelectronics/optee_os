@@ -70,7 +70,7 @@ static TEE_Result mobj_phys_get_pa(struct mobj *mobj, size_t offs,
 	*pa = p;
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(mobj_phys_get_pa);
+DECLARE_KEEP_PAGER_PM(mobj_phys_get_pa);
 
 static TEE_Result mobj_phys_get_mem_type(struct mobj *mobj, uint32_t *mem_type)
 {
@@ -275,7 +275,7 @@ static TEE_Result mobj_shm_get_pa(struct mobj *mobj, size_t offs,
 	*pa = p;
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(mobj_shm_get_pa);
+DECLARE_KEEP_PAGER_PM(mobj_shm_get_pa);
 
 static size_t mobj_shm_get_phys_offs(struct mobj *mobj, size_t granule)
 {
@@ -462,7 +462,7 @@ static TEE_Result mobj_with_fobj_get_pa(struct mobj *mobj, size_t offs,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(mobj_with_fobj_get_pa);
+DECLARE_KEEP_PAGER_PM(mobj_with_fobj_get_pa);
 
 /*
  * Note: this variable is weak just to ease breaking its dependency chain

@@ -7,6 +7,7 @@
 #include <config.h>
 #include <drivers/stm32_bsec.h>
 #include <io.h>
+#include <keep.h>
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
@@ -1029,7 +1030,7 @@ static TEE_Result bsec_pm(enum pm_op op, uint32_t pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(bsec_pm);
+DECLARE_KEEP_PAGER_PM(bsec_pm);
 
 static TEE_Result initialize_bsec(void)
 {

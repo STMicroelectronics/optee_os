@@ -365,7 +365,7 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(etzpc_pm);
+DECLARE_KEEP_PAGER_PM(etzpc_pm);
 
 static TEE_Result stm32_etzpc_check_access(struct firewall_query *firewall)
 {
