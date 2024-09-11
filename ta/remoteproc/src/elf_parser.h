@@ -80,12 +80,14 @@ TEE_Result e32_parser_load_elf_image(uint8_t *fw, size_t fw_size,
  * @fw_size:	Firmware ELF file image byte size
  * @rsc_addr:	Output resource table address from the remote proc perspective
  * @rsc_size:	Output resource table size
+ * @verif_hdr:	If false, the check of the resource table header is bypassed,
+ *              typically set to false when the resource table is encrypted.
  * Return TEE_SUCCESS if found,
  *        TEE_ERROR_NO_DATA if not found,
  *        or appropriate error.
  */
 TEE_Result e32_parser_find_rsc_table(uint8_t *fw, size_t fw_size,
 				     Elf32_Addr *rsc_addr,
-				     Elf32_Word *rsc_size);
+				     Elf32_Word *rsc_size, bool verif_hdr);
 
 #endif /*ELF_PARSER_H*/

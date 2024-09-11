@@ -95,7 +95,7 @@ TEE_Result e32_parser_load_elf_image(uint8_t *fw, size_t fw_size,
 
 TEE_Result e32_parser_find_rsc_table(uint8_t *fw, size_t fw_size,
 				     Elf32_Addr *rsc_addr,
-				     Elf32_Word *rsc_size)
+				     Elf32_Word *rsc_size, bool verif_hdr)
 {
 	Elf32_Shdr *shdr = NULL;
 	unsigned int i = 0;
@@ -144,22 +144,26 @@ TEE_Result e32_parser_find_rsc_table(uint8_t *fw, size_t fw_size,
 		if (!IS_ALIGNED_WITH_TYPE(table, uint32_t))
 			return TEE_ERROR_CORRUPT_OBJECT;
 
-		if (table->ver != 1) {
-			EMSG("Unsupported firmware version %"PRId32,
-			     table->ver);
-			return TEE_ERROR_BAD_FORMAT;
-		}
+		if (verif_hdr) {
+			if (table->ver != 1) {
+				EMSG("Unsupported firmware version %"PRId32,
+				     table->ver);
+				return TEE_ERROR_BAD_FORMAT;
+			}
 
-		if (table->reserved[0] || table->reserved[1]) {
-			EMSG("Non zero reserved bytes");
-			return TEE_ERROR_BAD_FORMAT;
-		}
+			if (table->reserved[0] || table->reserved[1]) {
+				EMSG("Non zero reserved bytes");
+				return TEE_ERROR_BAD_FORMAT;
+			}
 
-		if (MUL_OVERFLOW(table->num, sizeof(*table->offset), &s) ||
-		    ADD_OVERFLOW(s, sizeof(struct resource_table), &s) ||
-		    s > size) {
-			EMSG("Resource table incomplete");
-			return TEE_ERROR_BAD_FORMAT;
+			if (MUL_OVERFLOW(table->num, sizeof(*table->offset),
+					 &s) ||
+			    ADD_OVERFLOW(s, sizeof(struct resource_table),
+					 &s) ||
+			    s > size) {
+				EMSG("Resource table incomplete");
+				return TEE_ERROR_BAD_FORMAT;
+			}
 		}
 
 		DMSG("Resource table address %#"PRIx32", size %"PRIu32,

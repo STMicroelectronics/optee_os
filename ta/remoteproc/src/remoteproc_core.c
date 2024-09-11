@@ -657,7 +657,7 @@ static TEE_Result remoteproc_parse_rsc_table(struct remoteproc_context *ctx,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	Elf32_Word size = 0;
 
-	res = e32_parser_find_rsc_table(fw_img, fw_img_sz, &da, &size);
+	res = e32_parser_find_rsc_table(fw_img, fw_img_sz, &da, &size, true);
 	if (res)
 		return res;
 
