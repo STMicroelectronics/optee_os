@@ -24,9 +24,11 @@
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/spinlock.h>
+#include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stm32_util.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -157,6 +159,7 @@ void stm32_rif_access_violation_action(void)
 bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
 {
 	static int uart_console_node = -1;
+	const char *compat = NULL;
 	static bool once;
 
 	if (!once) {
@@ -165,8 +168,14 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node)
 		once = true;
 	}
 
-	/* Allow OP-TEE console to be shared with non-secure world */
-	if (node == uart_console_node)
+	compat = fdt_stringlist_get(fdt, node, "compatible", 0, NULL);
+
+	/*
+	 * Allow OP-TEE console to be shared with non-secure world.
+	 * Allow GPU to be probed to handle GPU OPP.
+	 */
+	if (node == uart_console_node ||
+	    !strcmp(compat, "vivante,gc"))
 		return true;
 
 	return false;
