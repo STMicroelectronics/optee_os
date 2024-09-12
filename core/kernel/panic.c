@@ -5,6 +5,7 @@
  */
 
 #include <initcall.h>
+#include <keep.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
