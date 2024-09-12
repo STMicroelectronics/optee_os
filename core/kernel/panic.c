@@ -5,6 +5,7 @@
  */
 
 #include <initcall.h>
+#include <kernel/cache_helpers.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
 #include <kernel/panic.h>
@@ -20,6 +21,12 @@ static enum itr_return __noreturn
 multi_core_halt_it_handler(struct itr_handler *hdl __unused)
 {
 	IMSG("Halting CPU %zu", get_core_pos());
+
+	/*
+	 * Going to idle may put the CPU in reset state on
+	 * STM32MP* platform. Clean cache to ensure consistency.
+	 */
+	dcache_op_level1(DCACHE_OP_CLEAN);
 
 	while (true)
 		cpu_idle();
