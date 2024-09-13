@@ -13,6 +13,7 @@
 # The module paths are listed in an alphabetical order.
 #
 
+if(SCP_OPTEE_DIR)
 list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/clock")
 list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/console")
 list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/mbx")
@@ -20,5 +21,6 @@ list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/psu_regulator"
 list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/reset")
 list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/smt")
 list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/module/voltd_regulator")
+endif(SCP_OPTEE_DIR)
 
 set(SCP_MODULE_PATHS ${SCP_MODULE_PATHS} PARENT_SCOPE)
