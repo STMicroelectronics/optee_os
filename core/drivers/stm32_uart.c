@@ -15,6 +15,7 @@
 #include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <libfdt.h>
 #include <stm32_util.h>
 #include <util.h>
@@ -232,6 +233,47 @@ static bool uart_is_for_console(void *fdt, int node, char **params)
 	return uart_console_node == node;
 }
 
+static TEE_Result stm32_uart_pm(enum pm_op op, uint32_t pm_hint,
+				const struct pm_callback_handle *pm_handle)
+{
+	struct stm32_uart_pdata *pd = pm_handle->handle;
+	vaddr_t uart_base = io_pa_or_va(&pd->base, 1);
+	TEE_Result res = TEE_ERROR_BAD_PARAMETERS;
+
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
+		return TEE_SUCCESS;
+
+	switch (op) {
+	case PM_OP_SUSPEND:
+		pd->brr = io_read32(uart_base + UART_REG_BRR);
+		pd->presc = io_read32(uart_base + UART_REG_PRESC);
+		pd->cr1 = io_read32(uart_base + UART_REG_CR1);
+		pd->cr2 = io_read32(uart_base + UART_REG_CR2);
+		pd->cr3 = io_read32(uart_base + UART_REG_CR3);
+		res = TEE_SUCCESS;
+		break;
+	case PM_OP_RESUME:
+		/* Disable UART to set CR2, CR3, BRR and PRESC saved values. */
+		io_write32(uart_base + UART_REG_CR1, 0);
+		io_write32(uart_base + UART_REG_CR2, pd->cr2);
+		io_write32(uart_base + UART_REG_CR3, pd->cr3);
+		io_write32(uart_base + UART_REG_BRR, pd->brr);
+		io_write32(uart_base + UART_REG_PRESC, pd->presc);
+		/*
+		 * Set CR1 saved value.
+		 * It also enables UART, if UART was enabled before suspend.
+		 */
+		io_write32(uart_base + UART_REG_CR1, pd->cr1);
+		res = TEE_SUCCESS;
+		break;
+	default:
+		break;
+	}
+
+	return res;
+}
+DECLARE_KEEP_PAGER_PM(stm32_uart_pm);
+
 static TEE_Result stm32_uart_probe(const void *fdt, int node,
 				   const void *compt_data __unused)
 {
@@ -253,6 +295,8 @@ static TEE_Result stm32_uart_probe(const void *fdt, int node,
 	    stm32_uart_update_baudrate(pd, params) == TEE_SUCCESS) {
 		register_serial_console(&pd->chip);
 	}
+
+	register_pm_core_service_cb(stm32_uart_pm, pd, "stm32-uart");
 
 out:
 	if (res)
