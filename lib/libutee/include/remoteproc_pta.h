@@ -7,6 +7,7 @@
 #define __REMOTEPROC_PTA_H
 
 #include <stdint.h>
+#include <tee_api_defines.h>
 #include <utee_defines.h>
 #include <util.h>
 
@@ -19,7 +20,8 @@
 		{ 0xbb, 0xe6, 0x89, 0x50, 0x35, 0x0a, 0x87, 0x44 } }
 
 /* Hardware capability: firmware format */
-#define PTA_RPROC_HWCAP_FMT_ELF	BIT32(0)
+#define PTA_RPROC_HWCAP_FMT_ELF     BIT32(0)  /* Standard ELF format  */
+#define PTA_RPROC_HWCAP_FMT_ENC_ELF BIT32(1)  /* Encrypted ELF format */
 
 /* Hardware capability: image protection method */
 /* The platform supports load of segment with hash protection */
@@ -37,6 +39,9 @@
 
 #define PTA_REMOTEPROC_MAX_HASH_SIZE	U(64)
 
+/* No encryption */
+#define RPROC_PTA_ENC_NONE 0
+
 /**
  * struct rproc_pta_key_info - public key information
  * @algo:	Algorithm, defined by public key algorithms TEE_ALG_*
@@ -53,10 +58,14 @@ struct rproc_pta_key_info {
  * struct rproc_pta_seg_info -  segment info for authentication and decryption
  * @hash_algo: Algorithm used for hash calculation
  * @hash:      Hash associated to the program segment.
+ * @enc_algo:  Algorithm used for encryption, 0 means no encryption
+ * @iv:        Initialisation vector for segment decryption
  */
 struct rproc_pta_seg_info {
 	uint32_t hash_algo;
 	uint8_t hash[PTA_REMOTEPROC_MAX_HASH_SIZE];
+	uint32_t enc_algo;
+	uint8_t iv[TEE_AES_BLOCK_SIZE];
 };
 
 static inline size_t rproc_pta_keyinfo_size(struct rproc_pta_key_info *keyinf)

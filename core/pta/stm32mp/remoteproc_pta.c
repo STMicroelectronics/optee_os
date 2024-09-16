@@ -14,6 +14,7 @@
 #include <kernel/user_ta.h>
 #include <remoteproc_pta.h>
 #include <string.h>
+#include <string_ext.h>
 
 #include "rproc_pub_key.h"
 
@@ -27,6 +28,17 @@
 #define TA_REMOTEPROC_UUID \
 	{ 0x80a4c275, 0x0a47, 0x4905, \
 		{ 0x82, 0x85, 0x14, 0x86, 0xa9, 0x77, 0x1a, 0x08} }
+
+#ifdef CFG_REMOTEPROC_ENC_TEST
+/*
+ * AES test key for decryption.
+ */
+static const uint8_t aes_zero_tst_key[TEE_AES_MAX_KEY_SIZE] = {
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+#endif
 
 /*
  * Firmware states
@@ -55,8 +67,9 @@ static TEE_Result rproc_pta_capabilities(uint32_t pt,
 	if (!stm32_rproc_get(params[0].value.a))
 		return TEE_ERROR_NOT_SUPPORTED;
 
-	/* Support only ELF format */
-	params[1].value.a = PTA_RPROC_HWCAP_FMT_ELF;
+	/* Support ELF format and encrypted ELF format*/
+	params[1].value.a = PTA_RPROC_HWCAP_FMT_ELF |
+			    PTA_RPROC_HWCAP_FMT_ENC_ELF;
 
 	/*
 	 * Due to stm32mp1 pager, secure memory is too expensive. Support hash
@@ -66,6 +79,47 @@ static TEE_Result rproc_pta_capabilities(uint32_t pt,
 	params[2].value.a = PTA_RPROC_HWCAP_PROT_HASH_TABLE;
 
 	return TEE_SUCCESS;
+}
+
+static TEE_Result rproc_pta_decrypt_aes(uint32_t enc_algo, uint8_t *iv,
+					uint8_t *buff, size_t len)
+{
+	TEE_Result res = TEE_SUCCESS;
+	const uint8_t *key = NULL;
+	size_t key_len = 0;
+	void *ctx = NULL;
+
+#ifndef CFG_REMOTEPROC_ENC_TEST
+	/* TODO: Implement code to retrieve code from OTP or secure storage. */
+	EMSG("Decryption not supported!");
+	return TEE_ERROR_NOT_SUPPORTED;
+#else
+	key = aes_zero_tst_key;
+	key_len = TEE_AES_MAX_KEY_SIZE;
+#endif
+
+	res = crypto_cipher_alloc_ctx(&ctx, enc_algo);
+	if (res)
+		return res;
+
+	res = crypto_cipher_init(ctx, TEE_MODE_DECRYPT, key, key_len,
+				 NULL, 0, iv, TEE_AES_BLOCK_SIZE);
+	if (res)
+		goto out;
+
+	/* In-place decryption in the destination memory*/
+	res = crypto_cipher_update(ctx, TEE_MODE_DECRYPT, true, buff,
+				   len, buff);
+	if (res)
+		goto out;
+
+	crypto_cipher_final(ctx);
+out:
+	if (res)
+		memzero_explicit(buff, len);
+	crypto_cipher_free_ctx(ctx);
+
+	return res;
 }
 
 static TEE_Result rproc_pta_load_segment(uint32_t pt,
@@ -112,8 +166,20 @@ static TEE_Result rproc_pta_load_segment(uint32_t pt,
 	/* Verify that loaded segment is valid */
 	res = hash_sha256_check(seg_info->hash, dst, size);
 	if (res)
-		memset(dst, 0, size);
+		goto clean_mem;
 
+	if (res || !seg_info->enc_algo)
+		goto unmap;
+
+	/* Decrypt the segment copied in destination memory */
+	res = rproc_pta_decrypt_aes(seg_info->enc_algo, seg_info->iv,
+				    dst, size);
+	if (res == TEE_SUCCESS)
+		goto unmap;
+
+clean_mem:
+	memzero_explicit(dst, size);
+unmap:
 	stm32_rproc_unmap(params[0].value.a, dst, size);
 
 	return res;

@@ -235,6 +235,13 @@ ifeq ($(CFG_REMOTEPROC_PTA),y)
 CFG_IN_TREE_EARLY_TAS += remoteproc/80a4c275-0a47-4905-8285-1486a9771a08
 # Embed public part of this key in OP-TEE OS
 RPROC_SIGN_KEY ?= keys/default.pem
+
+# Co-processor encryption using test key is dedicated to insecure development
+# configuration only.
+CFG_REMOTEPROC_ENC_TESTKEY ?= y
+ifeq ($(CFG_REMOTEPROC_ENC_TESTKEY),y)
+$(call force,CFG_INSECURE,y,Required by CFG_REMOTEPROC_ENC_TESTKEY)
+endif
 endif
 
 ifeq ($(CFG_STM32_HSE_MONITORING),y)
