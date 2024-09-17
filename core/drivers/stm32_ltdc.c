@@ -162,6 +162,14 @@ static TEE_Result stm32_ltdc_init(void *device)
 	if (ret)
 		goto err;
 
+	if (ldev->pinctrl) {
+		ret = pinctrl_apply_state(ldev->pinctrl);
+		if (ret) {
+			firewall_set_alternate_conf(ldev->nsec_conf);
+			goto err;
+		}
+	}
+
 	return TEE_SUCCESS;
 err:
 	clk_disable(ldev->clock);
@@ -472,12 +480,6 @@ static TEE_Result stm32_ltdc_probe(const void *fdt, int node,
 	ret = pinctrl_get_state_by_name(fdt, node, "default", &ldev->pinctrl);
 	if (ret && ret != TEE_ERROR_ITEM_NOT_FOUND)
 		goto err3;
-
-	if (ldev->pinctrl) {
-		ret = pinctrl_apply_state(ldev->pinctrl);
-		if (ret)
-			goto err4;
-	}
 
 	ret = firewall_dt_get_alternate_conf(fdt, node, "sec",
 					     &ldev->sec_conf);
