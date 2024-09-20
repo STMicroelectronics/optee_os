@@ -304,14 +304,18 @@ enum enum_gate_cfg {
 	GATE_GPIOJ,
 	GATE_GPIOK,
 	GATE_GPIOZ,
+	GATE_GPIOZAM,
 	GATE_HPDMA1,
 	GATE_HPDMA2,
 	GATE_HPDMA3,
 	GATE_LPDMA,
+	GATE_LPDMAAM,
 	GATE_HSEM,
 	GATE_IPCC1,
 	GATE_IPCC2,
+	GATE_IPCC2AM,
 	GATE_RTC,
+	GATE_RTCAM,
 	GATE_SYSCPU1,
 	GATE_BSEC,
 	GATE_IS2M,
@@ -533,14 +537,18 @@ static const struct gate_cfg gates_mp25[GATE_NB] = {
 	GATE_CFG(GATE_GPIOJ,		RCC_GPIOJCFGR,		1,	0),
 	GATE_CFG(GATE_GPIOK,		RCC_GPIOKCFGR,		1,	0),
 	GATE_CFG(GATE_GPIOZ,		RCC_GPIOZCFGR,		1,	0),
+	GATE_CFG(GATE_GPIOZAM,		RCC_GPIOZCFGR,		3,	0),
 	GATE_CFG(GATE_HPDMA1,		RCC_HPDMA1CFGR,		1,	0),
 	GATE_CFG(GATE_HPDMA2,		RCC_HPDMA2CFGR,		1,	0),
 	GATE_CFG(GATE_HPDMA3,		RCC_HPDMA3CFGR,		1,	0),
 	GATE_CFG(GATE_LPDMA,		RCC_LPDMACFGR,		1,	0),
+	GATE_CFG(GATE_LPDMAAM,		RCC_LPDMACFGR,		3,	0),
 	GATE_CFG(GATE_HSEM,		RCC_HSEMCFGR,		1,	0),
 	GATE_CFG(GATE_IPCC1,		RCC_IPCC1CFGR,		1,	0),
 	GATE_CFG(GATE_IPCC2,		RCC_IPCC2CFGR,		1,	0),
+	GATE_CFG(GATE_IPCC2AM,		RCC_IPCC2CFGR,		3,	0),
 	GATE_CFG(GATE_RTC,		RCC_RTCCFGR,		1,	0),
+	GATE_CFG(GATE_RTCAM,		RCC_RTCCFGR,		3,	0),
 	GATE_CFG(GATE_SYSCPU1,		RCC_SYSCPU1CFGR,	1,	0),
 	GATE_CFG(GATE_BSEC,		RCC_BSECCFGR,		1,	0),
 	GATE_CFG(GATE_IS2M,		RCC_IS2MCFGR,		1,	0),
@@ -3285,8 +3293,12 @@ static RIF_GATE(ck_icn_p_hpdma3, &ck_icn_ls_mcu, 0, GATE_HPDMA3,
 		RCC_RIF_HPDMA3);
 static RIF_GATE(ck_icn_p_lpdma, &ck_icn_ls_mcu, 0, GATE_LPDMA,
 		RCC_RIF_LPDMA);
+static RIF_GATE(ck_icn_p_lpdma_am, &ck_icn_p_lpdma, 0, GATE_LPDMAAM,
+		RCC_RIF_LPDMA);
 static RIF_GATE(ck_icn_p_ipcc1, &ck_icn_ls_mcu, 0, GATE_IPCC1, RCC_RIF_IPCC1);
 static RIF_GATE(ck_icn_p_ipcc2, &ck_icn_ls_mcu, 0, GATE_IPCC2, RCC_RIF_IPCC2);
+static RIF_GATE(ck_icn_p_ipcc2_am, &ck_icn_p_ipcc2, 0, GATE_IPCC2AM,
+		RCC_RIF_IPCC2);
 static RIF_GATE(ck_icn_p_hsem, &ck_icn_ls_mcu, 0, GATE_HSEM, RCC_RIF_HSEM);
 static RIF_GATE(ck_icn_p_gpioa, &ck_icn_ls_mcu, 0, GATE_GPIOA, RCC_RIF_GPIOA);
 static RIF_GATE(ck_icn_p_gpiob, &ck_icn_ls_mcu, 0, GATE_GPIOB, RCC_RIF_GPIOB);
@@ -3300,7 +3312,11 @@ static RIF_GATE(ck_icn_p_gpioi, &ck_icn_ls_mcu, 0, GATE_GPIOI, RCC_RIF_GPIOI);
 static RIF_GATE(ck_icn_p_gpioj, &ck_icn_ls_mcu, 0, GATE_GPIOJ, RCC_RIF_GPIOJ);
 static RIF_GATE(ck_icn_p_gpiok, &ck_icn_ls_mcu, 0, GATE_GPIOK, RCC_RIF_GPIOK);
 static RIF_GATE(ck_icn_p_gpioz, &ck_icn_ls_mcu, 0, GATE_GPIOZ, RCC_RIF_GPIOZ);
+static RIF_GATE(ck_icn_p_gpioz_am, &ck_icn_p_gpioz, 0, GATE_GPIOZAM,
+		RCC_RIF_GPIOZ);
 static RIF_GATE(ck_icn_p_rtc, &ck_icn_ls_mcu, 0, GATE_RTC, RCC_RIF_RTC_TAMP);
+static RIF_GATE(ck_icn_p_rtc_am, &ck_icn_p_rtc, 0, GATE_RTCAM,
+		RCC_RIF_RTC_TAMP);
 static RIF_COMPOSITE(ck_rtc, 4, PARENT(&ck_off, &ck_lse, &ck_lsi, &ck_hse_rtc),
 		     0, GATE_RTCCK, NO_DIV, MUX_RTC, RCC_RIF_RTC_TAMP);
 static RIF_GATE(ck_icn_p_bsec, &ck_icn_apb3, 0, GATE_BSEC, RCC_RIF_BSEC);
@@ -3688,6 +3704,7 @@ static struct clk *stm32mp25_clk_provided[STM32MP25_ALL_CLK_NB] = {
 	[CK_BUS_HPDMA3]		= &ck_icn_p_hpdma3,
 	[CK_BUS_IPCC1]		= &ck_icn_p_ipcc1,
 	[CK_BUS_IPCC2]		= &ck_icn_p_ipcc2,
+	[CK_IPCC2_AM]		= &ck_icn_p_ipcc2_am,
 	[CK_BUS_CCI]		= &ck_icn_p_cci,
 	[CK_BUS_CRC]		= &ck_icn_p_crc,
 	[CK_BUS_OSPIIOM]	= &ck_icn_p_ospiiom,
@@ -3712,10 +3729,13 @@ static struct clk *stm32mp25_clk_provided[STM32MP25_ALL_CLK_NB] = {
 	[CK_BUS_LPSRAM2]	= &ck_icn_s_lpsram2,
 	[CK_BUS_LPSRAM3]	= &ck_icn_s_lpsram3,
 	[CK_BUS_GPIOZ]		= &ck_icn_p_gpioz,
+	[CK_GPIOZ_AM]		= &ck_icn_p_gpioz_am,
 	[CK_BUS_LPDMA]		= &ck_icn_p_lpdma,
+	[CK_LPDMA_AM]		= &ck_icn_p_lpdma_am,
 	[CK_BUS_ADF1]		= &ck_icn_p_adf1,
 	[CK_BUS_HSEM]		= &ck_icn_p_hsem,
 	[CK_BUS_RTC]		= &ck_icn_p_rtc,
+	[CK_RTC_AM]		= &ck_icn_p_rtc_am,
 	[CK_BUS_IWDG5]		= &ck_icn_p_iwdg5,
 	[CK_BUS_WWDG2]		= &ck_icn_p_wwdg2,
 	[CK_BUS_STM]		= &ck_icn_p_stm,
