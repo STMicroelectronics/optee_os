@@ -636,7 +636,7 @@ exit:
         respond_status = scmi_api->respond(service_id, NULL, payload_size);
     } else {
         respond_status = scmi_api->respond(
-            service_id, &outmsg.status, sizeof(&outmsg.status));
+            service_id, &outmsg.status, sizeof(outmsg.status));
     }
 
     if (respond_status != FWK_SUCCESS) {
