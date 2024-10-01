@@ -199,3 +199,7 @@ endif
 ifeq ($(CFG_STM32_SERC),y)
 $(call force,CFG_EXTERNAL_ABORT_PLAT_HANDLER,y)
 endif
+
+# When CFG_DT_CACHED_NODE_INFO is enabled, boot time may be divided by 2 or
+# more (depending on DTB size).
+CFG_DT_CACHED_NODE_INFO ?= y
