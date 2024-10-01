@@ -475,3 +475,6 @@ endif
 
 # Generate the STM32 files
 CFG_STM32MP15x_STM32IMAGE ?= n
+
+# When CFG_DT_CACHED_NODE_INFO is enabled, boot time may be divided by 2
+CFG_DT_CACHED_NODE_INFO ?= y
