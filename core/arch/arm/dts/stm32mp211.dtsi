@@ -1078,6 +1078,14 @@
 		};
 	};
 
+	soc1: soc@1 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		interrupt-parent = <&intc>;
+		ranges = <0x0 0x0 0x0 0x80000000>;
+	};
+
 	mlahb: ahb@2 {
 		compatible = "st,mlahb", "simple-bus";
 		#address-cells = <1>;
