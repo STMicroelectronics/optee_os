@@ -651,8 +651,7 @@ static void print_tree(void)
 
 void clk_print_tree(void)
 {
-	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE) &&
-	    TRACE_LEVEL >= TRACE_INFO) {
+	if (IS_ENABLED(CFG_DRIVERS_CLK_PRINT_TREE)) {
 		IMSG("Clock tree summary (informative):");
 		print_tree();
 	}
