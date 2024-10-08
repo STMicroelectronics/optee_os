@@ -705,6 +705,18 @@ static const struct stm32_rng_driver_data mp15_data[] = {
 };
 DECLARE_KEEP_PAGER(mp15_data);
 
+static const struct stm32_rng_driver_data mp21_data[] = {
+	{
+		.max_noise_clk_freq = U(8000000),
+		.nb_clock = 2,
+		.has_cond_reset = true,
+		.has_power_optim = true,
+		.cr = 0x00800D00,
+		.nscr = 0x01FF,
+		.htcr = 0xAAC7,
+	},
+};
+
 static const struct stm32_rng_driver_data mp25_data[] = {
 	{
 		.max_noise_clk_freq = U(48000000),
@@ -720,6 +732,7 @@ static const struct stm32_rng_driver_data mp25_data[] = {
 static const struct dt_device_match rng_match_table[] = {
 	{ .compatible = "st,stm32-rng", .compat_data = &mp15_data },
 	{ .compatible = "st,stm32mp13-rng", .compat_data = &mp13_data },
+	{ .compatible = "st,stm32mp21-rng", .compat_data = &mp21_data },
 	{ .compatible = "st,stm32mp25-rng", .compat_data = &mp25_data },
 	{ }
 };
