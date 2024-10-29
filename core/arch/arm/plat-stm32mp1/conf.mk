@@ -262,7 +262,7 @@ ifeq ($(CFG_REMOTEPROC_PTA),y)
 CFG_IN_TREE_EARLY_TAS += remoteproc/80a4c275-0a47-4905-8285-1486a9771a08
 # Embed public part of this key in OP-TEE OS
 RPROC_SIGN_KEY ?= keys/default.pem
-CFG_REMOTEPROC_ENC_TEST ?= n
+CFG_REMOTEPROC_ENC_TESTKEY ?= n
 endif
 
 ifneq ($(CFG_WITH_LPAE),y)

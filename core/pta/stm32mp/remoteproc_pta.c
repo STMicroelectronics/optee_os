@@ -6,6 +6,7 @@
 #include <crypto/crypto.h>
 #include <drivers/clk.h>
 #include <drivers/rstctrl.h>
+#include <drivers/stm32_bsec.h>
 #include <drivers/stm32_remoteproc.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp1_rcc.h>
@@ -13,6 +14,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <remoteproc_pta.h>
+#include <stdlib_ext.h>
 #include <string.h>
 #include <string_ext.h>
 
@@ -29,16 +31,15 @@
 	{ 0x80a4c275, 0x0a47, 0x4905, \
 		{ 0x82, 0x85, 0x14, 0x86, 0xa9, 0x77, 0x1a, 0x08} }
 
-#ifdef CFG_REMOTEPROC_ENC_TEST
 /*
  * AES test key for decryption.
  */
-static const uint8_t aes_zero_tst_key[TEE_AES_MAX_KEY_SIZE] = {
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-#endif
+static uint8_t aes_test_key[TEE_AES_MAX_KEY_SIZE] = {
+	0x2A, 0x2B, 0x01, 0xB1, 0x75, 0xFF, 0xE8, 0x26,
+	0x6D, 0x9E, 0x8D, 0x31, 0xC5, 0x7E, 0x93, 0xB5,
+	0x1F, 0xE0, 0x55, 0x93, 0x49, 0xA6, 0x9A, 0x4C,
+	0x4F, 0xF6, 0x36, 0x23, 0x33, 0x3E, 0xFB, 0x3D
+};
 
 /*
  * Firmware states
@@ -52,6 +53,17 @@ enum rproc_load_state {
 
 /* Currently supporting a single remote processor instance */
 static enum rproc_load_state rproc_ta_state = REMOTEPROC_OFF;
+
+static bool is_key_zero(const uint8_t *buf, size_t size)
+{
+	size_t i = 0;
+	uint8_t result = 0;
+
+	for (i = 0; i < size; i++)
+		result |= buf[i];
+
+	return (result == 0);
+}
 
 static TEE_Result rproc_pta_capabilities(uint32_t pt,
 					 TEE_Param params[TEE_NUM_PARAMS])
@@ -84,40 +96,80 @@ static TEE_Result rproc_pta_capabilities(uint32_t pt,
 static TEE_Result rproc_pta_decrypt_aes(uint32_t enc_algo, uint8_t *iv,
 					uint8_t *buff, size_t len)
 {
-	TEE_Result res = TEE_SUCCESS;
-	const uint8_t *key = NULL;
-	size_t key_len = 0;
+	size_t key_len = TEE_AES_MAX_KEY_SIZE;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	uint8_t otp_bit_offset = 0;
+	uint8_t *key = NULL;
+	uint32_t *key_buf = NULL;
+	size_t otp_bit_size = 0;
+	uint32_t otp_start = 0;
+	size_t otp_length = 0;
+	uint32_t otp_id = 0;
 	void *ctx = NULL;
 
-#ifndef CFG_REMOTEPROC_ENC_TEST
-	/* TODO: Implement code to retrieve code from OTP or secure storage. */
-	EMSG("Decryption not supported!");
-	return TEE_ERROR_NOT_SUPPORTED;
-#else
-	key = aes_zero_tst_key;
-	key_len = TEE_AES_MAX_KEY_SIZE;
-#endif
+	if (IS_ENABLED(CFG_REMOTEPROC_ENC_TESTKEY)) {
+		key = aes_test_key;
+	} else {
+		res = stm32_bsec_find_otp_in_nvmem_layout("oem_rproc_enc_key",
+							  &otp_start,
+							  &otp_bit_offset,
+							  &otp_bit_size);
+		if (res) {
+			EMSG("Can't find oem_rproc_enc_key");
+			return res;
+		}
+
+		/* Only key on 256 bits is supported */
+		if (otp_bit_offset ||
+		    otp_bit_size != TEE_AES_MAX_KEY_SIZE * CHAR_BIT) {
+			EMSG("Bad AES key OTP alignment");
+			return TEE_ERROR_GENERIC;
+		}
+
+		otp_length = key_len / sizeof(uint32_t);
+		key_buf = (uint32_t *)calloc(otp_length, sizeof(uint32_t));
+		if (!key_buf)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
+		key = (uint8_t *)key_buf;
+
+		for (otp_id = otp_start; otp_id < otp_start + otp_length;
+		     otp_id++, key_buf++) {
+			/* Read key in OTP */
+			res = stm32_bsec_read_otp(key_buf, otp_id);
+			if (res)
+				goto clean_key;
+		}
+	}
+
+	if (is_key_zero(key, key_len)) {
+		EMSG("null encrypted key not supported");
+		res = TEE_ERROR_SECURITY;
+		goto clean_key;
+	}
 
 	res = crypto_cipher_alloc_ctx(&ctx, enc_algo);
 	if (res)
-		return res;
+		goto clean_key;
 
 	res = crypto_cipher_init(ctx, TEE_MODE_DECRYPT, key, key_len,
 				 NULL, 0, iv, TEE_AES_BLOCK_SIZE);
 	if (res)
-		goto out;
+		goto clean_ctx;
 
 	/* In-place decryption in the destination memory*/
 	res = crypto_cipher_update(ctx, TEE_MODE_DECRYPT, true, buff,
 				   len, buff);
 	if (res)
-		goto out;
+		goto clean_ctx;
 
 	crypto_cipher_final(ctx);
-out:
-	if (res)
-		memzero_explicit(buff, len);
+
+clean_ctx:
 	crypto_cipher_free_ctx(ctx);
+clean_key:
+	if (!IS_ENABLED(CFG_REMOTEPROC_ENC_TESTKEY))
+		free_wipe(key);
 
 	return res;
 }
