@@ -13,6 +13,8 @@
 #include <drivers/clk.h>
 #include <tee_api_types.h>
 
+#include <arch_main.h>
+
 #include <mod_clock.h>
 #include <mod_optee_clock.h>
 
@@ -129,7 +131,7 @@ static int set_state(fwk_id_t dev_id, enum mod_clock_state state)
 
             res = clk_enable(ctx->clk);
             if (res != TEE_SUCCESS) {
-                return FWK_E_DEVICE;
+                return scmi_tee_result_to_fwk_status(res);
             }
 
             ctx->enabled = true;
