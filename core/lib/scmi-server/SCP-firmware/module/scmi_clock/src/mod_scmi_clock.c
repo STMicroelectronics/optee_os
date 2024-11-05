@@ -739,6 +739,8 @@ static void set_request_respond(fwk_id_t service_id, int status)
         return_values.status = (int32_t)SCMI_INVALID_PARAMETERS;
     } else if (status == FWK_E_SUPPORT) {
         return_values.status = (int32_t)SCMI_NOT_SUPPORTED;
+    } else if (status == FWK_E_ACCESS) {
+        return_values.status = (int32_t)SCMI_DENIED;
     } else if (status != FWK_SUCCESS) {
         return_values.status = (int32_t)SCMI_GENERIC_ERROR;
     } else {
