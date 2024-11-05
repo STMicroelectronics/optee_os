@@ -89,3 +89,33 @@ void scmi_process_mbx_msg(unsigned int fwk_id, void *in_buf, size_t in_size,
     fwk_log_flush();
 #endif
 }
+
+int scmi_tee_result_to_fwk_status(TEE_Result tee_error_code)
+{
+    switch (tee_error_code) {
+    case TEE_SUCCESS:
+        return FWK_SUCCESS;
+    case TEE_ERROR_BAD_PARAMETERS:
+        return FWK_E_PARAM;
+    case TEE_ERROR_SHORT_BUFFER:
+    case TEE_ERROR_EXCESS_DATA:
+        return FWK_E_SIZE;
+    case TEE_ERROR_ACCESS_CONFLICT:
+    case TEE_ERROR_ACCESS_DENIED:
+        return FWK_E_ACCESS;
+    case TEE_ERROR_TIMEOUT:
+        return FWK_E_TIMEOUT;
+    case TEE_ERROR_OUT_OF_MEMORY:
+        return FWK_E_NOMEM;
+    case TEE_ERROR_UNSUPPORTED_VERSION:
+    case TEE_ERROR_NOT_IMPLEMENTED:
+    case TEE_ERROR_NOT_SUPPORTED:
+        return FWK_E_SUPPORT;
+    case TEE_ERROR_BUSY:
+        return FWK_E_BUSY;
+    case TEE_ERROR_BAD_STATE:
+        return FWK_E_STATE;
+    default:
+        return FWK_E_DEVICE;
+    }
+}
