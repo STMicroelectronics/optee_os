@@ -101,8 +101,9 @@ TEE_Result stm32_rif_acquire_semaphore(vaddr_t addr, unsigned int nb_cid_supp)
 {
 	uint32_t scid_mask = get_scid_mask(nb_cid_supp);
 
-	/* Take the semaphore */
-	io_setbits32(addr, _SEMCR_MUTEX);
+	/* Check availability before taking the semaphore to avoid IAC */
+	if (stm32_rif_semaphore_is_available(addr))
+		io_setbits32(addr, _SEMCR_MUTEX);
 
 	/* Check that the Cortex-A has the semaphore */
 	if (stm32_rif_semaphore_is_available(addr) ||
