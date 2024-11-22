@@ -242,6 +242,9 @@ CFG_REMOTEPROC_ENC_TESTKEY ?= y
 ifeq ($(CFG_REMOTEPROC_ENC_TESTKEY),y)
 $(call force,CFG_INSECURE,y,Required by CFG_REMOTEPROC_ENC_TESTKEY)
 endif
+
+# Co-processor public key verification against OTP fuses.
+CFG_REMOTEPROC_PUB_KEY_VERIFY ?= n
 endif
 
 ifeq ($(CFG_STM32_HSE_MONITORING),y)
