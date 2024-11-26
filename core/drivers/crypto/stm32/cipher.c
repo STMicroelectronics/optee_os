@@ -112,7 +112,7 @@ static TEE_Result saes_init(union ip_ctx *ip_ctx, bool is_decrypt,
 	if (!IS_ENABLED(CFG_STM32_SAES))
 		return TEE_ERROR_NOT_IMPLEMENTED;
 
-	if (key_len == AES_KEYSIZE_192) {
+	if (!IS_ENABLED(CFG_STM32MP21) && key_len == AES_KEYSIZE_192) {
 		struct crypto_cipher_ctx *ctx = ip_ctx->saes.fallback_ctx;
 		TEE_OperationMode mode = TEE_MODE_ILLEGAL_VALUE;
 		TEE_Result res = TEE_ERROR_GENERIC;
