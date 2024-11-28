@@ -2766,6 +2766,7 @@ static TEE_Result clk_stm32_flexgen_enable(struct clk *clk)
 	 * flexgen configuration.
 	 */
 	if (channel == FLEX_STGEN) {
+		struct clk *stgen_src = NULL;
 		unsigned int clk_src = U(0);
 		unsigned int pdiv = U(0);
 		unsigned int fdiv = U(0);
@@ -2780,7 +2781,12 @@ static TEE_Result clk_stm32_flexgen_enable(struct clk *clk)
 		flexclkgen_config_channel(channel, clk_src, pdiv, fdiv);
 
 		/* Update parent */
-		clk->parent = clk_get_parent_by_index(clk, clk_src);
+		stgen_src = clk_get_parent_by_index(clk, clk_src);
+		ret = clk_reparent(clk, stgen_src);
+		if (ret) {
+			EMSG("Failed to configured the STGEN flexgen");
+			return ret;
+		}
 	}
 
 	io_setbits32(rcc_base + RCC_FINDIV0CFGR + (0x4 * channel),
