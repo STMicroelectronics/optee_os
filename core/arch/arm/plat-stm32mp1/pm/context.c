@@ -154,37 +154,6 @@ static struct pm_mailbox *get_pm_mailbox(void)
 	return (struct pm_mailbox *)mailbox_base;
 }
 
-#if TRACE_LEVEL >= TRACE_DEBUG
-static void __maybe_unused dump_context(void)
-{
-	struct pm_mailbox *mailbox = get_pm_mailbox();
-	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
-
-	clk_enable(pm_clocks.rtcapb);
-
-	DMSG("Backup registers: address 0x%" PRIx32 ", magic 0x%" PRIx32,
-	     *(uint32_t *)stm32mp_bkpreg(BCKR_CORE1_BRANCH_ADDRESS),
-	     *(uint32_t *)stm32mp_bkpreg(BCKR_CORE1_MAGIC_NUMBER));
-
-	clk_disable(pm_clocks.rtcapb);
-
-	clk_enable(pm_clocks.bkpsram);
-
-	DMSG("BKPSRAM mailbox:  0x%" PRIx32 ", zd 0x%" PRIx32 ", ep 0x%" PRIx32,
-	     mailbox->magic, mailbox->zq0cr0_zdata,
-	     mailbox->core0_resume_ep);
-
-	DMSG("BKPSRAM context:  teeram backup @%" PRIx32 ", resume @0x%" PRIx32,
-	     ctx->teeram_bkp_pa, ctx->resume_pa);
-
-	clk_disable(pm_clocks.bkpsram);
-}
-#else
-static void __maybe_unused dump_context(void)
-{
-}
-#endif
-
 /*
  * Save and restore functions
  */
