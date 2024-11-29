@@ -222,13 +222,6 @@ static void restore_time(void)
 #endif
 }
 
-uintptr_t stm32mp_pm_retram_resume_ep(void)
-{
-	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
-
-	return (uintptr_t)&ctx->resume_sequence;
-}
-
 /* Clear the content of the PM mailbox */
 void stm32mp_pm_wipe_context(void)
 {
