@@ -222,25 +222,6 @@ static void restore_time(void)
 #endif
 }
 
-static bool __maybe_unused pm_cb_is_valid(void (*cb)(enum pm_op op, void *hdl),
-					  void *hdl)
-{
-	void *cb_voidp = (void *)(vaddr_t)cb;
-	paddr_t cb_phy = virt_to_phys(cb_voidp);
-	paddr_t hdl_phy = virt_to_phys(hdl);
-	bool valid = false;
-
-	valid = (phys_to_virt(cb_phy, MEM_AREA_TEE_RAM_RX, 1) == cb_voidp) &&
-		((phys_to_virt(hdl_phy, MEM_AREA_TEE_RAM_RX, 1) == hdl) ||
-		 (phys_to_virt(hdl_phy, MEM_AREA_TEE_RAM_RO, 1) == hdl) ||
-		 (phys_to_virt(hdl_phy, MEM_AREA_TEE_RAM_RW, 1) == hdl));
-
-	if (!valid)
-		EMSG("pm_cb mandates unpaged arguments %p %p", cb_voidp, hdl);
-
-	return valid;
-}
-
 uintptr_t stm32mp_pm_retram_resume_ep(void)
 {
 	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
