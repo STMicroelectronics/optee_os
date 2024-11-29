@@ -203,6 +203,15 @@ ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_HASH CFG_STM32_PKA \
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
 
+# SAES support 192bits on STM32MP21 but not on STM32MP23/25
+# Force CFG_STM32_SAES_SW_FALLBACK=n on STM32MP21
+# Default enable CFG_STM32_SAES_SW_FALLBACK on STM32MP23/25
+ifeq ($(CFG_STM32MP21),y)
+$(call force,CFG_STM32_SAES_SW_FALLBACK,n)
+else
+CFG_STM32_SAES_SW_FALLBACK ?= y
+endif
+
 # Default enable HWRNG PTA support
 CFG_HWRNG_PTA ?= y
 ifeq ($(CFG_HWRNG_PTA),y)
