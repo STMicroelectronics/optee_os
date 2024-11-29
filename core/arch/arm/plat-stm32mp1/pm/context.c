@@ -36,44 +36,29 @@
 #define TRAINING_AREA_SIZE		64
 
 /*
- * STANDBY_CONTEXT_MAGIC0:
- * Context provides magic, resume entry, zq0cr0 zdata and DDR training buffer.
+ * STANDBY_CONTEXT_MAGIC  - V1 and V2 are not supported by OP-TEE
  *
- * STANDBY_CONTEXT_MAGIC1:
- * Context provides MAGIC0 content and PLL1 dual OPP settings structure
- * (86 bytes).
- *
- * STANDBY_CONTEXT_MAGIC2:
- * Context provides MAGIC1 content, low power entry point, BL2 code start, end
- * and BL2_END (102 bytes). And, only for STM32MP13, add MCE master key
- * (16 bytes).
+ * STANDBY_CONTEXT_MAGIC V3
+ * Context provides magic, resume entry, zq0cr0 zdata and DDR training buffer,
+ * PLL1 dual OPP settings structure (86 bytes) and low power entry point,
+ * BL2 code start, end and BL2_END (102 bytes). And, only for STM32MP13,
+ * add MCE master key (16 bytes)
  */
-#define STANDBY_CONTEXT_MAGIC0		(0x0001 << 16)
-#define STANDBY_CONTEXT_MAGIC1		(0x0002 << 16)
-#define STANDBY_CONTEXT_MAGIC2		(0x0003 << 16)
 
-#if CFG_STM32MP1_PM_CONTEXT_VERSION == 1
-#define STANDBY_CONTEXT_MAGIC	(STANDBY_CONTEXT_MAGIC0 | TRAINING_AREA_SIZE)
-#elif CFG_STM32MP1_PM_CONTEXT_VERSION == 2
-#define STANDBY_CONTEXT_MAGIC	(STANDBY_CONTEXT_MAGIC1 | TRAINING_AREA_SIZE)
-#elif CFG_STM32MP1_PM_CONTEXT_VERSION == 3
-#define STANDBY_CONTEXT_MAGIC	(STANDBY_CONTEXT_MAGIC2 | TRAINING_AREA_SIZE)
-#else
+#if CFG_STM32MP1_PM_CONTEXT_VERSION < 3 || CFG_STM32MP1_PM_CONTEXT_VERSION > 3
 #error Invalid value for CFG_STM32MP1_PM_CONTEXT_VERSION
 #endif
 
-#if CFG_STM32MP1_PM_CONTEXT_VERSION >= 2
-#if (PLAT_MAX_OPP_NB != 2) || (PLAT_MAX_PLLCFG_NB != 6)
-#error STANDBY_CONTEXT_MAGIC does not support expected PLL1 settings
-#endif
+#define STANDBY_CONTEXT_MAGIC(version)	((version) << 16 |  TRAINING_AREA_SIZE)
+#define MAGIC_VERSION(magic)		((magic) >> 16)
+#define MAGIC_AREA_SIZE(magic)		((magic) & GENMASK_32(15, 0))
 
 /* pll_settings structure size definitions (reference to clock driver) */
 #define PLL1_SETTINGS_SIZE		(((PLAT_MAX_OPP_NB * \
 					  (PLAT_MAX_PLLCFG_NB + 3)) + 1) * \
 					 sizeof(uint32_t))
-#endif
 
-#if CFG_STM32MP1_PM_CONTEXT_VERSION >= 3 && defined(CFG_STM32MP13)
+#if defined(CFG_STM32MP13)
 #define MCE_KEY_SIZE_IN_BYTES		16
 #endif
 
@@ -119,10 +104,7 @@ struct pm_mailbox {
 	uint32_t core0_resume_ep;
 	uint32_t zq0cr0_zdata;
 	uint8_t ddr_training_backup[TRAINING_AREA_SIZE];
-#if CFG_STM32MP1_PM_CONTEXT_VERSION >= 2
 	uint8_t pll1_settings[PLL1_SETTINGS_SIZE];
-#endif
-#if CFG_STM32MP1_PM_CONTEXT_VERSION >= 3
 	uint32_t low_power_ep;
 	uint32_t bl2_code_base;
 	uint32_t bl2_code_end;
@@ -130,8 +112,9 @@ struct pm_mailbox {
 #ifdef CFG_STM32MP13
 	uint8_t mce_mkey[MCE_KEY_SIZE_IN_BYTES];
 #endif
-#endif
 };
+
+uint32_t optee_magic;
 
 static tee_mm_entry_t *teeram_bkp_mm;
 
@@ -222,11 +205,23 @@ static void restore_time(void)
 void stm32mp_pm_wipe_context(void)
 {
 	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
-	struct pm_mailbox __maybe_unused *mailbox = get_pm_mailbox();
+	struct pm_mailbox *mailbox = get_pm_mailbox();
+	unsigned int version = 0;
 
 	clk_enable(pm_clocks.bkpsram);
 
 	memset(ctx, 0xa5, sizeof(*ctx));
+
+	/* BL2 set the supported MAGIC in mailbox since V3 */
+	version = MIN(MAGIC_VERSION(mailbox->magic),
+		      (uint32_t)CFG_STM32MP1_PM_CONTEXT_VERSION);
+
+	/* When version is not provided for old TF-A BL2 OP-TEE assumed V3 */
+	if (version == 0)
+		version = 3;
+
+	optee_magic = STANDBY_CONTEXT_MAGIC(version);
+
 #ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
 	memset(mailbox, 0xa5, sizeof(*mailbox));
 #endif
@@ -284,9 +279,8 @@ __maybe_unused static void save_ddr_training_area(void)
  * structure must then be saved before going to STANDBY in the PM mailbox
  * shared with the warm boot boot stage.
  */
-#if (CFG_STM32MP1_PM_CONTEXT_VERSION >= 2) && \
-    defined(CFG_STM32MP1_OPTEE_IN_SYSRAM)
-__maybe_unused static void save_pll1_settings(void)
+#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
+static void save_pll1_settings(void)
 {
 	struct pm_mailbox *mailbox = get_pm_mailbox();
 	size_t size = sizeof(mailbox->pll1_settings);
@@ -294,7 +288,7 @@ __maybe_unused static void save_pll1_settings(void)
 
 	stm32mp1_clk_lp_save_opp_pll1_settings(data, size);
 }
-#endif
+#endif /* CFG_STM32MP1_OPTEE_IN_SYSRAM */
 
 static void load_earlyboot_pm_mailbox(void)
 {
@@ -310,9 +304,7 @@ static void load_earlyboot_pm_mailbox(void)
 
 	mailbox->zq0cr0_zdata = get_ddrphy_calibration();
 
-#if CFG_STM32MP1_PM_CONTEXT_VERSION >= 2
 	save_pll1_settings();
-#endif
 #endif /* CFG_STM32MP1_OPTEE_IN_SYSRAM */
 
 	save_ddr_training_area();
@@ -422,7 +414,7 @@ static void enable_pm_mailbox(unsigned int suspend)
 
 	if (suspend) {
 		magic = BOOT_API_A7_CORE0_MAGIC_NUMBER;
-		mailbox->magic = STANDBY_CONTEXT_MAGIC;
+		mailbox->magic = optee_magic;
 
 #ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
 		hint = virt_to_phys(stm32mp_sysram_resume);
