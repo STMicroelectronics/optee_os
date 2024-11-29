@@ -133,6 +133,8 @@ struct pm_mailbox {
 #endif
 };
 
+static tee_mm_entry_t *teeram_bkp_mm;
+
 /*
  * BKPSRAM contains OP-TEE resume instruction sequence which restores
  * TEE RAM content. The BKPSRAM contains restoration materials
@@ -231,8 +233,6 @@ void stm32mp_pm_wipe_context(void)
 
 	clk_disable(pm_clocks.bkpsram);
 }
-
-static tee_mm_entry_t *teeram_bkp_mm;
 
 static void init_retram_resume_resources(void)
 {
