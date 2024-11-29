@@ -172,9 +172,9 @@ static void save_time(void)
 		panic();
 }
 
-#if TRACE_LEVEL >= TRACE_DEBUG
-static void __maybe_unused print_ccm_decryption_duration(void)
+static void print_ccm_decryption_duration(void)
 {
+#if defined(CFG_STM32MP1_OPTEE_IN_SYSRAM) && TRACE_LEVEL >= TRACE_DEBUG
 	vaddr_t stgen = stm32mp_stgen_base();
 	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
 
@@ -185,12 +185,8 @@ static void __maybe_unused print_ccm_decryption_duration(void)
 	     io_read32(stgen + CNTFID_OFFSET));
 
 	clk_disable(pm_clocks.bkpsram);
-}
-#else
-static void __maybe_unused print_ccm_decryption_duration(void)
-{
-}
 #endif
+}
 
 static void restore_time(void)
 {
@@ -217,9 +213,7 @@ static void restore_time(void)
 	/* Balance clock enable(RTC) at save_time() */
 	clk_disable(pm_clocks.rtc);
 
-#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
 	print_ccm_decryption_duration();
-#endif
 }
 
 /* Clear the content of the PM mailbox */
