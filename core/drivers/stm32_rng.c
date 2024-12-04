@@ -35,12 +35,15 @@
 #define RNG_CR_IE		BIT(3)
 #define RNG_CR_CED		BIT(5)
 #define RNG_CR_CONFIG3		GENMASK_32(11, 8)
+#define RNG_CR_CONFIG3_SHIFT	U(8)
 #define RNG_CR_NISTC		BIT(12)
 #define RNG_CR_POWER_OPTIM	BIT(13)
 #define RNG_CR_CONFIG2		GENMASK_32(15, 13)
+#define RNG_CR_CONFIG2_SHIFT	U(13)
 #define RNG_CR_CLKDIV		GENMASK_32(19, 16)
 #define RNG_CR_CLKDIV_SHIFT	U(16)
 #define RNG_CR_CONFIG1		GENMASK_32(25, 20)
+#define RNG_CR_CONFIG1_SHIFT	U(20)
 #define RNG_CR_CONDRST		BIT(30)
 #define RNG_CR_ENTROPY_SRC_MASK	(RNG_CR_CONFIG3 | RNG_CR_NISTC | \
 				 RNG_CR_CONFIG2 | RNG_CR_CONFIG1)
@@ -68,6 +71,8 @@
 
 #define RNG_CONFIG_MASK		(RNG_CR_ENTROPY_SRC_MASK | RNG_CR_CED | \
 				 RNG_CR_CLKDIV)
+
+#define DT_RNG_MAX_NIST_CONFIG	U(3)
 
 struct stm32_rng_driver_data {
 	unsigned long max_noise_clk_freq;
@@ -583,6 +588,8 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct dt_node_info dt_rng = { };
+	const fdt32_t *cuint = NULL;
+	int len = 0;
 
 	fdt_fill_device_info(fdt, &dt_rng, node);
 	if (dt_rng.reg == DT_INFO_INVALID_REG)
@@ -616,10 +623,39 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	if (fdt_getprop(fdt, node, "clock-error-detect", NULL))
 		stm32_rng->clock_error = true;
 
-	stm32_rng->rng_config = stm32_rng->ddata->cr;
+	cuint = fdt_getprop(fdt, node, "st,rng-cfg", &len);
+	if (cuint && len > 0 &&
+	    (uint32_t)len <= DT_RNG_MAX_NIST_CONFIG * sizeof(uint32_t)) {
+		uint32_t i = 0;
+		uint32_t cr_shift_mask[DT_RNG_MAX_NIST_CONFIG][2] = {
+			{RNG_CR_CONFIG1_SHIFT, RNG_CR_CONFIG1},
+			{RNG_CR_CONFIG2_SHIFT, RNG_CR_CONFIG2},
+			{RNG_CR_CONFIG3_SHIFT, RNG_CR_CONFIG3},
+		};
+
+		stm32_rng->rng_config = 0;
+
+		for (i = 0U; i < (uint32_t)len / sizeof(uint32_t); i++) {
+			stm32_rng->rng_config |= (fdt32_to_cpu(*cuint) <<
+						  cr_shift_mask[i][0]) &
+						 cr_shift_mask[i][1];
+			cuint++;
+		}
+	} else {
+		stm32_rng->rng_config = stm32_rng->ddata->cr;
+	}
+
+	if (fdt_getprop(fdt, node, "st,rng-cfg-nist-custom", NULL))
+		stm32_rng->rng_config |= RNG_CR_NISTC;
 	if (stm32_rng->rng_config & ~RNG_CR_ENTROPY_SRC_MASK)
 		panic("Incorrect entropy source configuration");
-	stm32_rng->health_test_conf = stm32_rng->ddata->htcr;
+
+	cuint = fdt_getprop(fdt, node, "st,rng-htcfg", NULL);
+	if (cuint)
+		stm32_rng->health_test_conf = fdt32_to_cpu(*cuint);
+	else
+		stm32_rng->health_test_conf = stm32_rng->ddata->htcr;
+
 	stm32_rng->noise_ctrl_conf = stm32_rng->ddata->nscr;
 	if (stm32_rng->noise_ctrl_conf & ~RNG_NSCR_MASK)
 		panic("Incorrect noise source control configuration");
