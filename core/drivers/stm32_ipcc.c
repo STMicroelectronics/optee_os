@@ -139,6 +139,10 @@ struct ipcc_pdata {
 	size_t itr_num[IPCC_ITR_NUM];
 	struct itr_handler *itr[IPCC_ITR_NUM];
 
+	/* Restore registers value after pm resume */
+	uint32_t backup_cr;
+	uint32_t backup_mr;
+
 	/* Single mailbox user (mailbox framework) */
 	struct stm32_ipcc_mbx_data data;
 	STAILQ_ENTRY(ipcc_pdata) link;
@@ -286,16 +290,35 @@ static void apply_rif_config(struct ipcc_pdata *ipcc_d)
 
 static void stm32_ipcc_pm_resume(struct ipcc_pdata *ipcc)
 {
+	uint32_t cr_sec_mask = IPCC_CR_SECTXFIE | IPCC_CR_SECRXOIE;
+	uint32_t mr_sec_mask = 0U;
+
 	apply_rif_config(ipcc);
+
+	/* Restore mask of secure channels */
+	mr_sec_mask = set_field_u32(mr_sec_mask, IPCC_ALL_MR_TXF_CH_MASK,
+				    ipcc->conf_data->sec_conf[0]);
+	mr_sec_mask = set_field_u32(mr_sec_mask, IPCC_ALL_MR_RXO_CH_MASK,
+				    ipcc->conf_data->sec_conf[0]);
+	io_clrsetbits32(ipcc->lbase + IPCC_MR, mr_sec_mask,
+			mr_sec_mask & ipcc->backup_mr);
+
+	/* Restore secure control register */
+	io_clrsetbits32(ipcc->lbase + IPCC_CR, cr_sec_mask,
+			cr_sec_mask & ipcc->backup_cr);
 }
 
-static void stm32_ipcc_pm_suspend(struct ipcc_pdata *ipcc __unused)
+static void stm32_ipcc_pm_suspend(struct ipcc_pdata *ipcc)
 {
 	/*
-	 * Do nothing because IPCC forbids RIF configuration read if CID
+	 * Do not save RIF configuration because IPCC forbids to read it if CID
 	 * filtering is enabled. We'll simply restore the device tree RIF
 	 * configuration.
 	 */
+
+	/* Save control and mask register before suspend */
+	ipcc->backup_cr = io_read32(ipcc->lbase + IPCC_CR);
+	ipcc->backup_mr = io_read32(ipcc->lbase + IPCC_MR);
 }
 
 static TEE_Result
