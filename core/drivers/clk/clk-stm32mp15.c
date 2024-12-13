@@ -1809,12 +1809,23 @@ static void clk_op_disable(struct clk *clk)
 }
 DECLARE_KEEP_PAGER(clk_op_disable);
 
+static bool clk_op_is_enabled(struct clk *clk)
+{
+	if (clk_is_gate(clk))
+		return __clk_is_enabled(clk_to_gate_ref(clk));
+
+	return refcount_val(&clk->enabled_count) != 0;
+
+}
+DECLARE_KEEP_PAGER(clk_op_is_enabled);
+
 /* This variable is weak to break its dependency chain when linked as unpaged */
 const struct clk_ops stm32mp1_clk_ops
 __weak __relrodata_unpaged("stm32mp1_clk_ops") = {
 	.enable = clk_op_enable,
 	.disable = clk_op_disable,
 	.get_rate = clk_op_compute_rate,
+	.is_enabled = clk_op_is_enabled,
 };
 
 static TEE_Result register_stm32mp1_clocks(void)
