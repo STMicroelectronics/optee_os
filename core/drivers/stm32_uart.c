@@ -66,6 +66,19 @@
 #define UART_REG_BRR_M_SHIFT		4
 #define UART_REG_BRR_MASK		GENMASK_32(15, 0)
 
+static bool loc_chip_clk_is_enabled(struct serial_chip *chip)
+{
+	struct stm32_uart_pdata *pd = container_of(chip,
+						   struct stm32_uart_pdata,
+						   chip);
+
+	if (pd->clock && pd->clock->ops->is_enabled)
+		return pd->clock->ops->is_enabled(pd->clock);
+
+	/* For early console, assume the clock is enable */
+	return true;
+}
+
 static vaddr_t loc_chip_to_base(struct serial_chip *chip)
 {
 	struct stm32_uart_pdata *pd = NULL;
@@ -80,6 +93,9 @@ static void loc_flush(struct serial_chip *chip)
 	vaddr_t base = loc_chip_to_base(chip);
 	uint64_t timeout = timeout_init_us(FLUSH_TIMEOUT_US);
 
+	if (!loc_chip_clk_is_enabled(chip))
+		return;
+
 	while (!(io_read32(base + UART_REG_ISR) & USART_ISR_TXFE))
 		if (timeout_elapsed(timeout))
 			return;
@@ -89,6 +105,9 @@ static void loc_putc(struct serial_chip *chip, int ch)
 {
 	vaddr_t base = loc_chip_to_base(chip);
 	uint64_t timeout = timeout_init_us(PUTC_TIMEOUT_US);
+
+	if (!loc_chip_clk_is_enabled(chip))
+		return;
 
 	while (!(io_read32(base + UART_REG_ISR) & USART_ISR_TXE_TXFNF))
 		if (timeout_elapsed(timeout))
@@ -243,6 +262,15 @@ static TEE_Result stm32_uart_pm(enum pm_op op, uint32_t pm_hint,
 	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
 		return TEE_SUCCESS;
 
+	if (pd->is_console && !pd->clock->ops->is_enabled(pd->clock)) {
+		/*
+		 * Maybe the console clock is disabled by non-secure
+		 * or disabled after wake-up from standby,
+		 * in this case do nothing.
+		 */
+		return TEE_SUCCESS;
+	}
+
 	switch (op) {
 	case PM_OP_SUSPEND:
 		pd->brr = io_read32(uart_base + UART_REG_BRR);
@@ -293,9 +321,20 @@ static TEE_Result stm32_uart_probe(const void *fdt, int node,
 
 	if (uart_is_for_console((void *)fdt, node, &params) &&
 	    stm32_uart_update_baudrate(pd, params) == TEE_SUCCESS) {
+		vaddr_t uart_base = io_pa_or_va(&pd->base, 1);
+
 		register_serial_console(&pd->chip);
+
+		pd->is_console = true;
+		pd->brr = io_read32(uart_base + UART_REG_BRR);
+		pd->presc = io_read32(uart_base + UART_REG_PRESC);
+		pd->cr1 = io_read32(uart_base + UART_REG_CR1);
+		pd->cr2 = io_read32(uart_base + UART_REG_CR2);
+		pd->cr3 = io_read32(uart_base + UART_REG_CR3);
 	}
 
+	/* This clock ops is required for PM */
+	assert(pd->clock->ops->is_enabled);
 	register_pm_core_service_cb(stm32_uart_pm, pd, "stm32-uart");
 
 out:
