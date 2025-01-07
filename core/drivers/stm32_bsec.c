@@ -94,6 +94,9 @@
 #define BSEC_MODE_PWR			BIT(5)
 #define BSEC_MODE_CLOSED		BIT(8)
 
+/* BSEC_DENR register fields */
+#define BSEC_DENR_DBGSWEN		BIT(10)
+
 /* BSEC_DEBUG bitfields */
 #ifdef CFG_STM32MP13
 #define BSEC_DEN_ALL_MSK		(GENMASK_32(11, 10) | GENMASK_32(8, 1))
@@ -505,6 +508,11 @@ TEE_Result stm32_bsec_write_debug_conf(uint32_t value)
 uint32_t stm32_bsec_read_debug_conf(void)
 {
 	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DEN_ALL_MSK;
+}
+
+bool stm32_bsec_self_hosted_debug_is_enabled(void)
+{
+	return stm32_bsec_read_debug_conf() & BSEC_DENR_DBGSWEN;
 }
 
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
