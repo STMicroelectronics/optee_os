@@ -290,7 +290,6 @@ endif
 ifeq ($(CFG_WITH_TUI),y)
 $(call force,CFG_DISPLAY,y,Mandated by CFG_WITH_TUI)
 $(call force,CFG_FRAME_BUFFER,y,Mandated by CFG_WITH_TUI)
-$(call force,CFG_STM32_LTDC,y,Mandated by CFG_WITH_TUI)
 # Provision virtual space to fit 10MByte plus the TUI frame buffer
 CFG_TUI_FRAME_BUFFER_SIZE_MAX ?= 0x01000000
 CFG_RESERVED_VASPACE_SIZE ?= (10 * 1024 * 1024 + $(CFG_TUI_FRAME_BUFFER_SIZE_MAX))
@@ -342,6 +341,7 @@ CFG_STM32_HASH ?= y
 CFG_STM32_I2C ?= y
 CFG_STM32_IWDG ?= y
 CFG_STM32_LPTIMER ?= y
+CFG_STM32_LTDC ?= y
 CFG_STM32_PKA ?= y
 CFG_STM32_PWR_IRQ ?= y
 CFG_STM32_RNG ?= y
