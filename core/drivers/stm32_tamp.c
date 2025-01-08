@@ -23,6 +23,9 @@
 #if defined(CFG_STM32MP21)
 #include <drivers/stm32mp21_rcc.h>
 #endif
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
+#include <drivers/stm32mp2_tamp.h>
+#endif /* defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21) */
 #include <drivers/stm32mp_dt_bindings.h>
 #include <io.h>
 #include <kernel/dt.h>

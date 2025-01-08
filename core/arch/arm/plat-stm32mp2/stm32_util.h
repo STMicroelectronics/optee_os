@@ -31,6 +31,4 @@ static inline bool stm32_stpmic2_is_present(void)
 
 /* Get device ID from SYSCFG registers */
 uint32_t stm32mp_syscfg_get_chip_dev_id(void);
-
-TEE_Result stm32_activate_internal_tamper(int id);
 #endif /*__STM32_UTIL_H__*/
