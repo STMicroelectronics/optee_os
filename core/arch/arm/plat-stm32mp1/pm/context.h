@@ -90,7 +90,9 @@ void stm32mp_pm_wipe_context(void);
 TEE_Result stm32mp_pm_call_bl2_lp_entry(unsigned int soc_mode);
 #endif
 
+#ifdef CFG_STM32_LOWPOWER_SIP
 int stm32mp1_set_pm_domain_state(enum stm32mp1_pm_domain domain, bool status);
+#endif
 
 uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode);
 int stm32mp1_set_lp_deepest_soc_mode(uint32_t psci_mode, uint32_t soc_mode);

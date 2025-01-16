@@ -36,9 +36,11 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 	case STM32_SIP_SVC_FUNC_PWR:
 		args->a0 = pwr_scv_handler(args->a1, args->a2, args->a3);
 		break;
+#ifdef CFG_STM32_LOWPOWER_SIP
 	case STM32_SIP_FUNC_PD_DOMAIN:
 		args->a0 = pm_domain_scv_handler(args->a1, args->a2);
 		break;
+#endif
 	/* Deprecated function IDs */
 	case STM32_SIP_SVC_FUNC_SCMI_AGENT:
 	case STM32_SIP_SVC_FUNC_SCMI_AGENT1:
