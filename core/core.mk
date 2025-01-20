@@ -199,6 +199,11 @@ libdir = core/lib/psa-adac
 include mk/lib.mk
 endif
 
+ifeq ($(CFG_RSE_COMMS),y)
+libname = rse_comms
+libdir = core/lib/rse_comms
+include mk/lib.mk
+endif
 #
 # Do main source
 #
