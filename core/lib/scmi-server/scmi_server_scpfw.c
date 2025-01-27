@@ -4,20 +4,31 @@
  */
 
 #include <assert.h>
+#include <drivers/mailbox.h>
 #include <drivers/scmi.h>
 #include <drivers/stm32_cpu_opp.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
+#include <kernel/notif.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <libfdt.h>
+#include <mm/core_memprot.h>
+#include <mm/core_mmu.h>
 #include <scmi_agent_configuration.h>
 #include <scmi_clock_consumer.h>
 #include <scmi_pd_consumer.h>
 #include <scmi_regulator_consumer.h>
 #include <scmi_reset_consumer.h>
+#include <scmi/scmi_server.h>
 #include <stdlib.h>
 #include <sys/queue.h>
+#include <tee_api_defines.h>
+#include <tee_api_types.h>
+#include <tee/cache.h>
 #include <util.h>
+
+#define SCMI_SHMEM_SIZE 128
 
 /*
  * struct optee_scmi_server - Data of scmi_server_scpfw
@@ -36,6 +47,12 @@ struct optee_scmi_server {
  * @dt_name: SCMI agent node name
  * @agent_id: SCMI agent identifier
  * @channel_id: SCMI channel identifier
+ * @scp_mailbox_idx: SCPFW mailbox identifier
+ * @mbox_chan: handle for a mailbox channel
+ * @event_waiting: an event from mailbox is waiting to be handle
+ * @mailbox_notif: data for threaded execution
+ * @shm: shared memory information
+ * @shm_backup: shared memory backup during suspend
  * @protocol_list: list of optee_scmi_server_protocol
  * @link: link for optee_scmi_server:agent_list
  */
@@ -43,6 +60,12 @@ struct optee_scmi_server_agent {
 	const char *dt_name;
 	unsigned int agent_id;
 	unsigned int channel_id;
+	unsigned int scp_mailbox_idx;
+	struct mbox_chan *mbox_chan;
+	bool event_waiting;
+	struct notif_driver mailbox_notif;
+	struct shared_mem shm;
+	uint8_t *shm_backup;
 	SIMPLEQ_HEAD(, optee_scmi_server_protocol) protocol_list;
 	SIMPLEQ_ENTRY(optee_scmi_server_agent) link;
 };
@@ -124,13 +147,108 @@ void scmi_scpfw_release_configuration(void)
 	free(scpfw_cfg.agent_config);
 }
 
+static void yielding_mailbox_notif(struct notif_driver *ndrv,
+				   enum notif_event ev)
+{
+	struct optee_scmi_server_agent *ctx = container_of(ndrv,
+		struct optee_scmi_server_agent, mailbox_notif);
+
+	if (ev == NOTIF_EVENT_DO_BOTTOM_HALF && ctx->event_waiting) {
+		ctx->event_waiting = false;
+
+		/* Ack notification */
+		if (mbox_recv(ctx->mbox_chan, false, NULL, 0))
+			panic();
+
+		/* Let SCP handle the message and the answer */
+		if (scmi_server_smt_process_thread(ctx->scp_mailbox_idx)) {
+			/*
+			 * It should force the SMT_CHANNEL_STATUS_ERROR in the
+			 * mailbox header channel_status_field and notify the
+			 * Cortex-M the response sent.
+			 * For now just panic().
+			 */
+			panic();
+		}
+
+		/* Notify requester that an answer is ready */
+		if (mbox_send(ctx->mbox_chan, false, NULL, 0))
+			panic();
+	}
+}
+
+static void mailbox_rcv_callback(void *cookie)
+{
+	struct optee_scmi_server_agent *ctx = cookie;
+
+	ctx->event_waiting = true;
+	notif_send_async(NOTIF_VALUE_DO_BOTTOM_HALF, 0);
+}
+
+static TEE_Result
+optee_scmi_server_pm(enum pm_op op, uint32_t pm_hint,
+		     const struct pm_callback_handle *pm_handle)
+{
+	struct optee_scmi_server *ctx = pm_handle->handle;
+	struct optee_scmi_server_agent *agent_ctx = NULL;
+
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
+		return TEE_SUCCESS;
+
+	switch (op) {
+	case PM_OP_SUSPEND:
+		SIMPLEQ_FOREACH(agent_ctx, &ctx->agent_list, link) {
+			if (agent_ctx->shm.size != 0) {
+				uint8_t *shm = (uint8_t *)agent_ctx->shm.va;
+
+				memcpy(agent_ctx->shm_backup, shm,
+				       SCMI_SHMEM_SIZE);
+			}
+		}
+		break;
+	case PM_OP_RESUME:
+		SIMPLEQ_FOREACH(agent_ctx, &ctx->agent_list, link) {
+			if (agent_ctx->shm.size != 0) {
+				uint8_t *shm = (uint8_t *)agent_ctx->shm.va;
+
+				memcpy(shm, agent_ctx->shm_backup,
+				       SCMI_SHMEM_SIZE);
+			}
+		}
+		break;
+	default:
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result optee_scmi_server_shm_map(struct shared_mem *shm)
+{
+	/* Nothing to do */
+	if (!shm->va && !shm->size)
+		return TEE_SUCCESS;
+
+	/* Only consider non-secure client for now */
+	shm->va = (vaddr_t)core_mmu_add_mapping(MEM_AREA_IO_NSEC,
+						shm->pa, shm->size);
+
+	if (!shm->va)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result optee_scmi_server_probe_agent(const void *fdt, int agent_node,
 						struct optee_scmi_server_agent
 							*agent_ctx)
 {
 	struct optee_scmi_server_protocol *protocol_ctx = NULL;
 	int protocol_node = 0;
+	uint32_t phandle = 0;
+	int shmem_node = 0;
 	const fdt32_t *cuint = NULL;
+	TEE_Result res = TEE_SUCCESS;
 
 	SIMPLEQ_INIT(&agent_ctx->protocol_list);
 
@@ -148,7 +266,21 @@ static TEE_Result optee_scmi_server_probe_agent(const void *fdt, int agent_node,
 	/* Agent ID 0 is strictly reserved to SCMI server. */
 	assert(agent_ctx->agent_id > 0);
 
-	if (!fdt_node_check_compatible(fdt, agent_node, "linaro,scmi-optee")) {
+	if (!fdt_node_check_compatible(fdt, agent_node, "arm,scmi")) {
+		res = mbox_dt_register_chan(mailbox_rcv_callback, NULL,
+					    agent_ctx, fdt, agent_node,
+					    &agent_ctx->mbox_chan);
+		if (res == TEE_ERROR_DEFER_DRIVER_INIT) {
+			EMSG("%s Mailbox request an impossible probe defer",
+			     agent_ctx->dt_name);
+			panic();
+		} else if (res) {
+			EMSG("%s Failed to register mailbox channel",
+			     agent_ctx->dt_name);
+			panic();
+		}
+	} else if (!fdt_node_check_compatible(fdt, agent_node,
+					      "linaro,scmi-optee")) {
 		cuint = fdt_getprop(fdt, agent_node, "scmi-channel-id", NULL);
 		if (!cuint) {
 			EMSG("%s scmi-channel-id property not found",
@@ -159,6 +291,29 @@ static TEE_Result optee_scmi_server_probe_agent(const void *fdt, int agent_node,
 	} else {
 		EMSG("%s Incorrect compatible", agent_ctx->dt_name);
 		panic();
+	}
+
+	/* Manage shmem property (optional) */
+	cuint = fdt_getprop(fdt, agent_node, "shmem", NULL);
+	if (cuint) {
+		phandle = fdt32_to_cpu(*cuint);
+		shmem_node = fdt_node_offset_by_phandle(fdt, phandle);
+		agent_ctx->shm.size = fdt_reg_size(fdt, shmem_node);
+		agent_ctx->shm.pa = fdt_reg_base_address(fdt, shmem_node);
+		if (shmem_node >= 0 &&
+		    (agent_ctx->shm.pa == DT_INFO_INVALID_REG ||
+		     agent_ctx->shm.size == DT_INFO_INVALID_REG_SIZE ||
+		     agent_ctx->shm.size < SCMI_SHMEM_SIZE)) {
+			panic();
+		}
+
+		optee_scmi_server_shm_map(&agent_ctx->shm);
+
+		agent_ctx->shm.size = SCMI_SHMEM_SIZE;
+		agent_ctx->shm_backup = calloc(SCMI_SHMEM_SIZE,
+					       sizeof(*agent_ctx->shm_backup));
+		if (!agent_ctx->shm_backup)
+			panic();
 	}
 
 	fdt_for_each_subnode(protocol_node, fdt, agent_node) {
@@ -276,6 +431,7 @@ static TEE_Result optee_scmi_server_probe(const void *fdt, int parent_node,
 	struct optee_scmi_server_agent *a = NULL;
 	TEE_Result res = TEE_SUCCESS;
 	unsigned int agent_cfg_count = 0;
+	unsigned int scp_mailbox_idx = 0;
 	unsigned int i = 0;
 	int agent_node = 0;
 
@@ -336,6 +492,13 @@ static TEE_Result optee_scmi_server_probe(const void *fdt, int parent_node,
 
 		agent_cfg->agent_id = agent_ctx->agent_id;
 
+		if (agent_ctx->mbox_chan) {
+			agent_ctx->event_waiting = false;
+			agent_ctx->mailbox_notif.yielding_cb =
+				yielding_mailbox_notif;
+			notif_register_driver(&agent_ctx->mailbox_notif);
+		}
+
 		/*
 		 * Right now this driver can handle one channel per agent only.
 		 */
@@ -356,6 +519,11 @@ static TEE_Result optee_scmi_server_probe(const void *fdt, int parent_node,
 
 			channel_cfg->name = "channel";
 			channel_cfg->channel_id = agent_ctx->channel_id;
+			channel_cfg->mailbox_idx = scp_mailbox_idx++;
+			channel_cfg->shm = agent_ctx->shm;
+
+			/* One channel per agent only */
+			agent_ctx->scp_mailbox_idx = channel_cfg->mailbox_idx;
 		}
 	}
 
@@ -384,6 +552,9 @@ static TEE_Result optee_scmi_server_probe(const void *fdt, int parent_node,
 			optee_scmi_server_init_protocol(fdt, protocol_ctx,
 							agent_cfg, channel_cfg);
 	}
+
+	register_pm_core_service_cb(optee_scmi_server_pm, ctx,
+				    "scmi-server-scpfw");
 
 	return TEE_SUCCESS;
 
