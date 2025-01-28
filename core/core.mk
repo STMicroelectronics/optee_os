@@ -193,6 +193,12 @@ libdir = core/lib/qcbor
 include mk/lib.mk
 endif
 
+ifeq ($(CFG_PSA_ADAC),y)
+libname = psa-adac
+libdir = core/lib/psa-adac
+include mk/lib.mk
+endif
+
 #
 # Do main source
 #

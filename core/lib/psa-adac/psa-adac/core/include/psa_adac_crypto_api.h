@@ -16,7 +16,7 @@
  *
  * This function will be called by ADAC library.
  */
-psa_status_t psa_adac_crypto_init();
+psa_status_t psa_adac_crypto_init(void);
 
 /** \brief Generate challenge
  *

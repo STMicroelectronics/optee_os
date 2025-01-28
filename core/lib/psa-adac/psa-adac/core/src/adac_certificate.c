@@ -273,7 +273,7 @@ psa_status_t psa_adac_certificate_verify_sig(uint8_t *crt, size_t crt_size,
     }
 
     if (PSA_SUCCESS == r) {
-        PSA_ADAC_LOG_TRACE("crt", "Starting  signature verification (%d)\r\n", sig_size);
+        PSA_ADAC_LOG_TRACE("crt", "Starting  signature verification (%zu)\r\n", sig_size);
         r = psa_adac_verify_signature(key_type, key, key_size, hash_algo, (const uint8_t **) &crt, &tbs_size, 1,
                                       sig_algo, sig, sig_size);
         PSA_ADAC_LOG_DEBUG("crt", "Signature verification: %s\r\n", (r == PSA_SUCCESS) ? "success" : "failure");
