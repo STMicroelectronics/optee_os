@@ -1,0 +1,50 @@
+/*
+ * Copyright (c) 2020 Arm Limited. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+/** \defgroup adac-core ADAC Core
+ */
+
+/** \defgroup adac-crypto-api ADAC Cryptographic Interface
+ */
+
+/** \defgroup adac-crypto ADAC Cryptosystems
+ */
+
+/** \defgroup rsa3072 RSA 3072-bit key support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup rsa4096 RSA 4096-bit key support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup ecdsap256 ECDSA P-256 support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup ecdsap521 ECDSA P-521 support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup ed25519 EdDSA Ed25519 support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup ed448 EdDSA Ed448 support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup sm2sm3 SM2/SM3 support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup cmac CMAC AES support
+ \ingroup adac-crypto
+ */
+
+/** \defgroup hmac HMAC SHA-256 support
+ \ingroup adac-crypto
+ */
+

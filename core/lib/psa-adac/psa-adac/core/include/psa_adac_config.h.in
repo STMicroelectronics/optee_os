@@ -1,0 +1,26 @@
+/*
+ * Copyright (c) 2020-2023 Arm Limited. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#cmakedefine PSA_ADAC_TARGET
+
+#cmakedefine PSA_ADAC_DEBUG
+#cmakedefine PSA_ADAC_TRACE
+#cmakedefine PSA_ADAC_QEMU
+#cmakedefine PSA_ADAC_QUIET
+#cmakedefine PSA_ADAC_MINIMUM_SIZE_CONFIG
+
+#cmakedefine PSA_ADAC_EC_P256
+#cmakedefine PSA_ADAC_EC_P521
+#cmakedefine PSA_ADAC_RSA3072
+#cmakedefine PSA_ADAC_RSA4096
+#cmakedefine PSA_ADAC_ED25519
+#cmakedefine PSA_ADAC_ED448
+#cmakedefine PSA_ADAC_SM2SM3
+#cmakedefine PSA_ADAC_HMAC
+#cmakedefine PSA_ADAC_CMAC
+#cmakedefine PSA_ADAC_HW_CRYPTO
+#cmakedefine PSA_ADAC_USE_CRYPTOCELL
+
+#cmakedefine CMAKE_BUILD_TYPE "${CMAKE_BUILD_TYPE}"
