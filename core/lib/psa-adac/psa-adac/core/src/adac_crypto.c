@@ -68,7 +68,7 @@ psa_status_t psa_adac_extract_public_key(uint8_t *crt, size_t crt_size, uint8_t 
 #ifdef PSA_ADAC_ED25519
         certificate_ed255_ed255_t *certificate = (certificate_ed255_ed255_t *) crt;
         body_size = sizeof(certificate_ed255_ed255_t);
-        ext_words = certificate->header.extensions_bytes;
+        ext_bytes = certificate->header.extensions_bytes;
         *pubkey = certificate->pubkey;
         *pubkey_size = sizeof(certificate->pubkey);
 #else
@@ -79,7 +79,7 @@ psa_status_t psa_adac_extract_public_key(uint8_t *crt, size_t crt_size, uint8_t 
 #ifdef PSA_ADAC_ED448
         certificate_ed448_ed448_t *certificate = (certificate_ed448_ed448_t *) crt;
         body_size = sizeof(certificate_ed448_ed448_t);
-        ext_words = certificate->header.extensions_bytes;
+        ext_bytes = certificate->header.extensions_bytes;
         *pubkey = certificate->pubkey;
         *pubkey_size = sizeof(certificate->pubkey);
 #else
