@@ -223,6 +223,19 @@ else
 CFG_STM32_SAES_SW_FALLBACK ?= y
 endif
 
+# PSA-ADAC
+# OP-TEE support on STM32MP21 CA35TDCID but not on STM32MP21 CM33TDCID
+# nor STM32MP23/25
+# Default disable CFG_PSA_ADAC on STM32MP21 CM33TD and STM32MP23/25
+ifeq ($(CFG_STM32MP21)-$(CFG_STM32_CM33TDCID), y-n)
+CFG_PSA_ADAC ?= y
+ifeq ($(CFG_PSA_ADAC), y)
+$(call force,CFG_PSA_ADAC_AUTHENTICATOR_IMPLICIT_TRANSPORT,y,Explicit Transport API not yet defined)
+endif
+else
+$(call force,CFG_PSA_ADAC,n)
+endif
+
 # Default enable HWRNG PTA support
 CFG_HWRNG_PTA ?= $(CFG_STM32_RNG)
 ifeq ($(CFG_HWRNG_PTA),y)
