@@ -70,7 +70,7 @@
         for (_i = 0; _i * 16 + _j < _size; _i++, _j = 0) { \
             char _tmp[256] = {0}; \
             for (_j = 0, _k = 0; _i * 16 + _j < _size && _j < 16; _j++) { \
-                _k += sprintf(_tmp + _k, "%02x", ((uint8_t *)_buff)[_i * 16 + _j]); \
+                _k += snprintf(_tmp + _k, 3, "%02x", ((uint8_t *)_buff)[_i * 16 + _j]); \
             } \
             PSA_ADAC_LOG_FUNC_AND_LEVEL("debug", _who); \
             PSA_ADAC_LOG_PRINT("%-10.10s %04x: %s\n", _label, _i * 16, _tmp); \
@@ -89,7 +89,7 @@
         for (_i = 0; _i * 16 + _j < _size; _i++, _j = 0) { \
             char _tmp[256] = {0}; \
             for (_j = 0, _k = 0; _i * 16 + _j < _size && _j < 16; _j++) { \
-                _k += sprintf(_tmp + _k, "%02x", ((uint8_t *)_buff)[_i * 16 + _j]); \
+                _k += snprintf(_tmp + _k, 3, "%02x", ((uint8_t *)_buff)[_i * 16 + _j]); \
             } \
             PSA_ADAC_LOG_FUNC_AND_LEVEL("trace", _who); \
             PSA_ADAC_LOG_PRINT("%-10.10s %04x: %s\n", _label, _i * 16, _tmp); \
