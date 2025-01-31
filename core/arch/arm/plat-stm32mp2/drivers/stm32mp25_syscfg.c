@@ -10,6 +10,7 @@
 #include <kernel/panic.h>
 #include <mm/core_memprot.h>
 #include <stm32_sysconf.h>
+#include <stm32_util.h>
 #include <trace.h>
 #include <types_ext.h>
 #include <util.h>
@@ -53,6 +54,10 @@ struct io_pa_va syscfg_base[SYSCON_NB_BANKS] = {
 #define SYSCFG_CCSR_ANSRC_MASK			GENMASK_32(3, 0)
 
 #define SYSCFG_CCSR_READY_TIMEOUT_US		U(1000)
+
+/* SYSCFG device ID register definition */
+#define SYSCFG_IDC			SYSCON_ID(SYSCON_SYSCFG, 0x6400U)
+#define SYSCFG_IDC_DEV_ID_MASK		GENMASK_32(11, 0)
 
 /*
  * SYSCFG IO compensation register offsets (base relative)
@@ -211,4 +216,11 @@ void stm32mp25_syscfg_set_amcr(size_t mm1_size, size_t mm2_size)
 	}
 
 	io_clrsetbits32(amcr_addr, SYSCFG_OCTOSPIAMCR_OAM_MASK, amcr);
+}
+
+uint32_t stm32mp_syscfg_get_chip_dev_id(void)
+{
+	vaddr_t addr = stm32mp_syscfg_base(SYSCON_SYSCFG) + SYSCFG_IDC;
+
+	return io_read32(addr) & SYSCFG_IDC_DEV_ID_MASK;
 }
