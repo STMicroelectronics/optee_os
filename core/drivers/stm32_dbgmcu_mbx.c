@@ -10,6 +10,7 @@
 #include <kernel/interrupt.h>
 #include <kernel/notif.h>
 #include <libfdt.h>
+#include <psa_adac_platform.h>
 #include <stdlib_ext.h>
 
 /* DBGMCU mailbox offset register */
@@ -84,7 +85,7 @@ TEE_Result stm32_dbgmcu_mbx_write_auth_dev(uint32_t value, uint32_t timeout_ms)
 /* TODO Maybe to move to platform */
 static void stm32_dbgmcu_mbx_secure_debug(void)
 {
-	//TODO
+	psa_adac_start_secure_debug();
 }
 
 static void stm32_dbgmcu_mbx_enable_interrupts(bool both)
