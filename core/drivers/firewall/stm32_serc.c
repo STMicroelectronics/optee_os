@@ -252,6 +252,8 @@ static TEE_Result stm32_serc_pm(enum pm_op op, unsigned int pm_hint,
 			panic();
 		stm32_serc_setup();
 	} else {
+		io_clrbits32(serc_dev.pdata.base + _SERC_ENABLE,
+			     _SERC_ENABLE_SERFEN);
 		clk_disable(serc_dev.pdata.clock);
 	}
 
