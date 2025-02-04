@@ -95,6 +95,7 @@ $(call force,CFG_STM32_PWR_REGUL,n)
 $(call force,CFG_STM32_TAMP,n)
 $(call force,CFG_STM32MP_PROVISIONING,n)
 $(call force,CFG_TA_STM32MP_NVMEM,n)
+$(call force,CFG_STM32_PSA_SERVICE,y)
 endif
 
 $(call force,CFG_ARM_GIC_PM,y)
@@ -309,6 +310,10 @@ endif
 ifeq ($(CFG_STM32_RTC),y)
 $(call force,CFG_DRIVERS_RTC,y)
 $(call force,CFG_RTC_PTA,y)
+endif
+
+ifeq ($(CFG_STM32_PSA_SERVICE),y)
+$(call force,CFG_RSE_COMMS,y)
 endif
 
 ifeq ($(CFG_STM32_SERC),y)
