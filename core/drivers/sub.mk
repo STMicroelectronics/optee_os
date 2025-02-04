@@ -45,6 +45,7 @@ srcs-$(CFG_STM32_GPIO) += stm32_gpio.c
 srcs-$(CFG_STM32_GPU_OPP) += stm32_gpu_opp.c
 srcs-$(CFG_STM32_HPDMA) += stm32_hpdma.c
 srcs-$(CFG_STM32_HSEM) += stm32_hsem.c
+srcs-$(CFG_STM32_IRQ_NOTIF) += stm32_irq_notif.c
 srcs-$(CFG_STM32_IWDG) += stm32_iwdg.c
 srcs-$(CFG_STM32_IPCC) += stm32_ipcc.c
 srcs-$(CFG_STM32_I2C) += stm32_i2c.c
