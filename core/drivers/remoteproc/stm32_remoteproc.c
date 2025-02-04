@@ -37,11 +37,23 @@ enum reset_id {
 };
 
 /**
- * struct stm32_rproc_mem - Memory regions used by the remote processor
+ * struct stm32_rproc_dma_range - dma ranges used by the remote processor
  *
  * @addr:	physical base address from the CPU space perspective
  * @da:		device address corresponding to the physical base address
  *		from remote processor space perspective
+ * @size:	size of the region
+ */
+struct stm32_rproc_dma_range {
+	paddr_t addr;
+	paddr_t da;
+	size_t size;
+};
+
+/**
+ * struct stm32_rproc_mem - Memory regions used by the remote processor
+ *
+ * @addr:	physical base address from the CPU space perspective
  * @size:	size of the region
  * @default_conf: default firewall configuration applied on memory
  * @load_conf:	  firewall configuration applied on memory to give access to the
@@ -49,7 +61,6 @@ enum reset_id {
  */
 struct stm32_rproc_mem {
 	paddr_t addr;
-	paddr_t da;
 	size_t size;
 	struct firewall_alt_conf *default_conf;
 	struct firewall_alt_conf *load_conf;
@@ -92,6 +103,8 @@ struct stm32_rproc_instance {
 	SLIST_ENTRY(stm32_rproc_instance) link;
 	size_t n_regions;
 	struct stm32_rproc_mem *regions;
+	size_t n_dma_ranges;
+	struct stm32_rproc_dma_range *dma_ranges;
 	struct rstctrl *mcu_rst;
 	struct rstctrl *hold_boot;
 	uint32_t m33_cr_right;
@@ -309,16 +322,22 @@ TEE_Result stm32_rproc_da_to_pa(uint32_t rproc_id, paddr_t da, size_t size,
 				paddr_t *pa)
 {
 	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
-	struct stm32_rproc_mem *mems = NULL;
+	struct stm32_rproc_dma_range *ranges = NULL;
 	unsigned int i = 0;
 
 	if (!rproc)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	mems = rproc->regions;
+	ranges = rproc->dma_ranges;
+	if (!ranges) {
+		/* no translation needed */
+		*pa = da;
+		return TEE_SUCCESS;
+	}
 
-	for (i = 0; i < rproc->n_regions; i++) {
-		if (core_is_buffer_inside(da, size, mems[i].da, mems[i].size)) {
+	for (i = 0; i < rproc->n_dma_ranges; i++) {
+		if (core_is_buffer_inside(da, size, ranges[i].da,
+					  ranges[i].size)) {
 			/*
 			 * A match between the requested DA memory area and the
 			 * registered regions has been found.
@@ -326,7 +345,9 @@ TEE_Result stm32_rproc_da_to_pa(uint32_t rproc_id, paddr_t da, size_t size,
 			 * delta between the requested DA and the
 			 * reserved-memory DA address.
 			 */
-			*pa = mems[i].addr + da - mems[i].da;
+			*pa = ranges[i].addr + da - ranges[i].da;
+			DMSG("Convert DA %#"PRIxPA" to PA %#"PRIxPA" size %zu",
+			     da, *pa, size);
 			return TEE_SUCCESS;
 		}
 	}
@@ -394,16 +415,16 @@ TEE_Result stm32_rproc_unmap(uint32_t rproc_id, void *va, size_t size)
 	return TEE_ERROR_ACCESS_DENIED;
 }
 
-static TEE_Result stm32_rproc_get_dma_range(struct stm32_rproc_mem *region,
-					    const void *fdt, int node)
+static TEE_Result stm32_rproc_get_dma_ranges(struct stm32_rproc_instance *rproc,
+					     const void *fdt, int node)
 {
+	struct stm32_rproc_dma_range *ranges = NULL;
 	const fdt32_t *list = NULL;
-	uint32_t size = 0;
 	int ahb_node = 0;
 	int elt_size = 0;
-	uint32_t da = 0;
 	int nranges = 0;
-	paddr_t pa = 0;
+	int parent = 0;
+	int ncells = 0;
 	int len = 0;
 	int i = 0;
 	int j = 0;
@@ -413,6 +434,7 @@ static TEE_Result stm32_rproc_get_dma_range(struct stm32_rproc_mem *region,
 	 * described in the dma-ranges defined by the bus parent node.
 	 */
 	ahb_node = fdt_parent_offset(fdt, node);
+	parent = fdt_parent_offset(fdt, ahb_node);
 
 	list = fdt_getprop(fdt, ahb_node, "dma-ranges", &len);
 	if (!list) {
@@ -420,7 +442,6 @@ static TEE_Result stm32_rproc_get_dma_range(struct stm32_rproc_mem *region,
 			return TEE_ERROR_GENERIC;
 		/* Same memory mapping */
 		DMSG("No dma-ranges found in DT");
-		region->da = region->addr;
 		return TEE_SUCCESS;
 	}
 
@@ -429,29 +450,34 @@ static TEE_Result stm32_rproc_get_dma_range(struct stm32_rproc_mem *region,
 	 *  - the cpu address which depends on the CPU arch (32-bit or 64-bit)
 	 *  - the 32-bit remote processor memory mapping size
 	 */
-	elt_size = sizeof(uint32_t) + sizeof(paddr_t) + sizeof(uint32_t);
+	ncells = fdt_address_cells(fdt, parent);
+	if (ncells < 0)
+		return TEE_ERROR_BAD_PARAMETERS;
+	elt_size = sizeof(uint32_t) * (2 + ncells);
 
 	if (len % elt_size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	nranges = len / elt_size;
+	ranges = calloc(nranges, sizeof(*ranges));
+	if (!ranges)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	for (i = 0, j = 0; i < nranges; i++) {
-		da = fdt32_to_cpu(list[j++]);
-		pa = fdt32_to_cpu(list[j++]);
-#if defined(__LP64__)
-		pa = SHIFT_U64(pa, 32) | list[j++];
-#endif
-		size = fdt32_to_cpu(list[j++]);
+		ranges[i].da = fdt32_to_cpu(list[j++]);
+		ranges[i].addr = fdt_read_paddr(&list[j], ncells);
+		j += ncells;
 
-		if (core_is_buffer_inside(region->addr, region->size,
-					  pa, size)) {
-			region->da = da + (region->addr - pa);
-			return TEE_SUCCESS;
-		}
+		ranges[i].size = fdt32_to_cpu(list[j++]);
+
+		DMSG("Add dma-range: da %#"PRIxPA" pa %#"PRIxPA" size %#zx",
+		     ranges[i].da, ranges[i].addr, ranges[i].size);
 	}
 
-	return TEE_ERROR_BAD_PARAMETERS;
+	rproc->n_dma_ranges = nranges;
+	rproc->dma_ranges = ranges;
+
+	return TEE_SUCCESS;
 }
 
 TEE_Result stm32_rproc_set_boot_address(uint32_t rproc_id, paddr_t address)
@@ -586,10 +612,6 @@ static TEE_Result stm32_rproc_parse_mems(struct stm32_rproc_instance *rproc,
 			return TEE_ERROR_GENERIC;
 		}
 #endif
-
-		res = stm32_rproc_get_dma_range(&regions[i], fdt, node);
-		if (res)
-			return res;
 
 		if (!regions[i].addr || !regions[i].size) {
 			res = TEE_ERROR_BAD_PARAMETERS;
@@ -819,6 +841,10 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 		if (res)
 			goto err;
 	}
+
+	res = stm32_rproc_get_dma_ranges(rproc, fdt, node);
+	if (res)
+		goto err;
 
 	res = rstctrl_dt_get_by_name(fdt, node, "mcu_rst", &rproc->mcu_rst);
 	if (res)
