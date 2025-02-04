@@ -218,6 +218,8 @@ static TEE_Result stm32mp2_rproc_start(struct stm32_rproc_instance *rproc)
 	struct stm32_rproc_mem *mems = NULL;
 	unsigned int i = 0;
 	bool boot_addr_valid = false;
+	int res = TEE_ERROR_GENERIC;
+	paddr_t boot_pa = 0;
 
 	if (!rproc->boot_addr)
 		return TEE_ERROR_GENERIC;
@@ -225,8 +227,13 @@ static TEE_Result stm32mp2_rproc_start(struct stm32_rproc_instance *rproc)
 	mems = rproc->regions;
 
 	/* Check that the boot address is in declared regions */
+	res = stm32_rproc_da_to_pa(rproc->cdata->rproc_id, rproc->boot_addr,
+				   sizeof(paddr_t), &boot_pa);
+	if (res)
+		return res;
+
 	for (i = 0; i < rproc->n_regions; i++) {
-		if (!core_is_buffer_inside(rproc->boot_addr, 1, mems[i].addr,
+		if (!core_is_buffer_inside(boot_pa, 1, mems[i].addr,
 					   mems[i].size))
 			continue;
 
