@@ -7,6 +7,7 @@
 #define SCMI_AGENT_CONFIGURATION_H
 
 #include <drivers/clk.h>
+#include <drivers/regulator.h>
 #include <drivers/rstctrl.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -36,6 +37,18 @@ struct scmi_reset {
 };
 
 /*
+ * struct scmi_voltd - Description of a voltage domaine resource
+ * @name: Domain name
+ * @regulator: Regulator controlled by the voltage domain
+ * @enabled: Default state of the regulator
+ */
+struct scmi_voltd {
+	const char *name;
+	struct regulator *regulator;
+	bool enabled;
+};
+
+/*
  * struct scpfw_channel_config - SCMI channel resources
  * @name: Channel name
  * @channel_id: ID for the channel in OP-TEE SCMI bindings
@@ -43,6 +56,8 @@ struct scmi_reset {
  * @clock_count: Number of cells of @clock
  * @reset: Description of the reset conntrollers exposed on the channel
  * @reset_count: Number of cells of @reset
+ * @voltd: Description of the regulators exposed on the channel
+ * @voltd_count: Number of cells of @voltd
  */
 struct scpfw_channel_config {
 	const char *name;
@@ -51,6 +66,8 @@ struct scpfw_channel_config {
 	size_t clock_count;
 	struct scmi_reset *reset;
 	size_t reset_count;
+	struct scmi_voltd *voltd;
+	size_t voltd_count;
 };
 
 /*
