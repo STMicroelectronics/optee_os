@@ -5,6 +5,7 @@
 
 #include <assert.h>
 #include <drivers/scmi.h>
+#include <drivers/stm32_cpu_opp.h>
 #include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/panic.h>
@@ -66,10 +67,19 @@ static struct scpfw_config scpfw_cfg;
 static void scmi_scpfw_free_agent(struct scpfw_agent_config *agent_cfg)
 {
 	unsigned int j = 0;
+	unsigned int k = 0;
 
 	for (j = 0; j < agent_cfg->channel_count; j++) {
 		struct scpfw_channel_config *channel_cfg =
 			agent_cfg->channel_config + j;
+
+		for (k = 0; k < channel_cfg->perfd_count; k++) {
+			struct scmi_perfd *perfd = channel_cfg->perfd + k;
+
+			free(perfd->dvfs_opp_khz);
+			free(perfd->dvfs_opp_mv);
+		}
+		free(channel_cfg->perfd);
 
 		free(channel_cfg->voltd);
 		free(channel_cfg->reset);
@@ -214,6 +224,43 @@ optee_scmi_server_init_protocol(const void *fdt,
 	}
 }
 
+/* Expose DVFS features with SCMI performance protocol */
+static TEE_Result optee_scmi_server_init_perf(struct scpfw_channel_config *cfg)
+{
+	unsigned int i = 0;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	cfg->perfd_count = 0U;
+	if (stm32_opp_get_count(OPP_ID_CPU) > 0U)
+		cfg->perfd_count++;
+	if (stm32_opp_get_count(OPP_ID_GPU) > 0U)
+		cfg->perfd_count++;
+	if (!cfg->perfd_count)
+		return TEE_SUCCESS;
+
+	cfg->perfd = calloc(cfg->perfd_count, sizeof(*cfg->perfd));
+	if (!cfg->perfd)
+		return TEE_ERROR_OUT_OF_MEMORY;
+
+	if (stm32_opp_get_count(OPP_ID_CPU) > 0U) {
+		res = optee_scmi_server_cpu_dvfs(i++, cfg);
+		if (res) {
+			EMSG("Error during DFVS init %d", OPP_ID_CPU);
+			return res;
+		}
+	}
+
+	if (stm32_opp_get_count(OPP_ID_GPU) > 0U) {
+		res = optee_scmi_server_gpu_dvfs(i++, cfg);
+		if (res) {
+			EMSG("Error during DFVS init %d", OPP_ID_GPU);
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result optee_scmi_server_probe(const void *fdt, int parent_node,
 					  const void *compat_data __unused)
 {
@@ -312,6 +359,19 @@ static TEE_Result optee_scmi_server_probe(const void *fdt, int parent_node,
 			scpfw_cfg.agent_config + agent_ctx->agent_id;
 		struct scpfw_channel_config *channel_cfg =
 			agent_cfg->channel_config + agent_ctx->channel_id;
+
+		/*
+		 * Platform currently exposes a DFVS service only to
+		 * non-secure Cortex-A running the Linux kernel
+		 * (aka agent 1/channel 0).
+		 */
+		if (agent_cfg->agent_id == 1 && channel_cfg->channel_id == 0) {
+			res = optee_scmi_server_init_perf(channel_cfg);
+			if (res) {
+				EMSG("Error for performance domains (%d)", res);
+				panic();
+			}
+		}
 
 		SIMPLEQ_FOREACH(protocol_ctx, &agent_ctx->protocol_list, link)
 			optee_scmi_server_init_protocol(fdt, protocol_ctx,
