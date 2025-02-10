@@ -18,6 +18,7 @@
 #include <kernel/thread.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
+#include <psa/crypto.h>
 #include <rng_support.h>
 #include <stdbool.h>
 #include <stm32_util.h>
@@ -465,14 +466,22 @@ void plat_rng_init(void)
 	uint8_t seed[RNG_FIFO_BYTE_DEPTH] = { };
 
 	if (!stm32_rng) {
-		__plat_rng_init();
-		DMSG("PRNG seeded without RNG");
-		return;
-	}
+		if (IS_ENABLED(CFG_STM32_PSA_SERVICE)) {
 
+			if (psa_generate_random(seed, sizeof(seed)) !=
+			    PSA_SUCCESS)
+				panic();
+			goto init;
+		} else {
+			__plat_rng_init();
+			DMSG("PRNG seeded without RNG");
+			return;
+		}
+	}
 	if (stm32_rng_read(seed, sizeof(seed)))
 		panic();
 
+init:
 	if (crypto_rng_init(seed, sizeof(seed)))
 		panic();
 
