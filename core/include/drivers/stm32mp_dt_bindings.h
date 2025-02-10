@@ -31,6 +31,7 @@
 #include <dt-bindings/firewall/stm32mp25-rif.h>
 #include <dt-bindings/firewall/stm32mp25-rifsc.h>
 #include <dt-bindings/firewall/stm32mp25-risaf.h>
+#include <dt-bindings/power/st,stm32mp25-power.h>
 #include <dt-bindings/reset/st,stm32mp25-rcc.h>
 #include <dt-bindings/tamper/st,stm32mp25-tamp.h>
 #endif
