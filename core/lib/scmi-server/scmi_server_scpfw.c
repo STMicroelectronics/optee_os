@@ -12,6 +12,7 @@
 #include <libfdt.h>
 #include <scmi_agent_configuration.h>
 #include <scmi_clock_consumer.h>
+#include <scmi_pd_consumer.h>
 #include <scmi_regulator_consumer.h>
 #include <scmi_reset_consumer.h>
 #include <stdlib.h>
@@ -81,6 +82,7 @@ static void scmi_scpfw_free_agent(struct scpfw_agent_config *agent_cfg)
 		}
 		free(channel_cfg->perfd);
 
+		free(channel_cfg->pd);
 		free(channel_cfg->voltd);
 		free(channel_cfg->reset);
 		free(channel_cfg->clock);
@@ -201,6 +203,11 @@ optee_scmi_server_init_protocol(const void *fdt,
 				struct scpfw_channel_config *channel_cfg)
 {
 	switch (protocol_ctx->protocol_id) {
+	case SCMI_PROTOCOL_ID_POWER_DOMAIN:
+		if (optee_scmi_server_init_pd(fdt, protocol_ctx->dt_node,
+					      agent_cfg, channel_cfg))
+			panic("Error during power domains init");
+		break;
 	case SCMI_PROTOCOL_ID_CLOCK:
 		if (optee_scmi_server_init_clocks(fdt, protocol_ctx->dt_node,
 						  agent_cfg, channel_cfg))

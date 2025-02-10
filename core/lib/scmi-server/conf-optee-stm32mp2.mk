@@ -15,6 +15,13 @@ $(call force,CFG_SCPFW_MOD_SCMI_PERF,y)
 $(call force,CFG_SCPFW_MOD_SCMI_RESET_DOMAIN,y)
 $(call force,CFG_SCPFW_MOD_SCMI_VOLTAGE_DOMAIN,y)
 $(call force,CFG_SCPFW_MOD_STM32_OPP,y)
+
+ifeq ($(call cfg-one-enabled, CFG_STM32MP23 CFG_STM32MP25),y)
+$(call force,CFG_SCPFW_MOD_POWER_DOMAIN,y)
+$(call force,CFG_SCPFW_MOD_SCMI_POWER_DOMAIN,y)
+$(call force,CFG_SCPFW_MOD_STM32_PD,y)
+endif
+
 $(call force,CFG_SCPFW_MOD_VOLTAGE_DOMAIN,y)
 $(call force,CFG_SCPFW_SCMI_PERF_PROTOCOL_OPS,y)
 
@@ -29,3 +36,4 @@ $(call force,CFG_SCPFW_FAST_CHANNEL,n)
 
 # Default configuration values for product specific modules
 CFG_SCPFW_MOD_PSU_OPTEE_REGULATOR ?= n
+CFG_SCPFW_MOD_STM32_PD ?= n

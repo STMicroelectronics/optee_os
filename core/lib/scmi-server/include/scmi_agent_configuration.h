@@ -74,6 +74,18 @@ struct scmi_perfd {
 };
 
 /*
+ * struct scmi_pd - Description of a power domain resource
+ * @name: Domain name
+ * @clk: Clock controlled by the power domain or NULL
+ * @regu: Voltage regulator controlled by the power domain or NULL
+ */
+struct scmi_pd {
+	const char *name;
+	struct clk *clk;
+	struct regulator *regu;
+};
+
+/*
  * struct scpfw_channel_config - SCMI channel resources
  * @name: Channel name
  * @channel_id: ID for the channel in OP-TEE SCMI bindings
@@ -85,6 +97,8 @@ struct scmi_perfd {
  * @voltd_count: Number of cells of @voltd
  * @perfd: Description of the DVFS/perf exposed on the channel
  * @perfd_count: Number of cells of @perfd
+ * @pd: Description of the power domain exposed on the channel
+ * @pd_count: Number of cells of @pd
  */
 struct scpfw_channel_config {
 	const char *name;
@@ -97,6 +111,8 @@ struct scpfw_channel_config {
 	size_t voltd_count;
 	struct scmi_perfd *perfd;
 	size_t perfd_count;
+	struct scmi_pd *pd;
+	size_t pd_count;
 };
 
 /*
