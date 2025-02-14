@@ -20,6 +20,9 @@
 
 #include <arch_main.h>
 
+#ifdef CFG_SCPFW_MOD_DVFS
+#include <mod_dvfs.h>
+#endif
 #ifdef CFG_SCPFW_MOD_OPTEE_CLOCK
 #    include <mod_optee_clock.h>
 #endif
@@ -32,11 +35,20 @@
 #ifdef CFG_SCPFW_MOD_OPTEE_VOLTD_REGULATOR
 #include <mod_optee_voltd_regulator.h>
 #endif
+#ifdef CFG_SCPFW_MOD_PSU
+#include <mod_psu.h>
+#endif
+#ifdef CFG_SCPFW_MOD_PSU_OPTEE_REGULATOR
+#include <mod_psu_optee_regulator.h>
+#endif
 #ifdef CFG_SCPFW_MOD_RESET_DOMAIN
 #    include <mod_reset_domain.h>
 #endif
 #ifdef CFG_SCPFW_MOD_SCMI_CLOCK
 #    include <mod_scmi_clock.h>
+#endif
+#ifdef CFG_SCPFW_MOD_SCMI_PERF
+#include <mod_scmi_perf.h>
 #endif
 #ifdef CFG_SCPFW_MOD_SCMI_RESET_DOMAIN
 #    include <mod_scmi_reset_domain.h>
@@ -44,11 +56,15 @@
 #ifdef CFG_SCPFW_MOD_SCMI_VOLTAGE_DOMAIN
 #include <mod_scmi_voltage_domain.h>
 #endif
+#ifdef CFG_SCPFW_MOD_STM32_OPP
+#include <mod_stm32_opp.h>
+#endif
 #ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
 #include <mod_voltage_domain.h>
 #endif
 
 #include <drivers/regulator.h>
+#include <drivers/stm32_cpu_opp.h>
 #include <kernel/panic.h>
 #include <scmi_agent_configuration.h>
 #include <util.h>
@@ -85,6 +101,24 @@ static struct fwk_element *optee_clock_elt;
 static struct mod_optee_clock_config *optee_clock_cfg;
 static struct fwk_element *clock_elt;
 static struct mod_clock_dev_config *clock_data;
+#endif
+
+#ifdef CFG_SCPFW_MOD_DVFS
+/* 1 DVFS (elt & data) per DVFS exposed */
+static struct mod_dvfs_domain_config *dvfs_data;
+static struct fwk_element *dvfs_elt;
+/* 1 STM32 OPP (conf & elt) per DVFS exposed */
+static struct mod_stm32_opp_config *stm32_opp_cfg;
+static struct fwk_element *stm32_opp_elt;
+/* A unique scmi_perf instance refers to perf domains data (DVFS instance) */
+static struct mod_scmi_perf_domain_config *scmi_perf_domain_data;
+struct fwk_module_config config_scmi_perf;
+
+/* PSU and optee/psu-regu, used with DVFS. Elements and configuration data */
+static struct fwk_element *psu_optee_regu_elt;
+static struct mod_psu_optee_regulator_dev_config *psu_optee_regu_data;
+static struct fwk_element *psu_elt;
+static struct mod_psu_element_cfg *psu_data;
 #endif
 
 #ifdef CFG_SCPFW_MOD_RESET_DOMAIN
@@ -239,24 +273,90 @@ struct fwk_module_config config_optee_voltd_regulator = {
 };
 #endif
 
+#ifdef CFG_SCPFW_MOD_DVFS
+/* Config data for scmi_perf and dvfs module */
+struct fwk_module_config config_scmi_perf = {
+    .data = &((struct mod_scmi_perf_config){
+        .domains = NULL,				/* Allocated during initialization */
+        .perf_doms_count = 0,			/* Set during initialization */
+#ifdef BUILD_HAS_MOD_STATISTICS
+        .stats_enabled = true,
+#endif
+    }),
+};
+
+static const struct fwk_element *dvfs_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_DVFS);
+    return (const struct fwk_element *)dvfs_elt;
+}
+
+struct fwk_module_config config_dvfs = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(dvfs_get_element_table),
+};
+
+/* Config data for psu and optee/psu module */
+static const struct fwk_element *psu_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_PSU);
+    return (const struct fwk_element *)psu_elt;
+}
+
+struct fwk_module_config config_psu = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(psu_get_element_table),
+};
+
+static const struct fwk_element *psu_optee_regu_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_PSU_OPTEE_REGULATOR);
+    return (const struct fwk_element *)psu_optee_regu_elt ;
+}
+
+struct fwk_module_config config_psu_optee_regulator = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(psu_optee_regu_get_element_table),
+};
+
+static const struct fwk_element *stm32_opp_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_STM32_OPP);
+    return (const struct fwk_element *)stm32_opp_elt;
+}
+
+struct fwk_module_config config_stm32_opp = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(stm32_opp_get_element_table),
+};
+#endif
+
 /*
  * Indices state when applying agents configuration
  * @channel_count: Number of channels (mailbox/shmem links) used
- * @clock_index: Current index for clock and optee/clock (same indices)
- * @clock_count: Number of clocks (also number of optee/clocks)
+ * @clock_index: Current index for clock
+ * @clock_count: Number of clocks
+ * @optee_clock_index: Current index for optee/clock
+ * @optee_clock_count: Number of optee/clock
  * @reset_index: Current index for reset controller and optee/reset
  * @reset_count: Number of reset controller (optee/reset) instances
  * @regu_index: Current index for voltd and optee/regulator
  * @regu_count: Number of voltd (optee/regulator) instances
+ * @psu_index: Current index for PSU and optee/PSU instances
+ * @psu_count: Number of PSU (optee/PSU) instances
+ * @dvfs_index: Current index for DVFS instance
+ * @dvfs_count: Number of DVFS instances
  */
 struct scpfw_resource_counter {
     size_t channel_count;
     size_t clock_index;
     size_t clock_count;
+    size_t optee_clock_index;
+    size_t optee_clock_count;
     size_t reset_index;
     size_t reset_count;
     size_t regu_index;
     size_t regu_count;
+    size_t psu_index;
+    size_t psu_count;
+    size_t dvfs_index;
+    size_t dvfs_count;
 } scpfw_resource_counter;
 
 /*
@@ -275,23 +375,35 @@ static void count_resources(struct scpfw_config *cfg)
             struct scpfw_channel_config *channel_cfg =
                 agent_cfg->channel_config + j;
 
-            /* Clocks for scmi_clock */
+            /* Clocks for scmi_clock optee/clock and for DVFS */
             scpfw_resource_counter.clock_count += channel_cfg->clock_count;
+            scpfw_resource_counter.clock_count += channel_cfg->perfd_count;
+            scpfw_resource_counter.optee_clock_count += channel_cfg->clock_count;
             /* Reset for scmi_reset only */
             scpfw_resource_counter.reset_count += channel_cfg->reset_count;
             /* Regulators for smci_voltage_domain only */
             scpfw_resource_counter.regu_count += channel_cfg->voltd_count;
+            /* DVFS and PSU DVFS only */
+            scpfw_resource_counter.dvfs_count += channel_cfg->perfd_count;
+            scpfw_resource_counter.psu_count += channel_cfg->perfd_count;
         }
     }
 
 #ifndef CFG_SCPFW_MOD_CLOCK
     fwk_assert(!scpfw_resource_counter.clock_count);
+    fwk_assert(!scpfw_resource_counter.optee_clock_count);
 #endif
 #ifndef CFG_SCPFW_MOD_RESET_DOMAIN
     fwk_assert(!scpfw_resource_counter.reset_count);
 #endif
 #ifndef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
     fwk_assert(!scpfw_resource_counter.regu_count);
+#endif
+#ifndef CFG_SCPFW_MOD_DVFS
+    fwk_assert(!scpfw_resource_counter.dvfs_count);
+#endif
+#ifndef CFG_SCPFW_MOD_PSU
+    fwk_assert(!scpfw_resource_counter.psu_count);
 #endif
 }
 
@@ -303,6 +415,8 @@ static void allocate_global_resources(struct scpfw_config *cfg)
 {
     struct mod_scmi_reset_domain_config *scmi_reset_config __maybe_unused;
     struct mod_scmi_voltd_config *scmi_voltd_config __maybe_unused;
+    struct mod_scmi_perf_config *scmi_perf_data __maybe_unused;
+
     size_t __maybe_unused scmi_agent_count;
 
     /*
@@ -327,9 +441,9 @@ static void allocate_global_resources(struct scpfw_config *cfg)
 #ifdef CFG_SCPFW_MOD_CLOCK
     /* Clock domains resources */
     optee_clock_cfg = fwk_mm_calloc(
-        scpfw_resource_counter.clock_count, sizeof(*optee_clock_cfg));
+        scpfw_resource_counter.optee_clock_count, sizeof(*optee_clock_cfg));
     optee_clock_elt = fwk_mm_calloc(
-        scpfw_resource_counter.clock_count + 1, sizeof(*optee_clock_elt));
+        scpfw_resource_counter.optee_clock_count + 1, sizeof(*optee_clock_elt));
 
     clock_data =
         fwk_mm_calloc(scpfw_resource_counter.clock_count, sizeof(*clock_data));
@@ -354,6 +468,43 @@ static void allocate_global_resources(struct scpfw_config *cfg)
         fwk_mm_calloc(scpfw_resource_counter.reset_count, sizeof(*reset_data));
     reset_elt = fwk_mm_calloc(
         scpfw_resource_counter.reset_count + 1, sizeof(*reset_elt));
+#endif
+
+#ifdef CFG_SCPFW_MOD_DVFS
+    /* PSU and related optee PSU regulator resources */
+    psu_optee_regu_elt = fwk_mm_calloc(scpfw_resource_counter.dvfs_count + 1,
+                                  sizeof(*psu_optee_regu_elt));
+    psu_optee_regu_data = fwk_mm_calloc(scpfw_resource_counter.dvfs_count,
+                                  sizeof(*psu_optee_regu_data));
+
+    psu_elt = fwk_mm_calloc(scpfw_resource_counter.psu_count + 1,
+                            sizeof(*psu_elt));
+    psu_data = fwk_mm_calloc(scpfw_resource_counter.psu_count,
+                             sizeof(*psu_data));
+
+    /* DVFS and SCMI performance management resources */
+    dvfs_elt = fwk_mm_calloc(scpfw_resource_counter.dvfs_count + 1,
+                             sizeof(*dvfs_elt));
+    dvfs_data = fwk_mm_calloc(scpfw_resource_counter.dvfs_count,
+                              sizeof(*dvfs_data));
+
+    /* STM32 OPP resources */
+    stm32_opp_cfg = fwk_mm_calloc(scpfw_resource_counter.dvfs_count,
+                                  sizeof(*stm32_opp_cfg));
+    stm32_opp_elt = fwk_mm_calloc(scpfw_resource_counter.dvfs_count + 1,
+                                  sizeof(*stm32_opp_elt));
+
+    scmi_perf_domain_data = fwk_mm_calloc(scpfw_resource_counter.dvfs_count,
+                                          sizeof(*scmi_perf_domain_data));
+
+    /*
+     * DVFS with SCMI performance management domains
+     * 1 initial scmi_perf instance defines the number of DVFS's
+     */
+    scmi_perf_data = (void *)config_scmi_perf.data;
+    scmi_perf_data->domains = (struct mod_scmi_perf_domain_config (*)[])
+        scmi_perf_domain_data;
+    scmi_perf_data->perf_doms_count = scpfw_resource_counter.dvfs_count;
 #endif
 
 #ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
@@ -516,6 +667,7 @@ static void set_resources(struct scpfw_config *cfg)
              */
             if (channel_cfg->clock_count) {
                 size_t clock_index = scpfw_resource_counter.clock_index;
+                size_t optee_clock_index = scpfw_resource_counter.optee_clock_index;
                 struct mod_scmi_clock_device *dev = NULL;
 
                 /* Set SCMI clocks array for the SCMI agent */
@@ -541,7 +693,7 @@ static void set_resources(struct scpfw_config *cfg)
                     struct scmi_clock *clock_cfg = channel_cfg->clock + k;
                     struct mod_clock_dev_config cdata = {
                         .driver_id = (fwk_id_t)FWK_ID_ELEMENT_INIT(
-                            FWK_MODULE_IDX_OPTEE_CLOCK, clock_index),
+                            FWK_MODULE_IDX_OPTEE_CLOCK, optee_clock_index),
                         .api_id = (fwk_id_t)FWK_ID_API_INIT(
                             FWK_MODULE_IDX_OPTEE_CLOCK, 0),
                         .pd_source_id = FWK_ID_NONE,
@@ -550,13 +702,13 @@ static void set_resources(struct scpfw_config *cfg)
                     dev[k].element_id = (fwk_id_t)FWK_ID_ELEMENT_INIT(
                         FWK_MODULE_IDX_CLOCK, clock_index);
 
-                    optee_clock_cfg[clock_index].clk = clock_cfg->clk;
-                    optee_clock_cfg[clock_index].default_enabled =
+                    optee_clock_cfg[optee_clock_index].clk = clock_cfg->clk;
+                    optee_clock_cfg[optee_clock_index].default_enabled =
                         clock_cfg->enabled;
 
-                    optee_clock_elt[clock_index].name = clock_cfg->name;
-                    optee_clock_elt[clock_index].data =
-                        (void *)(optee_clock_cfg + clock_index);
+                    optee_clock_elt[optee_clock_index].name = clock_cfg->name;
+                    optee_clock_elt[optee_clock_index].data =
+                        (void *)(optee_clock_cfg + optee_clock_index);
 
                     memcpy(clock_data + clock_index, &cdata, sizeof(cdata));
 
@@ -565,9 +717,11 @@ static void set_resources(struct scpfw_config *cfg)
                         (void *)(clock_data + clock_index);
 
                     clock_index++;
+                    optee_clock_index++;
                 }
 
                 scpfw_resource_counter.clock_index = clock_index;
+                scpfw_resource_counter.optee_clock_index = optee_clock_index;
             }
 #endif
 
@@ -667,6 +821,91 @@ static void set_resources(struct scpfw_config *cfg)
                 }
 
                 scpfw_resource_counter.regu_index = regu_index;
+            }
+#endif
+
+#ifdef CFG_SCPFW_MOD_DVFS
+            if (channel_cfg->perfd_count) {
+                size_t clock_index = scpfw_resource_counter.clock_index;
+                size_t psu_index = scpfw_resource_counter.psu_index;
+                size_t dvfs_index = scpfw_resource_counter.dvfs_index;
+
+                for (size_t k = 0; k < channel_cfg->perfd_count; k++) {
+                    struct scmi_perfd *perfd_cfg = channel_cfg->perfd + k;
+                    struct mod_clock_dev_config cdata = {
+                        .driver_id = (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_STM32_OPP,
+                                                                   dvfs_index),
+                        .api_id = (fwk_id_t)FWK_ID_API_INIT(FWK_MODULE_IDX_STM32_OPP,
+                                                            0),
+                        .pd_source_id = FWK_ID_NONE,
+                    };
+
+                    /* dvfs instances: 1 instance per expose DVFS service */
+                    dvfs_data[dvfs_index].psu_id =
+                        (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU, psu_index);
+                    dvfs_data[dvfs_index].clock_id =
+                        (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_CLOCK, clock_index);
+                    dvfs_data[dvfs_index].latency = 1000;
+                    dvfs_data[dvfs_index].sustained_idx = perfd_cfg->initial_opp;
+                    dvfs_data[dvfs_index].opps =
+                        fwk_mm_calloc(perfd_cfg->dvfs_opp_count,
+                                      sizeof(struct mod_dvfs_opp));
+
+                    for (size_t l = 0; l < perfd_cfg->dvfs_opp_count; l++) {
+                        uint64_t power = 0;
+
+                        /* Quick estimation of power consumpsion */
+                        power = perfd_cfg->dvfs_opp_khz[l];
+                        power *= perfd_cfg->dvfs_opp_mv[l];
+                        power *= perfd_cfg->dvfs_opp_mv[l];
+                        power /= 100 * 1000 * 1000;
+
+                        dvfs_data[dvfs_index].opps[l] = (struct mod_dvfs_opp){
+                            .level = perfd_cfg->dvfs_opp_khz[l] * 1000UL,
+                            .frequency = perfd_cfg->dvfs_opp_khz[l],
+                            .voltage = perfd_cfg->dvfs_opp_mv[l],
+                            .power = (uint32_t)power,
+                        };
+                    }
+
+                    dvfs_elt[dvfs_index].name = perfd_cfg->name;
+                    dvfs_elt[dvfs_index].data = (void *)(dvfs_data + dvfs_index);
+
+                    /* Module psu_optee module (elements and  configuration data) */
+                    psu_optee_regu_elt[psu_index].name = perfd_cfg->name;
+                    psu_optee_regu_elt[psu_index].data = (void *)(psu_optee_regu_data + psu_index);
+
+                    /* Voltage is managed in OPP driver: set a PSU without regulator */
+                    psu_optee_regu_data[psu_index].regulator = NULL;
+
+                    /* Module psu (elements and configuration data) */
+                    psu_elt[psu_index].name = perfd_cfg->name;
+                    psu_elt[psu_index].data = (void *)(psu_data + psu_index);
+                    psu_data[psu_index].driver_id =
+                        (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_PSU_OPTEE_REGULATOR, psu_index);
+                    psu_data[psu_index].driver_api_id =
+                        (fwk_id_t)FWK_ID_API_INIT(FWK_MODULE_IDX_PSU_OPTEE_REGULATOR, 0);
+
+                    /* Module clock and associated STM32 OPP_clock driver */
+                    fwk_assert(!clock_elt[clock_index].data);
+                    clock_elt[clock_index].name = perfd_cfg->name;
+                    clock_elt[clock_index].data = (void *)(clock_data + clock_index);
+
+                    memcpy(clock_data + clock_index, &cdata, sizeof(cdata));
+
+                    stm32_opp_cfg[dvfs_index].opp_id = perfd_cfg->opp_id;
+
+                    stm32_opp_elt[dvfs_index].name = perfd_cfg->name;
+                    stm32_opp_elt[dvfs_index].data = (void *)(stm32_opp_cfg + dvfs_index);
+
+                    clock_index++;
+                    psu_index++;
+                    dvfs_index++;
+                }
+
+                scpfw_resource_counter.clock_index = clock_index;
+                scpfw_resource_counter.psu_index = psu_index;
+                scpfw_resource_counter.dvfs_index = dvfs_index;
             }
 #endif
         }
