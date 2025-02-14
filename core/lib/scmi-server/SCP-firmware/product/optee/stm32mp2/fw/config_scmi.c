@@ -35,6 +35,10 @@
 #ifdef CFG_SCPFW_MOD_OPTEE_VOLTD_REGULATOR
 #include <mod_optee_voltd_regulator.h>
 #endif
+#ifdef CFG_SCPFW_MOD_POWER_DOMAIN
+#include <mod_power_domain.h>
+#include <mod_stm32_pd.h>
+#endif
 #ifdef CFG_SCPFW_MOD_PSU
 #include <mod_psu.h>
 #endif
@@ -49,6 +53,9 @@
 #endif
 #ifdef CFG_SCPFW_MOD_SCMI_PERF
 #include <mod_scmi_perf.h>
+#endif
+#ifdef CFG_SCPFW_MOD_SCMI_POWER_DOMAIN
+#include <mod_scmi_power_domain.h>
 #endif
 #ifdef CFG_SCPFW_MOD_SCMI_RESET_DOMAIN
 #    include <mod_scmi_reset_domain.h>
@@ -137,6 +144,11 @@ static struct fwk_element *optee_regu_elt;
 static struct mod_optee_voltd_regulator_dev_config *optee_regu_data;
 static struct fwk_element *voltd_elt;
 static struct mod_voltd_dev_config *voltd_data;
+#endif
+
+#ifdef CFG_SCPFW_MOD_POWER_DOMAIN
+static struct fwk_element *pd_elt;
+static struct fwk_element *stm32_pd_elt;
 #endif
 
 /* Config data for scmi module */
@@ -327,6 +339,44 @@ struct fwk_module_config config_stm32_opp = {
 };
 #endif
 
+#ifdef CFG_SCPFW_MOD_POWER_DOMAIN
+/* SCMI power domain module*/
+struct fwk_module_config config_scmi_power_domain = { 0 };
+
+/* Power domain module */
+enum pd_static_dev_idx {
+    PD_STATIC_DEV_IDX_NONE = UINT32_MAX
+};
+
+static const uint32_t pd_allowed_state_mask_table[] = {
+    [MOD_PD_STATE_OFF] = MOD_PD_STATE_OFF_MASK,
+    [MOD_PD_STATE_ON] = MOD_PD_STATE_OFF_MASK | MOD_PD_STATE_ON_MASK,
+};
+
+static const struct mod_power_domain_config power_domain_config = { 0 };
+
+static const struct fwk_element *pd_get_element_table(fwk_id_t module_id)
+{
+    return (const struct fwk_element *)pd_elt;
+}
+
+struct fwk_module_config config_power_domain = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(pd_get_element_table),
+    .data = &power_domain_config,
+};
+
+/* STM32 power domain module */
+static const struct fwk_element *stm32_pd_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_STM32_PD);
+    return (const struct fwk_element *)stm32_pd_elt;
+}
+
+struct fwk_module_config config_stm32_pd = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(stm32_pd_get_element_table),
+};
+#endif
+
 /*
  * Indices state when applying agents configuration
  * @channel_count: Number of channels (mailbox/shmem links) used
@@ -342,6 +392,8 @@ struct fwk_module_config config_stm32_opp = {
  * @psu_count: Number of PSU (optee/PSU) instances
  * @dvfs_index: Current index for DVFS instance
  * @dvfs_count: Number of DVFS instances
+ * @pd_index: Current index for power domain instance
+ * @pd_count: Number of power domain instances
  */
 struct scpfw_resource_counter {
     size_t channel_count;
@@ -357,6 +409,8 @@ struct scpfw_resource_counter {
     size_t psu_count;
     size_t dvfs_index;
     size_t dvfs_count;
+    size_t pd_index;
+    size_t pd_count;
 } scpfw_resource_counter;
 
 /*
@@ -386,6 +440,8 @@ static void count_resources(struct scpfw_config *cfg)
             /* DVFS and PSU DVFS only */
             scpfw_resource_counter.dvfs_count += channel_cfg->perfd_count;
             scpfw_resource_counter.psu_count += channel_cfg->perfd_count;
+            /* Power domains */
+            scpfw_resource_counter.pd_count += channel_cfg->pd_count;
         }
     }
 
@@ -404,6 +460,9 @@ static void count_resources(struct scpfw_config *cfg)
 #endif
 #ifndef CFG_SCPFW_MOD_PSU
     fwk_assert(!scpfw_resource_counter.psu_count);
+#endif
+#ifndef CFG_SCPFW_MOD_POWER_DOMAIN
+    fwk_assert(!scpfw_resource_counter.pd_count);
 #endif
 }
 
@@ -524,6 +583,14 @@ static void allocate_global_resources(struct scpfw_config *cfg)
                                sizeof(*voltd_data));
     voltd_elt = fwk_mm_calloc(scpfw_resource_counter.regu_count + 1,
                               sizeof(*voltd_elt));
+#endif
+
+#ifdef CFG_SCPFW_MOD_POWER_DOMAIN
+    /* <pd_count> power domains + 1 system domain + 1 empty cell */
+    pd_elt = fwk_mm_calloc(scpfw_resource_counter.pd_count + 2,
+                              sizeof(*pd_elt));
+    stm32_pd_elt = fwk_mm_calloc(scpfw_resource_counter.pd_count + 1,
+                              sizeof(*stm32_pd_elt));
 #endif
 }
 
@@ -906,6 +973,68 @@ static void set_resources(struct scpfw_config *cfg)
                 scpfw_resource_counter.clock_index = clock_index;
                 scpfw_resource_counter.psu_index = psu_index;
                 scpfw_resource_counter.dvfs_index = dvfs_index;
+            }
+#endif
+
+#ifdef CFG_SCPFW_MOD_POWER_DOMAIN
+            if (channel_cfg->pd_count) {
+                /* System domain */
+                size_t system_index = channel_cfg->pd_count; /* Last element */
+                struct fwk_element *pd_elt_sys = pd_elt + system_index;
+                struct mod_power_domain_element_config *pd_elt_data_sys =
+                    fwk_mm_calloc(1, sizeof(*pd_elt_data_sys));
+                struct fwk_element *stm32_pd_elt_sys = stm32_pd_elt + system_index;
+
+                /* Data are unused but framework doesn't accept NULL data */
+                stm32_pd_elt_sys->name = "system";
+                stm32_pd_elt_sys->data = (void *)1;
+
+                pd_elt_sys->name = stm32_pd_elt_sys->name;
+
+                pd_elt_data_sys->parent_idx = PD_STATIC_DEV_IDX_NONE;
+                pd_elt_data_sys->driver_id =
+                    (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_STM32_PD, system_index);
+                pd_elt_data_sys->api_id =
+                    (fwk_id_t)FWK_ID_API_INIT(FWK_MODULE_IDX_STM32_PD, 0);
+                pd_elt_data_sys->attributes.pd_type = MOD_PD_TYPE_DEVICE;
+                pd_elt_data_sys->allowed_state_mask_table =
+                    pd_allowed_state_mask_table;
+                pd_elt_data_sys->allowed_state_mask_table_size =
+                    FWK_ARRAY_SIZE(pd_allowed_state_mask_table);
+                pd_elt_sys->data = pd_elt_data_sys;
+
+                /* Power domains */
+                for (size_t k = 0; k < channel_cfg->pd_count; k++) {
+                    struct fwk_element *pd_elt_k = pd_elt + k;
+                    struct mod_power_domain_element_config *pd_elt_data_k =
+                        fwk_mm_calloc(1, sizeof(*pd_elt_data_k));
+                    struct fwk_element *stm32_pd_elt_k =
+                        stm32_pd_elt + k;
+                    struct scmi_pd *scmi_pd = channel_cfg->pd + k;
+                    struct mod_stm32_pd_config *mod_stm32_pd_config =
+                        fwk_mm_calloc(1, sizeof(*mod_stm32_pd_config));
+
+                    mod_stm32_pd_config->name = scmi_pd->name;
+                    mod_stm32_pd_config->clk = scmi_pd->clk;
+                    mod_stm32_pd_config->regu = scmi_pd->regu;
+
+                    stm32_pd_elt_k->name = scmi_pd->name;
+                    stm32_pd_elt_k->data = (void *)mod_stm32_pd_config;
+
+                    pd_elt_k->name = scmi_pd->name;
+
+                    pd_elt_data_k->parent_idx = system_index;
+                    pd_elt_data_k->driver_id =
+                        (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_STM32_PD, k);
+                    pd_elt_data_k->api_id =
+                        (fwk_id_t)FWK_ID_API_INIT(FWK_MODULE_IDX_STM32_PD, 0);
+                    pd_elt_data_k->attributes.pd_type = MOD_PD_TYPE_DEVICE;
+                    pd_elt_data_k->allowed_state_mask_table =
+                        pd_allowed_state_mask_table;
+                    pd_elt_data_k->allowed_state_mask_table_size =
+                        FWK_ARRAY_SIZE(pd_allowed_state_mask_table);
+                    pd_elt_k->data = pd_elt_data_k;
+                }
             }
 #endif
         }
