@@ -8,3 +8,5 @@
 incdirs_ext-y += $(scpfw-path)/product/optee/stm32mp2/include
 
 srcs-y += $(scpfw-path)/product/optee/stm32mp2/fw/config_scmi.c
+
+$(eval $(call scpfw-embed-product-module,psu_optee_regulator))

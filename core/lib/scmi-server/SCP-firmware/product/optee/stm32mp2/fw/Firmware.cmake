@@ -31,6 +31,10 @@ set(SCP_ENABLE_SCMI_RESET_INIT TRUE)
 
 set(SCP_ENABLE_IPO_INIT FALSE)
 
+if(CFG_SCPFW_MOD_PSU_OPTEE_REGULATOR)
+list(PREPEND SCP_MODULE_PATHS "${CMAKE_CURRENT_LIST_DIR}/../module/psu_optee_regulator")
+endif(CFG_SCPFW_MOD_PSU_OPTEE_REGULATOR)
+
 # The order of the modules in the following list is the order in which the
 # modules are initialized, bound, started during the pre-runtime phase.
 # any change in the order will cause firmware initialization errors.

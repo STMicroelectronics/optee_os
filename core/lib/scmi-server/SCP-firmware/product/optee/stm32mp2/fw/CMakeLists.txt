@@ -8,6 +8,9 @@
 #
 # Create the firmware target.
 #
+
+set (CFG_SCPFW_MOD_PSU_OPTEE_REGULATOR n)
+
 add_library(${SCP_FIRMWARE_TARGET})
 
 # Include common optee modules in the module list
