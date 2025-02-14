@@ -11,6 +11,7 @@
 enum scmi_agent_id {
     SCMI_AGENT_ID_RSV = 0, /* 0 is reserved for the platform */
     SCMI_AGENT_ID_NSEC0,
+    SCMI_AGENT_ID_NSEC1,
     SCMI_AGENT_ID_COUNT
 };
 
