@@ -20,11 +20,15 @@
 #include <arch_interrupt.h>
 #include <arch_main.h>
 
+#include <kernel/mutex.h>
 #include <malloc.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+static struct mutex process_lock = MUTEX_INITIALIZER;
+
 int scmi_arch_init(void)
 {
     int status;
@@ -66,11 +70,15 @@ void scmi_process_mbx_smt(unsigned int fwk_id)
 
     device_id.value = fwk_id;
 
+    mutex_lock(&process_lock);
+
     optee_mbx_signal_smt_message(device_id);
 
     fwk_process_event_queue();
 
     fwk_log_flush();
+
+    mutex_unlock(&process_lock);
 #endif
 }
 
@@ -82,11 +90,15 @@ void scmi_process_mbx_msg(unsigned int fwk_id, void *in_buf, size_t in_size,
 
     device_id.value = fwk_id;
 
+    mutex_lock(&process_lock);
+
     optee_mbx_signal_msg_message(device_id, in_buf, in_size, out_buf, out_size);
 
     fwk_process_event_queue();
 
     fwk_log_flush();
+
+    mutex_unlock(&process_lock);
 #endif
 }
 
