@@ -127,6 +127,7 @@ $(eval $(call scpfw-embed-optee-module,console))
 $(eval $(call scpfw-embed-optee-module,mbx))
 $(eval $(call scpfw-embed-optee-module,reset))
 $(eval $(call scpfw-embed-optee-module,smt))
+$(eval $(call scpfw-embed-optee-module,voltd_regulator))
 
 # Some modules have extra and non generic C files
 srcs-$(CFG_SCPFW_MOD_CLOCK) += $(scpfw-path)/module/clock/src/clock_tree_management.c
