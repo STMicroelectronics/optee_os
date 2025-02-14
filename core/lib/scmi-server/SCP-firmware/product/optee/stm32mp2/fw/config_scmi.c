@@ -29,6 +29,9 @@
 #ifdef CFG_SCPFW_MOD_MSG_SMT
 #    include <mod_msg_smt.h>
 #endif
+#ifdef CFG_SCPFW_MOD_OPTEE_VOLTD_REGULATOR
+#include <mod_optee_voltd_regulator.h>
+#endif
 #ifdef CFG_SCPFW_MOD_RESET_DOMAIN
 #    include <mod_reset_domain.h>
 #endif
@@ -38,7 +41,14 @@
 #ifdef CFG_SCPFW_MOD_SCMI_RESET_DOMAIN
 #    include <mod_scmi_reset_domain.h>
 #endif
+#ifdef CFG_SCPFW_MOD_SCMI_VOLTAGE_DOMAIN
+#include <mod_scmi_voltage_domain.h>
+#endif
+#ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
+#include <mod_voltage_domain.h>
+#endif
 
+#include <drivers/regulator.h>
 #include <kernel/panic.h>
 #include <scmi_agent_configuration.h>
 #include <util.h>
@@ -84,6 +94,15 @@ static struct fwk_element *optee_reset_elt;
 static struct mod_optee_reset_dev_config *optee_reset_data;
 static struct fwk_element *reset_elt;
 static struct mod_reset_domain_dev_config *reset_data;
+#endif
+
+#ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
+/* SCMI voltage domains and optee regulators */
+static struct mod_scmi_voltd_agent *scmi_voltd_agent_tbl;
+static struct fwk_element *optee_regu_elt;
+static struct mod_optee_voltd_regulator_dev_config *optee_regu_data;
+static struct fwk_element *voltd_elt;
+static struct mod_voltd_dev_config *voltd_data;
 #endif
 
 /* Config data for scmi module */
@@ -190,6 +209,36 @@ struct fwk_module_config config_optee_reset = {
 };
 #endif
 
+#ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
+/* Config data for scmi_voltage_domain, voltage_domain and optee_regu modules */
+struct fwk_module_config config_scmi_voltage_domain = {
+    .data = &((struct mod_scmi_voltd_config){
+        .agent_table = NULL,			/* Allocated during initialization */
+        .agent_count = 0,			/* Set during initialization */
+    }),
+};
+
+static const struct fwk_element *voltd_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_VOLTAGE_DOMAIN);
+    return (const struct fwk_element *)voltd_elt;
+}
+
+struct fwk_module_config config_voltage_domain = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(voltd_get_element_table),
+};
+
+static const struct fwk_element *optee_voltd_regulator_get_element_table(fwk_id_t module_id)
+{
+    fwk_assert(fwk_id_get_module_idx(module_id) == FWK_MODULE_IDX_OPTEE_VOLTD_REGULATOR);
+    return (const struct fwk_element *)optee_regu_elt;
+}
+
+struct fwk_module_config config_optee_voltd_regulator = {
+    .elements = FWK_MODULE_DYNAMIC_ELEMENTS(optee_voltd_regulator_get_element_table),
+};
+#endif
+
 /*
  * Indices state when applying agents configuration
  * @channel_count: Number of channels (mailbox/shmem links) used
@@ -197,6 +246,8 @@ struct fwk_module_config config_optee_reset = {
  * @clock_count: Number of clocks (also number of optee/clocks)
  * @reset_index: Current index for reset controller and optee/reset
  * @reset_count: Number of reset controller (optee/reset) instances
+ * @regu_index: Current index for voltd and optee/regulator
+ * @regu_count: Number of voltd (optee/regulator) instances
  */
 struct scpfw_resource_counter {
     size_t channel_count;
@@ -204,6 +255,8 @@ struct scpfw_resource_counter {
     size_t clock_count;
     size_t reset_index;
     size_t reset_count;
+    size_t regu_index;
+    size_t regu_count;
 } scpfw_resource_counter;
 
 /*
@@ -226,6 +279,8 @@ static void count_resources(struct scpfw_config *cfg)
             scpfw_resource_counter.clock_count += channel_cfg->clock_count;
             /* Reset for scmi_reset only */
             scpfw_resource_counter.reset_count += channel_cfg->reset_count;
+            /* Regulators for smci_voltage_domain only */
+            scpfw_resource_counter.regu_count += channel_cfg->voltd_count;
         }
     }
 
@@ -234,6 +289,9 @@ static void count_resources(struct scpfw_config *cfg)
 #endif
 #ifndef CFG_SCPFW_MOD_RESET_DOMAIN
     fwk_assert(!scpfw_resource_counter.reset_count);
+#endif
+#ifndef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
+    fwk_assert(!scpfw_resource_counter.regu_count);
 #endif
 }
 
@@ -244,6 +302,7 @@ static void count_resources(struct scpfw_config *cfg)
 static void allocate_global_resources(struct scpfw_config *cfg)
 {
     struct mod_scmi_reset_domain_config *scmi_reset_config __maybe_unused;
+    struct mod_scmi_voltd_config *scmi_voltd_config __maybe_unused;
     size_t __maybe_unused scmi_agent_count;
 
     /*
@@ -295,6 +354,25 @@ static void allocate_global_resources(struct scpfw_config *cfg)
         fwk_mm_calloc(scpfw_resource_counter.reset_count, sizeof(*reset_data));
     reset_elt = fwk_mm_calloc(
         scpfw_resource_counter.reset_count + 1, sizeof(*reset_elt));
+#endif
+
+#ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
+    /* SCMI voltage domains resources */
+    scmi_voltd_agent_tbl = fwk_mm_calloc(scmi_agent_count,
+                                         sizeof(*scmi_voltd_agent_tbl));
+    scmi_voltd_config = (void *)config_scmi_voltage_domain.data;
+    scmi_voltd_config->agent_table = scmi_voltd_agent_tbl;
+    scmi_voltd_config->agent_count = scmi_agent_count;
+
+    optee_regu_data = fwk_mm_calloc(scpfw_resource_counter.regu_count,
+                                    sizeof(*optee_regu_data));
+    optee_regu_elt = fwk_mm_calloc(scpfw_resource_counter.regu_count + 1,
+                                    sizeof(*optee_regu_elt));
+
+    voltd_data = fwk_mm_calloc(scpfw_resource_counter.regu_count,
+                               sizeof(*voltd_data));
+    voltd_elt = fwk_mm_calloc(scpfw_resource_counter.regu_count + 1,
+                              sizeof(*voltd_elt));
 #endif
 }
 
@@ -538,6 +616,57 @@ static void set_resources(struct scpfw_config *cfg)
                 }
 
                 scpfw_resource_counter.reset_index = reset_index;
+            }
+#endif
+
+#ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
+            if (channel_cfg->voltd_count) {
+                size_t regu_index = scpfw_resource_counter.regu_index;
+                struct mod_scmi_voltd_device *dev = NULL;
+
+                /* Set SCMI voltage domains array for the SCMI agent */
+                dev = fwk_mm_calloc(channel_cfg->voltd_count,
+                                    sizeof(struct mod_scmi_voltd_device));
+
+                fwk_assert(!scmi_voltd_agent_tbl[agent_index].device_table);
+                scmi_voltd_agent_tbl[agent_index].domain_count = channel_cfg->voltd_count;
+                scmi_voltd_agent_tbl[agent_index].device_table = dev;
+
+                /* Set voltage_domain and optee/regu elements and config data */
+                for (size_t k = 0; k < channel_cfg->voltd_count; k++) {
+                    struct scmi_voltd *voltd_cfg = channel_cfg->voltd + k;
+                    static const char reserved[] = "reserved";
+                    const char *name = NULL;
+                    struct mod_voltd_dev_config vdata = {
+                        .driver_id =
+                            (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_OPTEE_VOLTD_REGULATOR,
+                                                          regu_index),
+                        .api_id = (fwk_id_t)FWK_ID_API_INIT(FWK_MODULE_IDX_OPTEE_VOLTD_REGULATOR,
+                                                            0)
+                    };
+
+                    if (voltd_cfg->regulator) {
+                        name = regulator_name(voltd_cfg->regulator);
+                    } else {
+                        name = reserved;
+                    }
+
+                    dev[k].element_id =
+                       (fwk_id_t)FWK_ID_ELEMENT_INIT(FWK_MODULE_IDX_VOLTAGE_DOMAIN, regu_index);
+
+                    optee_regu_elt[regu_index].name = name;
+                    optee_regu_elt[regu_index].data = (void *)(optee_regu_data + regu_index);
+                    optee_regu_data[regu_index].regulator = (struct optee_regulator *)voltd_cfg->regulator;
+                    optee_regu_data[regu_index].default_enabled = voltd_cfg->enabled;
+
+                    memcpy(voltd_data + regu_index, &vdata, sizeof(vdata));
+
+                    voltd_elt[regu_index].name = name;
+                    voltd_elt[regu_index].data = (void *)(voltd_data + regu_index);
+                    regu_index++;
+                }
+
+                scpfw_resource_counter.regu_index = regu_index;
             }
 #endif
         }
