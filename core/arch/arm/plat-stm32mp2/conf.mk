@@ -93,6 +93,9 @@ endif
 CFG_TZDRAM_START ?= 0x82000000
 CFG_TZDRAM_SIZE  ?= 0x02000000
 
+# Force this mode to keep performance on RSA key operations
+CFG_CORE_UNSAFE_MODEXP ?= y
+
 # Support DDR ranges up to 8GBytes (address range: 0x80000000 + DDR size)
 CFG_CORE_LARGE_PHYS_ADDR ?= y
 CFG_CORE_ARM64_PA_BITS ?= 34

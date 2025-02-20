@@ -135,6 +135,9 @@ ifeq ($(call cfg-all-enabled,CFG_STM32MP15 CFG_STM32MP13),y)
 $(error Only one of CFG_STM32MP15 CFG_STM32MP13 must be enabled)
 endif
 
+# Force this mode to keep performance on RSA key operations
+CFG_CORE_UNSAFE_MODEXP ?= y
+
 include core/arch/arm/cpu/cortex-a7.mk
 
 $(call force,CFG_DRIVERS_CLK,y)
