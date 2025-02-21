@@ -14,7 +14,6 @@
 #include <io.h>
 #include <keep.h>
 #include <kernel/boot.h>
-#include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/notif.h>
