@@ -159,7 +159,8 @@ static int get_device(fwk_id_t service_id, unsigned int elt_idx,
         return FWK_E_RANGE;
 
     device = &agent->device_table[elt_idx];
-    fwk_module_is_valid_element_id(device->element_id);
+
+    fwk_assert(fwk_module_is_valid_element_id(device->element_id));
 
     if (out_device)
         *out_device = device;
