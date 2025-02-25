@@ -64,6 +64,15 @@
 
 #if defined(CFG_STM32MP13)
 #define MCE_KEY_SIZE_IN_BYTES		16
+
+/* IP configuration */
+#define MCE_IP_MAX_REGION_NB		1
+
+struct stm32_mce_region_s {
+	uint32_t encrypt_mode;	/* Specifies the region encryption mode */
+	uint32_t start_address;	/* Specifies the region start address */
+	uint32_t end_address;	/* Specifies the region end address */
+};
 #endif
 
 /*
@@ -117,6 +126,7 @@ struct pm_mailbox {
 	uint32_t bl2_end;
 #ifdef CFG_STM32MP13
 	uint8_t mce_mkey[MCE_KEY_SIZE_IN_BYTES];
+	struct stm32_mce_region_s mce_regions[MCE_IP_MAX_REGION_NB];
 #endif
 /* VERSION 4 */
 	uint32_t size;
