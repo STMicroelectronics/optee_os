@@ -27,7 +27,6 @@
 #include <platform_config.h>
 #include <stdlib.h>
 #include <stm32_util.h>
-#include <stm32mp_pm.h>
 #include <string.h>
 #include <zlib.h>
 
