@@ -15,8 +15,6 @@ enum stm32mp1_pm_domain {
 	STM32MP1_PD_MAX_PM_DOMAIN
 };
 
-void __noreturn stm32_cores_reset(void);
-
 /* Convert low power mode carried by pm_hint into pm mode name */
 const char *stm32mp_pm_hint2mode_name(uint32_t pm_hint);
 
