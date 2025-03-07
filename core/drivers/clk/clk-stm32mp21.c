@@ -16,6 +16,7 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
+#include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stm32_sysconf.h>
@@ -1810,16 +1811,73 @@ static int stm32_clk_configure_div(struct clk_stm32_priv *priv __unused,
 	return stm32_div_set_value(div_id, div_n);
 }
 
+struct mux_rifsc_cfg {
+	bool	is_rifsc;
+	int	rifsc_id;
+};
+
+/* Muxes which RIF config is inherited from the RIFSC */
+#define MUX_RIFSC_CFG(_mux_id, _rifsc_id)\
+	[(_mux_id)] = {\
+		.rifsc_id = (_rifsc_id),\
+		.is_rifsc = true,\
+	}
+
+#define _RIFSC_RISC_PER0_CIDCFGR	U(0x100)
+#define _RIFSC_RISC_PER0_SEMCR		U(0x104)
+
+#define _OFST_PERX_CIDCFGR		U(0x8)
+
+static const struct mux_rifsc_cfg tab_mux_rifsc[MUX_NB] = {
+	MUX_RIFSC_CFG(MUX_ADC1, STM32MP21_RIFSC_ADC1_ID),
+	MUX_RIFSC_CFG(MUX_ADC2, STM32MP21_RIFSC_ADC2_ID),
+	MUX_RIFSC_CFG(MUX_USB2PHY1, STM32MP21_RIFSC_USBH_ID),
+	MUX_RIFSC_CFG(MUX_USB2PHY2, STM32MP21_RIFSC_USBH_ID),
+	MUX_RIFSC_CFG(MUX_DTS, STM32MP21_RIFSC_DTS_ID),
+};
+
 static int stm32_clk_configure_mux(struct clk_stm32_priv *priv __unused,
 				   uint32_t data)
 {
 	int mux = (data & MUX_ID_MASK) >> MUX_ID_SHIFT;
 	int sel = (data & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
+	unsigned int rifsc_id = tab_mux_rifsc[mux].rifsc_id;
+	uintptr_t per_offset = _OFST_PERX_CIDCFGR * rifsc_id;
+	struct io_pa_va rifsc_addr = { .pa = RIFSC_BASE };
+	vaddr_t rifsc_base = io_pa_or_va(&rifsc_addr, 1);
+	uint32_t cidcfgr = io_read32(rifsc_base + _RIFSC_RISC_PER0_CIDCFGR +
+				     per_offset);
+	bool sem_taken = false;
+	int ret = 0;
+
+	if (tab_mux_rifsc[mux].is_rifsc) {
+		if ((cidcfgr & _CIDCFGR_CFEN) &&
+		    !stm32_rif_scid_ok(cidcfgr, _CIDCRGR_SCID_MASK, RIF_CID1))
+			return 0;
+
+		if (stm32_rif_semaphore_enabled_and_ok(cidcfgr, RIF_CID1)) {
+			if (stm32_rif_acquire_semaphore(rifsc_base +
+							_RIFSC_RISC_PER0_SEMCR +
+							per_offset,
+							MAX_CID_SUPPORTED))
+				return -1;
+
+			sem_taken = true;
+		}
+	}
 
 	if (stm32_mux_set_parent(mux, sel))
-		return -1;
-	else
-		return 0;
+		ret = -1;
+
+	if (sem_taken) {
+		if (stm32_rif_release_semaphore(rifsc_base +
+						_RIFSC_RISC_PER0_SEMCR +
+						per_offset,
+						MAX_CID_SUPPORTED))
+			return -1;
+	}
+
+	return ret;
 }
 
 static int stm32_clk_configure_by_addr_val(struct clk_stm32_priv *priv,
