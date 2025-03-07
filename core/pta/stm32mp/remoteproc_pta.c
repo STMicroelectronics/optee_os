@@ -31,6 +31,10 @@
 	{ 0x80a4c275, 0x0a47, 0x4905, \
 		{ 0x82, 0x85, 0x14, 0x86, 0xa9, 0x77, 0x1a, 0x08} }
 
+#define PTA_ECC_DER_SIZE 91
+#define PTA_ECC_X_SIZE   32
+#define PTA_ECC_Y_SIZE   32
+
 #define PTA_RSA_DER_SIZE 294
 #define PTA_RSA_MOD_SIZE 256
 #define PTA_RSA_E_SIZE   3
@@ -43,6 +47,13 @@ static uint8_t aes_test_key[TEE_AES_MAX_KEY_SIZE] = {
 	0x6D, 0x9E, 0x8D, 0x31, 0xC5, 0x7E, 0x93, 0xB5,
 	0x1F, 0xE0, 0x55, 0x93, 0x49, 0xA6, 0x9A, 0x4C,
 	0x4F, 0xF6, 0x36, 0x23, 0x33, 0x3E, 0xFB, 0x3D
+};
+
+static const uint8_t der_ecc_pkey_header[] = {
+	0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
+	0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
+	0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+	0x42, 0x00, 0x04
 };
 
 static const uint8_t der_rsa256_pkey_header[] = {
@@ -406,6 +417,110 @@ out:
 	return res;
 }
 
+static TEE_Result parse_der_ecc_public_key(uint8_t *der, size_t der_len,
+					   struct ecc_public_key *key,
+					   uint8_t *key_hash)
+{
+	size_t h_len = sizeof(der_ecc_pkey_header);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	/*
+	 * We does not use the mbedtls lib that contains helper to parse the DER
+	 * key and extract the ECC key. A static approach is used supporting
+	 * only DER format for the ECC public key with the ECDSA P256 algorithm.
+	 * The expected DER format is starting with following header:
+	 * { 0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
+	 *   0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
+	 *   0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
+	 *   0x42, 0x00, 0x04 }
+	 *
+	 * 30 59 # Sequence length 0x59 - 91 bytes long
+	 *    30 13 # Sequence length 0x13 - 21 bytes long
+	 *       06 07 2a8648ce3d0201  # OID - 7 bytes long - ECC
+	 *       06 08 2a8648ce3d030107 # OID - 8 bytes long -
+	 *				ECDSA P256 curve
+	 *    03 42 # Bit stream - 0x42 (66 bytes long)
+	 *       0004 # Identifies public key
+	 * The last 64 bytes contain the X (32 bytes) and Y (32 bytes) key
+	 * coordinates.
+	 */
+	if (der_len != PTA_ECC_DER_SIZE) {
+		EMSG("Invalid public key size");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	if (consttime_memcmp(der, der_ecc_pkey_header, h_len != 0)) {
+		EMSG("Invalid public key format");
+		return TEE_ERROR_BAD_FORMAT;
+	}
+
+	key->curve = TEE_ECC_CURVE_NIST_P256;
+
+	/* Extract x and y coordinates */
+	res = crypto_bignum_bin2bn(der + h_len, PTA_ECC_X_SIZE, key->x);
+	if (res)
+		return res;
+
+	res = crypto_bignum_bin2bn(der + h_len + PTA_ECC_X_SIZE, PTA_ECC_Y_SIZE,
+				   key->y);
+	if (res)
+		return res;
+
+	return rproc_compute_hash(key_hash, der + h_len, PTA_ECC_X_SIZE,
+				  der + h_len + PTA_ECC_X_SIZE, PTA_ECC_Y_SIZE);
+}
+
+static TEE_Result
+rproc_pta_verify_ecc_signature(TEE_Param *hash, TEE_Param *sig,
+			       struct rproc_pta_key_info *keyinfo)
+{
+	uint8_t publickey_hash[TEE_SHA256_HASH_SIZE] = { };
+	size_t hash_size = hash->memref.size;
+	size_t sig_size = sig->memref.size;
+	size_t hash_len = TEE_SHA256_HASH_SIZE;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	struct ecc_public_key key = { };
+	uint8_t *key_hash = NULL;
+
+	if (!IS_ENABLED(CFG_REMOTEPROC_PUB_KEY_VERIFY))
+		return TEE_ERROR_NOT_SUPPORTED;
+
+	/* Only support public key provided with the image in keyinfo */
+	res = crypto_acipher_alloc_ecc_public_key(&key,
+						  TEE_TYPE_ECDSA_PUBLIC_KEY,
+						  sig_size);
+	if (res)
+		return res;
+
+	res = parse_der_ecc_public_key(keyinfo->info, keyinfo->info_size, &key,
+				       publickey_hash);
+	if (res) {
+		EMSG("Invalid public key");
+		goto out;
+	}
+
+	res = rproc_alloc_and_get_otp("oem_rproc_pkh", &key_hash, hash_len);
+	if (res)
+		goto out;
+
+	if (consttime_memcmp(key_hash, publickey_hash,
+			     TEE_SHA256_HASH_SIZE) != 0) {
+		EMSG("Invalid public key hash");
+		res = TEE_ERROR_SECURITY;
+		goto out;
+	}
+
+	res = crypto_acipher_ecc_verify(keyinfo->algo, &key,
+					hash->memref.buffer, hash_size,
+					sig->memref.buffer, sig_size);
+
+out:
+	free(key_hash);
+	crypto_acipher_free_ecc_public_key(&key);
+
+	return res;
+}
+
 static TEE_Result parse_der_rsa_public_key(uint8_t *der, size_t der_len,
 					   struct rsa_public_key *key,
 					   uint8_t *key_hash)
@@ -549,10 +664,17 @@ static TEE_Result rproc_pta_verify_digest(uint32_t pt,
 	    rproc_pta_keyinfo_size(keyinfo) != params[1].memref.size)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	if (keyinfo->algo != TEE_ALG_RSASSA_PKCS1_V1_5_SHA256)
+	switch (keyinfo->algo) {
+	case TEE_ALG_RSASSA_PKCS1_V1_5_SHA256:
+		return rproc_pta_verify_rsa_signature(&params[2], &params[3],
+						      keyinfo);
+	case TEE_ALG_ECDSA_SHA256:
+		return rproc_pta_verify_ecc_signature(&params[2], &params[3],
+						      keyinfo);
+	default:
+		EMSG("Unsupported algo %#x",  keyinfo->algo);
 		return TEE_ERROR_NOT_SUPPORTED;
-
-	return rproc_pta_verify_rsa_signature(&params[2], &params[3], keyinfo);
+	}
 }
 
 static TEE_Result rproc_pta_tlv_param(uint32_t pt,
