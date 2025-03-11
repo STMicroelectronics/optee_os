@@ -69,6 +69,9 @@ static bool __maybe_unused clk_check(struct clk *clk)
 	if (clk->num_parents > 1 && !clk->ops->get_parent)
 		return false;
 
+	if (clk->ops->determine_rate && !clk->ops->set_rate)
+		return false;
+
 	return true;
 }
 
@@ -246,6 +249,7 @@ static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
 	unsigned long parent_rate = 0;
 	unsigned long new_rate = rate;
 	struct clk *parent = clk->parent;
+	bool skip_set_rate = false;
 
 	if (parent)
 		parent_rate = clk_get_rate(clk->parent);
@@ -293,6 +297,7 @@ static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
 		if (res)
 			return res;
 		new_rate = parent->rate;
+		skip_set_rate = true;
 	}
 	if (clk->ops->set_rate) {
 		if (clk->flags & CLK_SET_RATE_UNGATE) {
@@ -308,6 +313,8 @@ static TEE_Result clk_set_rate_no_lock(struct clk *clk, unsigned long rate)
 
 		if (res)
 			return res;
+	} else if (!skip_set_rate) {
+		res = TEE_ERROR_NOT_SUPPORTED;
 	}
 
 	clk_compute_rate_no_lock(clk);
