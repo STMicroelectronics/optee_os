@@ -495,7 +495,7 @@ TEE_Result stm32_rproc_set_boot_address(uint32_t rproc_id, paddr_t address)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (rproc->boot_addr) {
-		DMSG("Firmware boot address already set");
+		EMSG("Firmware boot address already set");
 		return TEE_ERROR_GENERIC;
 	}
 
@@ -512,7 +512,7 @@ TEE_Result stm32_rproc_enable_sec_boot(uint32_t rproc_id)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	if (rproc->tzen) {
-		DMSG("Firmware TrustZone already enabled");
+		EMSG("Firmware TrustZone already enabled");
 		return TEE_ERROR_GENERIC;
 	}
 
