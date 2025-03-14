@@ -326,9 +326,6 @@ additionalProperties: false
 required:
   - compatible
   - reg
-  - interrupts
-  - "#interrupt-cells"
-  - interrupt-controller
 
 dependencies:
   st,notif-it-id: [ 'st,pmic-it-id' ]
