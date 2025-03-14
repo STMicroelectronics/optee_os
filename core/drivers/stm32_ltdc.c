@@ -199,7 +199,7 @@ static TEE_Result stm32_ltdc_final(void *device)
 	/* Disable secure layer */
 	io_clrbits32(ldev->regs + LTDC_LXCR, LXCR_LEN);
 
-	/* Reload configuration immediately. */
+	/* Reload configuration at next vertical blanking. */
 	io_write32(ldev->regs + LTDC_LXRCR, LXCR_RCR_VBR);
 
 	ldev->end_of_frame = false;
