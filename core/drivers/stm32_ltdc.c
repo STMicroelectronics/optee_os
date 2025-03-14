@@ -97,7 +97,6 @@ struct ltdc_device {
 #define LTDC_LXDCCR_DCGREEN	GENMASK_32(15, 8)
 #define LTDC_LXDCCR_DCRED	GENMASK_32(23, 16)
 #define LTDC_LXDCCR_DCALPHA	GENMASK_32(31, 24)
-#define LTDC_LXCFBAR_CFBADD	GENMASK_32(31, 0)
 
 enum ltdc_pix_fmt {
 	LXPFCR_PF_ARGB8888,
@@ -291,27 +290,24 @@ static TEE_Result stm32_ltdc_activate(void *device,
 			LTDC_LXWVPCR_WVSTPOS | LTDC_LXWVPCR_WVSPPOS, value);
 
 	/* Specifies the pixel format, hard coded */
-	io_clrbits32(ldev->regs + LTDC_LXPFCR, LTDC_LXPFCR_PF);
-	io_setbits32(ldev->regs + LTDC_LXPFCR, LXPFCR_PF_ARGB8888);
+	io_clrsetbits32(ldev->regs + LTDC_LXPFCR, LTDC_LXPFCR_PF,
+			LXPFCR_PF_ARGB8888);
 
 	/* Configure the default color values, hard coded */
-	io_clrbits32(ldev->regs + LTDC_LXDCCR,
-		     LTDC_LXDCCR_DCBLUE | LTDC_LXDCCR_DCGREEN |
-		     LTDC_LXDCCR_DCRED | LTDC_LXDCCR_DCALPHA);
-	io_setbits32(ldev->regs + LTDC_LXDCCR, 0x00FFFFFF);
+	io_clrsetbits32(ldev->regs + LTDC_LXDCCR,
+			LTDC_LXDCCR_DCBLUE | LTDC_LXDCCR_DCGREEN |
+			LTDC_LXDCCR_DCRED | LTDC_LXDCCR_DCALPHA,
+			0x00FFFFFF);
 
 	/* Specifies the constant alpha value, hard coded. */
-	io_clrbits32(ldev->regs + LTDC_LXCACR, LTDC_LXCACR_CONSTA);
-	io_setbits32(ldev->regs + LTDC_LXCACR, 0xFF);
+	io_clrsetbits32(ldev->regs + LTDC_LXCACR, LTDC_LXCACR_CONSTA, 0xFF);
 
 	/* Specifies the blending factors, hard coded. */
-	io_clrbits32(ldev->regs + LTDC_LXBFCR, LXBFCR_BF2 | LXBFCR_BF1);
-	io_setbits32(ldev->regs + LTDC_LXBFCR,
-		     LXBFCR_BF1_PAXCA | LXBFCR_BF2_PAXCA);
+	io_clrsetbits32(ldev->regs + LTDC_LXBFCR, LXBFCR_BF2 | LXBFCR_BF1,
+			LXBFCR_BF1_PAXCA | LXBFCR_BF2_PAXCA);
 
 	/* Configure the color frame buffer start address. */
-	io_clrbits32(ldev->regs + LTDC_LXCFBAR, LTDC_LXCFBAR_CFBADD);
-	io_setbits32(ldev->regs + LTDC_LXCFBAR, fb_pbase);
+	io_write32(ldev->regs + LTDC_LXCFBAR, fb_pbase);
 
 	/* Configure the color frame buffer pitch in byte, assuming ARGB32. */
 	value =	((fb->width * 4) << 16) | (((x1 - x0) * 4)  + 3);
