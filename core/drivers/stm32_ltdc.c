@@ -80,7 +80,11 @@ struct ltdc_device {
 #define ID_HWVER_40101		0x040101
 #define GCR_LTDCEN		BIT(0)
 #define LTDC_BPCR_AHBP		GENMASK_32(27, 16)
-#define LTDC_BPCR_AVBP		GENMASK_32(10, 0)
+#define LTDC_BPCR_AVBP		GENMASK_32(11, 0)
+#define LTDC_AWCR_AAW		GENMASK_32(27, 16)
+#define LTDC_AWCR_AAH		GENMASK_32(11, 0)
+#define LTDC_TWCR_TOTALW	GENMASK_32(27, 16)
+#define LTDC_TWCR_TOTALH	GENMASK_32(11, 0)
 #define LTDC_LCR_LNBR		GENMASK_32(7, 0)
 #define LTDC_LXWHPCR_WHSTPOS	GENMASK_32(11, 0)
 #define LTDC_LXWHPCR_WHSPPOS	GENMASK_32(31, 16)
@@ -264,8 +268,9 @@ static TEE_Result stm32_ltdc_activate(void *device,
 	awcr = io_read32(ldev->regs + LTDC_AWCR);
 	bpcr = io_read32(ldev->regs + LTDC_BPCR);
 
-	height_crtc = (awcr & 0xffff) - (bpcr & 0xffff);
-	width_crtc = (awcr >> 16) - (bpcr >> 16);
+	height_crtc = (awcr & LTDC_AWCR_AAH) - (bpcr & LTDC_BPCR_AVBP);
+	width_crtc = ((awcr & LTDC_AWCR_AAW) >> 16) -
+		     ((bpcr & LTDC_BPCR_AHBP) >> 16);
 
 	if (fb->height > height_crtc || fb->width > width_crtc || !fb->base) {
 		ret = TEE_ERROR_GENERIC;
@@ -367,8 +372,9 @@ static TEE_Result stm32_ltdc_get_display_size(void *device,
 	awcr = io_read32(ldev->regs + LTDC_AWCR);
 	bpcr = io_read32(ldev->regs + LTDC_BPCR);
 
-	*height = (awcr & 0xffff) - (bpcr & 0xffff);
-	*width = (awcr >> 16) - (bpcr >> 16);
+	*height = (awcr & LTDC_AWCR_AAH) - (bpcr & LTDC_BPCR_AVBP);
+	*width = ((awcr & LTDC_AWCR_AAW) >> 16) -
+		 ((bpcr & LTDC_BPCR_AHBP) >> 16);
 out:
 	clk_disable(ldev->clock);
 
