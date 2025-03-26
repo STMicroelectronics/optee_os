@@ -211,6 +211,10 @@
 #define _TAMP_OR_STM32MP25_IN5RMP_PF6	0U
 #define _TAMP_OR_STM32MP25_IN5RMP_PZ4	BIT(2)
 
+/* _TAMP_ERCFGR bit fields */
+#define _TAMP_ERCFGR_ERCFG0		BIT(0)
+#define _TAMP_ERCFGR_ERCFG_MASK		BIT(0)
+
 /* _TAMP_HWCFGR2 bit fields */
 #define _TAMP_HWCFGR2_TZ		GENMASK_32(11, 8)
 #define _TAMP_HWCFGR2_OR		GENMASK_32(7, 0)
@@ -849,6 +853,18 @@ static TEE_Result stm32_tamp_set_secure_bkpregs(void)
 	}
 
 	return TEE_SUCCESS;
+}
+
+static void stm32_tamp_set_secret_list(uint32_t secret_list_conf)
+{
+	vaddr_t base = get_base();
+
+	if (stm32_tamp_dev->pdata.compat &&
+	    (stm32_tamp_dev->pdata.compat->tags & TAMP_HAS_REGISTER_ERCFGR)) {
+		io_clrsetbits32(base + _TAMP_ERCFGR,
+				_TAMP_ERCFGR_ERCFG_MASK,
+				secret_list_conf & _TAMP_ERCFGR_ERCFG_MASK);
+	}
 }
 
 static void stm32_tamp_set_secure(uint32_t mode)
@@ -2200,6 +2216,14 @@ static TEE_Result stm32_tamp_probe(const void *fdt, int node,
 					 _TAMP_PRIVCFG_BKPRWPRIV |
 					 _TAMP_PRIVCFG_BKPWPRIV);
 	}
+
+	/*
+	 * Select extra IP to add in the deleted/blocked IP in case of
+	 * tamper event
+	 *
+	 * No IP added.
+	 */
+	stm32_tamp_set_secret_list(0);
 
 	if (!(stm32_tamp_dev->pdata.compat->tags & TAMP_HAS_RIF_SUPPORT) ||
 	    stm32_tamp_dev->pdata.is_tdcid) {
