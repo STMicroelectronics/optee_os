@@ -65,6 +65,7 @@
 #define ETH1_BASE			0x5800A000
 #define ETH2_BASE			0x5800E000
 #define ETZPC_BASE			0x5c007000
+#define EXTI_BASE			0x5000d000
 #define FMC_BASE			0x58002000
 #define GIC_BASE			0xa0021000ul
 #define GPIOA_BASE			0x50002000

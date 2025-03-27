@@ -10,6 +10,8 @@
 vaddr_t stm32_rcc_base(void);
 void stm32_reset_system(void);
 
+vaddr_t stm32_exti_base(void);
+
 /* Helper from platform RCC clock driver */
 struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
 unsigned int stm32mp_rcc_clk_to_clock_id(struct clk *clk);
