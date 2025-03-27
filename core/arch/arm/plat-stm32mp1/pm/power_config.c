@@ -5,11 +5,11 @@
 
 #include <assert.h>
 #include <config.h>
-#include <drivers/stm32_exti.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <kernel/dt.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
+#include <io.h>
 #include <libfdt.h>
 #include <stm32_util.h>
 #include <stm32mp_pm.h>
@@ -105,8 +105,8 @@ static void dump_pm_domain_state(uint8_t domain __unused)
 }
 #else /* CFG_STM32_LOWPOWER_SIP */
 
-static struct stm32_exti_pdata *exti;
 #define EXTI_BANK_NR		3U
+#define EXTI_C1IMR(n)		(0x080U + (n) * 0x10U)
 
 #ifdef CFG_STM32MP13
 /*
@@ -195,13 +195,18 @@ static const uint32_t imr_pd_core_ret_mask[EXTI_BANK_NR] = {
 	IMR3_PD_CORE_RET_MASK,
 };
 
+static uint32_t exti_read_imr(unsigned int bank)
+{
+	return io_read32(stm32_exti_base() + EXTI_C1IMR(bank));
+}
+
 static bool get_domain_state_from_exti(uint8_t domain)
 {
 	unsigned int i = 0;
 
 	for (i = 0; i < EXTI_BANK_NR; i++) {
 		uint32_t imr_mask = imr_pd_core_mask[i];
-		uint32_t imr = stm32_exti_read_imr(exti, i);
+		uint32_t imr = exti_read_imr(i);
 
 		if (domain == STM32MP1_PD_CORE_RET)
 			imr_mask |= imr_pd_core_ret_mask[i];
@@ -216,9 +221,6 @@ static bool get_domain_state_from_exti(uint8_t domain)
 /* The function returns FALSE if the domain is in use. */
 static bool get_pm_domain_state(uint8_t domain)
 {
-	if (!exti)
-		return true;
-
 	return get_domain_state_from_exti(domain) == false;
 }
 
@@ -228,7 +230,7 @@ static void dump_pm_domain_state(uint8_t __maybe_unused domain)
 	unsigned int i = 0;
 
 	for (i = 0; i < EXTI_BANK_NR; i++) {
-		uint32_t imr = stm32_exti_read_imr(exti, i);
+		uint32_t imr = exti_read_imr(i);
 		uint32_t imr_mask = imr_pd_core_mask[i];
 		const char *name = "PD_CORE";
 
@@ -384,15 +386,6 @@ static TEE_Result stm32mp1_init_lp_states(void)
 
 	/* Initialize suspend support to the deepest possible mode */
 	deepest_suspend_mode = STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR;
-
-#ifndef CFG_STM32_LOWPOWER_SIP
-	res = dt_driver_device_from_node_idx_prop("wakeup-parent",
-						  fdt, pwr_node, 0,
-						  DT_DRIVER_INTERRUPT,
-						  &exti);
-	if (res)
-		return res;
-#endif
 
 #ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
 	if (!stm32mp_supports_hw_cryp())
