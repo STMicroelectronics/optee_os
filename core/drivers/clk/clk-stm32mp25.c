@@ -2579,7 +2579,7 @@ static TEE_Result clk_stm32_pll1_set_rate(struct clk *clk __unused,
 
 	opp = clk_stm32_get_opp_config(pdata->opp->cpu1_opp, rate);
 	if (!opp)
-		return TEE_ERROR_GENERIC;
+		return TEE_ERROR_ITEM_NOT_FOUND;
 
 	pll_conf = &opp->pll_cfg;
 
@@ -3069,7 +3069,45 @@ static size_t clk_cpu1_get_parent(struct clk *clk __unused)
 		CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_SHIFT;
 }
 
+static TEE_Result clk_cpu1_determine_rate(struct clk *clk,
+					  struct clk_rate_request *req)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	struct stm32_clk_opp_cfg *opp = NULL;
+	unsigned long rate = req->rate;
+	struct clk *parent = NULL;
+
+	opp = clk_stm32_get_opp_config(pdata->opp->cpu1_opp, rate);
+	if (!opp)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	/*
+	 * PLL1 is always the source of the ck_cpu1 for OPP description.
+	 * ck_flexgen_63 is used for OPP switch.
+         * Therefore compute the rate based on parent 0 that is always PLL1.
+	 */
+	parent = clk_get_parent_by_index(clk, 0);
+
+	req->best_parent = parent;
+	req->best_parent_rate = req->rate;
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result clk_cpu1_set_rate(struct clk *clk __unused,
+				    unsigned long rate,
+				    unsigned long parent_rate)
+{
+	if (rate == parent_rate)
+		return TEE_SUCCESS;
+
+	return TEE_ERROR_GENERIC;
+}
+
 static const struct clk_ops clk_stm32_cpu1_ops = {
+	.determine_rate = clk_cpu1_determine_rate,
+	.set_rate = clk_cpu1_set_rate,
 	.get_parent = clk_cpu1_get_parent,
 };
 
@@ -3489,7 +3527,6 @@ static STM32_FLEXGEN(ck_flexgen_63, 0, 63);
 static struct clk ck_cpu1 = {
 	.ops		= &clk_stm32_cpu1_ops,
 	.name		= "ck_cpu1",
-	.flags		= CLK_SET_RATE_PARENT,
 	.num_parents	= 2,
 	.parents	= { &ck_pll1, &ck_flexgen_63 },
 };
