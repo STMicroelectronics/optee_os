@@ -43,11 +43,8 @@
 #define RNG_CR_CONFIG2_SHIFT	U(13)
 #define RNG_CR_CLKDIV		GENMASK_32(19, 16)
 #define RNG_CR_CLKDIV_SHIFT	U(16)
-#define RNG_CR_CONFIG1		GENMASK_32(25, 20)
 #define RNG_CR_CONFIG1_SHIFT	U(20)
 #define RNG_CR_CONDRST		BIT(30)
-#define RNG_CR_ENTROPY_SRC_MASK	(RNG_CR_CONFIG3 | RNG_CR_NISTC | \
-				 RNG_CR_CONFIG2 | RNG_CR_CONFIG1)
 
 #define RNG_SR_DRDY		BIT(0)
 #define RNG_SR_CECS		BIT(1)
@@ -70,8 +67,7 @@
 
 #define RNG_FIFO_BYTE_DEPTH	U(16)
 
-#define RNG_CONFIG_MASK		(RNG_CR_ENTROPY_SRC_MASK | RNG_CR_CED | \
-				 RNG_CR_CLKDIV)
+#define RNG_CONFIG_MASK		(RNG_CR_CED | RNG_CR_CLKDIV)
 
 #define DT_RNG_MAX_NIST_CONFIG	U(3)
 
@@ -81,6 +77,7 @@ struct stm32_rng_driver_data {
 	uint32_t cr;
 	uint32_t nscr;
 	uint32_t htcr;
+	uint32_t cr_config1_mask;
 	bool has_power_optim;
 	bool has_cond_reset;
 };
@@ -105,6 +102,12 @@ struct stm32_rng_instance {
 
 /* Expect at most a single RNG instance */
 static struct stm32_rng_instance *stm32_rng;
+
+static uint32_t stm32_rng_get_entropy_mask(void)
+{
+	return (RNG_CR_CONFIG3 | RNG_CR_NISTC |
+		RNG_CR_CONFIG2 | stm32_rng->ddata->cr_config1_mask);
+}
 
 static vaddr_t get_base(void)
 {
@@ -306,6 +309,7 @@ static void disable_rng_clock(void)
 
 static TEE_Result stm32_rng_init(void)
 {
+	uint32_t entropy_mask = stm32_rng_get_entropy_mask();
 	TEE_Result res = TEE_ERROR_GENERIC;
 	vaddr_t rng_base = get_base();
 	uint32_t cr_ced_mask = 0;
@@ -342,7 +346,7 @@ static TEE_Result stm32_rng_init(void)
 		 */
 		if (!stm32_rng->rng_config)
 			stm32_rng->rng_config = io_read32(rng_base + RNG_CR) &
-						RNG_CR_ENTROPY_SRC_MASK;
+						entropy_mask;
 
 		/*
 		 * Configuration must be set in the same access that sets
@@ -350,7 +354,8 @@ static TEE_Result stm32_rng_init(void)
 		 * not taken into account. CONFIGLOCK bit is always cleared at
 		 * this stage.
 		 */
-		io_clrsetbits32(rng_base + RNG_CR, RNG_CONFIG_MASK,
+		io_clrsetbits32(rng_base + RNG_CR,
+				RNG_CONFIG_MASK | entropy_mask,
 				stm32_rng->rng_config | RNG_CR_CONDRST |
 				cr_ced_mask |
 				SHIFT_U32(clock_div, RNG_CR_CLKDIV_SHIFT));
@@ -599,6 +604,7 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	struct dt_node_info dt_rng = { };
 	const fdt32_t *cuint = NULL;
 	int len = 0;
+	uint32_t entropy_mask = stm32_rng_get_entropy_mask();
 
 	fdt_fill_device_info(fdt, &dt_rng, node);
 	if (dt_rng.reg == DT_INFO_INVALID_REG)
@@ -636,8 +642,9 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 	if (cuint && len > 0 &&
 	    (uint32_t)len <= DT_RNG_MAX_NIST_CONFIG * sizeof(uint32_t)) {
 		uint32_t i = 0;
+		uint32_t rng_cr_config1 = stm32_rng->ddata->cr_config1_mask;
 		uint32_t cr_shift_mask[DT_RNG_MAX_NIST_CONFIG][2] = {
-			{RNG_CR_CONFIG1_SHIFT, RNG_CR_CONFIG1},
+			{RNG_CR_CONFIG1_SHIFT, rng_cr_config1},
 			{RNG_CR_CONFIG2_SHIFT, RNG_CR_CONFIG2},
 			{RNG_CR_CONFIG3_SHIFT, RNG_CR_CONFIG3},
 		};
@@ -656,7 +663,8 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 
 	if (fdt_getprop(fdt, node, "st,rng-cfg-nist-custom", NULL))
 		stm32_rng->rng_config |= RNG_CR_NISTC;
-	if (stm32_rng->rng_config & ~RNG_CR_ENTROPY_SRC_MASK)
+
+	if (stm32_rng->rng_config & ~entropy_mask)
 		panic("Incorrect entropy source configuration");
 
 	cuint = fdt_getprop(fdt, node, "st,rng-htcfg", NULL);
@@ -730,6 +738,7 @@ static const struct stm32_rng_driver_data mp13_data[] = {
 		.nb_clock = 1,
 		.has_cond_reset = true,
 		.has_power_optim = true,
+		.cr_config1_mask = GENMASK_32(25, 20),
 		.cr = 0x00F00D00,
 		.nscr = 0x2B5BB,
 		.htcr = 0x969D,
@@ -752,6 +761,7 @@ static const struct stm32_rng_driver_data mp21_data[] = {
 		.nb_clock = 2,
 		.has_cond_reset = true,
 		.has_power_optim = true,
+		.cr_config1_mask = GENMASK_32(27, 20),
 		.cr = 0x00800D00,
 		.nscr = 0x01FF,
 		.htcr = 0xAAC7,
@@ -764,9 +774,10 @@ static const struct stm32_rng_driver_data mp25_data[] = {
 		.nb_clock = 2,
 		.has_cond_reset = true,
 		.has_power_optim = true,
-		.cr = 0x00F00D00,
-		.nscr = 0x2B5BB,
-		.htcr = 0x969D,
+		.cr_config1_mask = GENMASK_32(27, 20),
+		.cr = 0x08F01E00,
+		.nscr = 0x2E649,
+		.htcr = 0x6688,
 	},
 };
 
