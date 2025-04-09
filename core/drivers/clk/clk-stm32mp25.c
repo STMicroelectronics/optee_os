@@ -3069,6 +3069,15 @@ static size_t clk_cpu1_get_parent(struct clk *clk __unused)
 		CA35SS_SSC_CHGCLKREQ_ARM_CHGCLKACK_SHIFT;
 }
 
+static TEE_Result clk_cpu1_set_parent(struct clk *clk __unused, size_t pidx)
+{
+	if (pidx == 1)
+		stm32mp2_a35_ss_on_bypass();
+	/* For other pidx switch to parent is managed in PLL1 set rate */
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result clk_cpu1_determine_rate(struct clk *clk,
 					  struct clk_rate_request *req)
 {
@@ -3108,6 +3117,7 @@ static TEE_Result clk_cpu1_set_rate(struct clk *clk __unused,
 static const struct clk_ops clk_stm32_cpu1_ops = {
 	.determine_rate = clk_cpu1_determine_rate,
 	.set_rate = clk_cpu1_set_rate,
+	.set_parent = clk_cpu1_set_parent,
 	.get_parent = clk_cpu1_get_parent,
 };
 
