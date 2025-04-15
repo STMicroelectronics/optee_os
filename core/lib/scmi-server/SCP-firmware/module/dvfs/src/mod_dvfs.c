@@ -699,7 +699,7 @@ static int dvfs_handle_set_opp(
             ctx->state = DVFS_DOMAIN_SET_OPP_DONE;
             return status;
         }
-    } else if (ctx->current_opp.frequency == 0) {
+    } else if (ctx->current_opp.frequency != ctx->request.new_opp.frequency) {
         /*
          * At startup the voltage may be set without the frequency having
          * been set. In this case we must set the frequency regardless of
