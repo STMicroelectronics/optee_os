@@ -851,6 +851,14 @@
 	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
 };
 
+&scmi_cid2_s {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_SEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
+&scmi_cid2_ns {
+	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
+};
+
 &cm33_sram1 {
 	st,protreg = <RISABPROT(RIF_DDCID_DIS, RIF_UNUSED, RIF_NSEC, RIF_NPRIV, RIF_CFDIS, RIF_UNUSED, RIF_UNUSED, RIF_UNUSED)>;
 };
@@ -877,7 +885,7 @@
 
 &risab3 {
 	st,srwiad;
-	memory-region = <&bsec_mirror>, <&cm33_sram1>;
+	memory-region = <&bsec_mirror>, <&scmi_cid2_s>, <&scmi_cid2_ns>, <&cm33_sram1>;
 };
 
 &risab4 {
