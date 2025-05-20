@@ -7,6 +7,7 @@
 #include <drivers/i2c.h>
 #include <drivers/regulator.h>
 #include <drivers/stm32_i2c.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stpmic1.h>
 #include <drivers/stpmic1_regulator.h>
@@ -27,6 +28,8 @@
 #include <stm32_util.h>
 #include <trace.h>
 #include <util.h>
+
+#include "pm/power.h"
 
 #define MODE_STANDBY                    8
 
@@ -127,53 +130,34 @@ struct regu_lp_config {
 
 /*
  * struct regu_lp_state - Low power configuration for regulators
- * @name: low power state identifier string name
  * @cfg_count: number of regulator configuration instance in @cfg
  * @cfg: regulator configurations for low power state @name
  */
 struct regu_lp_state {
-	const char *name;
 	size_t cfg_count;
 	struct regu_lp_config *cfg;
 };
 
-enum regu_lp_state_id {
-	REGU_LP_STATE_DISK = 0,
-	REGU_LP_STATE_STANDBY,
-	REGU_LP_STATE_MEM,
-	REGU_LP_STATE_MEM_LOWVOLTAGE,
-	REGU_LP_STATE_MEM_LOWVOLTAGE_CPUOFF,
-	REGU_LP_STATE_COUNT
-};
-
-static struct regu_lp_state regu_lp_state[REGU_LP_STATE_COUNT] = {
-	[REGU_LP_STATE_DISK] = { .name = "standby-ddr-off", },
-	[REGU_LP_STATE_STANDBY] = { .name = "standby-ddr-sr", },
-	[REGU_LP_STATE_MEM] = { .name = "lp-stop", },
-	[REGU_LP_STATE_MEM_LOWVOLTAGE] = { .name = "lplv-stop", },
-	[REGU_LP_STATE_MEM_LOWVOLTAGE_CPUOFF] = { .name = "lplv-stop2", },
-};
-
-static unsigned int regu_lp_state2idx(const char *name)
-{
-	unsigned int i = 0;
-
-	for (i = 0; i < ARRAY_SIZE(regu_lp_state); i++)
-		if (!strcmp(name, regu_lp_state[i].name))
-			return i;
-
-	panic();
-}
+static struct regu_lp_state regu_lp_state[STM32_PM_MAX_SOC_MODE -
+					  STM32_PM_DEFAULT];
 
 static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
-					 int regu_node, const char *lp_state)
+					 int regu_node, unsigned int lp_state)
 {
-	unsigned int state_idx = regu_lp_state2idx(lp_state);
-	struct regu_lp_state *state = regu_lp_state + state_idx;
+	struct regu_lp_state *state;
 	const fdt32_t *cuint = NULL;
 	int regu_state_node = 0;
 	struct regu_lp_config *regu_cfg = NULL;
+	const char *lp_name;
 
+	if (lp_state < STM32_PM_DEFAULT)
+		return;
+
+	lp_name = plat_get_lp_mode_name(lp_state);
+	if (!lp_name)
+		return;
+
+	state = &regu_lp_state[lp_state - STM32_PM_DEFAULT];
 	state->cfg_count++;
 	state->cfg = realloc(state->cfg,
 			     state->cfg_count * sizeof(*state->cfg));
@@ -198,7 +182,7 @@ static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
 	}
 
 	/* Parse regulator stte node if any */
-	regu_state_node = fdt_subnode_offset(fdt, regu_node, lp_state);
+	regu_state_node = fdt_subnode_offset(fdt, regu_node, lp_name);
 	if (regu_state_node <= 0)
 		return;
 
@@ -233,11 +217,17 @@ static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
  *
  * Load the low power configuration stored in regu_lp_state[].
  */
-void stm32mp_pmic_apply_lp_config(const char *lp_state)
+static void stm32mp_pmic_apply_lp_config(unsigned int lp_state_id)
 {
-	unsigned int state_idx = regu_lp_state2idx(lp_state);
-	struct regu_lp_state *state = &regu_lp_state[state_idx];
+	struct regu_lp_state *state = NULL;
 	size_t i = 0;
+
+	if (lp_state_id < STM32_PM_DEFAULT)
+		return;
+
+	state = &regu_lp_state[lp_state_id - STM32_PM_DEFAULT];
+
+	stm32mp_get_pmic();
 
 	if (stpmic1_powerctrl_on())
 		panic();
@@ -265,6 +255,8 @@ void stm32mp_pmic_apply_lp_config(const char *lp_state)
 		    stpmic1_lp_mode_unpg(cfg, 1))
 			panic();
 	}
+	stm32mp_put_pmic();
+
 }
 
 /* Return a libfdt compliant status value */
@@ -666,9 +658,10 @@ static void parse_regulator_fdt_nodes(const void *fdt, int pmic_node)
 
 		assert(stpmic1_regulator_is_valid(regu_name));
 
-		for (n = 0; n < ARRAY_SIZE(regu_lp_state); n++)
+		for (n = STM32_PM_DEFAULT; n < STM32_PM_MAX_SOC_MODE; n++) {
 			dt_get_regu_low_power_config(fdt, regu_name, regu_node,
-						     regu_lp_state[n].name);
+						     n);
+		}
 
 		if (register_pmic_regulator(fdt, regu_name, regu_node,
 					    regulators_node))
@@ -950,6 +943,22 @@ static TEE_Result stm32_pmic_init_it(const void *fdt, int node)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result stm32_pmic_pm(enum pm_op op, uint32_t pm_hint,
+				const struct pm_callback_handle *pm_handle
+				__unused)
+{
+	unsigned int pwrlvl = PM_HINT_PLATFORM_STATE(pm_hint);
+
+	if (op == PM_OP_SUSPEND)
+		stm32mp_pmic_apply_lp_config(pwrlvl);
+	else if (op == PM_OP_RESUME)
+		stm32mp_pmic_apply_lp_config(STM32_PM_DEFAULT);
+
+	return TEE_SUCCESS;
+}
+
+DECLARE_KEEP_PAGER_PM(stm32_pmic_pm);
+
 static TEE_Result stm32_pmic_probe(const void *fdt, int node,
 				   const void *compat_data __unused)
 {
@@ -970,7 +979,15 @@ static TEE_Result stm32_pmic_probe(const void *fdt, int node,
 		panic();
 	}
 
-	return stm32_pmic_init_it(fdt, node);
+	res = stm32_pmic_init_it(fdt, node);
+	if (res)
+		return res;
+
+	register_pm_core_service_cb(stm32_pmic_pm, NULL, "stpmic1");
+
+	stm32mp_pmic_apply_lp_config(STM32_PM_DEFAULT);
+
+	return TEE_SUCCESS;
 }
 
 static const struct dt_device_match stm32_pmic_match_table[] = {
