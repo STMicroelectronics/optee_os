@@ -270,13 +270,29 @@ static uint32_t std_smc_entry(uint32_t a0, uint32_t a1, uint32_t a2,
 {
 	const bool with_rpc_arg = true;
 
+	/*
+	 * Specific function IDs for when non-secure world executes
+	 * with interrupts masked and invokes an OP-TEE thread context.
+	 * In which case OP-TEE should not unmask foreign interrupt unless
+	 * what the system will deadlock if an enabled non-secure interrupt
+	 * is pending.
+	 */
 	switch (a0) {
+	case OPTEE_SMC_CALL_WITH_ARG_NSEC_NOIRQ:
+		thread_enable_nsec_noirq();
+		fallthrough;
 	case OPTEE_SMC_CALL_WITH_ARG:
 		return std_entry_with_parg(reg_pair_to_64(a1, a2),
 					   !with_rpc_arg);
+	case OPTEE_SMC_CALL_WITH_RPC_ARG_NSEC_NOIRQ:
+		thread_enable_nsec_noirq();
+		fallthrough;
 	case OPTEE_SMC_CALL_WITH_RPC_ARG:
 		return std_entry_with_parg(reg_pair_to_64(a1, a2),
 					   with_rpc_arg);
+	case OPTEE_SMC_CALL_WITH_REGD_ARG_NSEC_NOIRQ:
+		thread_enable_nsec_noirq();
+		fallthrough;
 	case OPTEE_SMC_CALL_WITH_REGD_ARG:
 		return std_entry_with_regd_arg(reg_pair_to_64(a1, a2), a3);
 	default:

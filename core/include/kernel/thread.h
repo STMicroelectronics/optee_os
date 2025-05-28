@@ -21,6 +21,9 @@
 #define THREAD_FLAGS_EXIT_ON_FOREIGN_INTR	BIT(2)
 #define THREAD_FLAGS_FFA_ONLY			BIT(3)
 
+/* Thread context for non-secure no-irq sequence */
+#define THREAD_FLAGS_NSEC_NOIRQ			BIT(5)
+
 #define THREAD_ID_0		0
 #define THREAD_ID_INVALID	-1
 
@@ -117,6 +120,13 @@ short int thread_get_id(void);
  */
 short int thread_get_id_may_fail(void);
 
+/*
+ * Returns true if the thread is for used for non-secure no-irq
+ * sequence (that is when non-secure world executes with its
+ * interrupts masked), false otherwise.
+ */
+bool thread_is_for_nsec_noirq(void);
+
 /* Returns Thread Specific Data (TSD) pointer. */
 struct thread_specific_data *thread_get_tsd(void);
 
@@ -134,6 +144,20 @@ void thread_set_foreign_intr(bool enable);
  * only be called from an active thread context.
  */
 void thread_restore_foreign_intr(void);
+
+/*
+ * Set current thread in NOIRQ mode that is foreign interrupt should never be
+ * unmasked since non-secure world for current CPU executes with its interrupts
+ * masked.
+ * Must only be called from an active thread context.
+ */
+void thread_enable_nsec_noirq(void);
+
+/*
+ * Exit NOIRQ mode for the current thread and unmask foreign interrupts.
+ * Must only be called from an active thread context.
+ */
+void thread_disable_nsec_noirq(void);
 
 /*
  * thread_get_exceptions() - return current exception mask

@@ -493,6 +493,22 @@ short int __noprof thread_get_id_may_fail(void)
 	return ct;
 }
 
+bool __noprof thread_is_for_nsec_noirq(void)
+{
+	/*
+	 * thread_get_core_local() requires foreign interrupts to be disabled
+	 */
+	uint32_t exceptions = thread_mask_exceptions(THREAD_EXCP_FOREIGN_INTR);
+	struct thread_core_local *l = thread_get_core_local();
+	short int ct = l->curr_thread;
+	bool rc = false;
+
+	rc = threads[ct].flags & THREAD_FLAGS_NSEC_NOIRQ;
+
+	thread_unmask_exceptions(exceptions);
+	return rc;
+}
+
 short int __noprof thread_get_id(void)
 {
 	short int ct = thread_get_id_may_fail();
@@ -698,6 +714,36 @@ struct thread_ctx_regs * __nostackcheck thread_get_ctx_regs(void)
 
 	assert(l->curr_thread != THREAD_ID_INVALID);
 	return &threads[l->curr_thread].regs;
+}
+
+void thread_enable_nsec_noirq(void)
+{
+	struct thread_core_local *l = NULL;
+
+	thread_set_exceptions(thread_get_exceptions() |
+			      THREAD_EXCP_FOREIGN_INTR);
+
+	l = thread_get_core_local();
+	assert(l->curr_thread != THREAD_ID_INVALID);
+	threads[l->curr_thread].flags |= THREAD_FLAGS_NSEC_NOIRQ;
+}
+
+void thread_disable_nsec_noirq(void)
+{
+	struct thread_core_local *l = NULL;
+
+	if (!thread_is_for_nsec_noirq())
+		return;
+
+	assert(thread_get_exceptions() & THREAD_EXCP_FOREIGN_INTR);
+
+	l = thread_get_core_local();
+
+	assert(l->curr_thread != THREAD_ID_INVALID);
+
+	threads[l->curr_thread].flags &= ~THREAD_FLAGS_NSEC_NOIRQ;
+	thread_set_exceptions(thread_get_exceptions() &
+			      ~THREAD_EXCP_FOREIGN_INTR);
 }
 
 void thread_set_foreign_intr(bool enable)

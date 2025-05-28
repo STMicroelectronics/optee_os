@@ -534,8 +534,12 @@ TEE_Result __tee_entry_std(struct optee_msg_arg *arg, uint32_t num_params)
 {
 	TEE_Result res = TEE_SUCCESS;
 
-	/* Enable foreign interrupts for STD calls */
-	thread_set_foreign_intr(true);
+	/*
+	 * Enable foreign interrupts for STD calls if not under
+	 * specific NSEC NOIRQ context.
+	 */
+	if (!thread_is_for_nsec_noirq())
+		thread_set_foreign_intr(true);
 	switch (arg->cmd) {
 	case OPTEE_MSG_CMD_OPEN_SESSION:
 		entry_open_session(arg, num_params);
