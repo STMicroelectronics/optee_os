@@ -166,6 +166,14 @@ bool regulator_is_enabled(struct regulator *regulator)
 	return !res && enabled;
 }
 
+/* Check if the regulator is a simple switch regulator */
+static bool regulator_is_switch(struct regulator *regulator)
+{
+	return  (!regulator->ops->get_voltage &&
+		 !regulator->ops->supported_voltages &&
+		 regulator->min_uv != regulator->max_uv);
+}
+
 int regulator_get_voltage(struct regulator *regulator)
 {
 	TEE_Result res = TEE_SUCCESS;
@@ -178,6 +186,8 @@ int regulator_get_voltage(struct regulator *regulator)
 			     regulator_name(regulator), res);
 			level_uv = 0;
 		}
+	} else if (regulator->supply && regulator_is_switch(regulator)) {
+		level_uv = regulator_get_voltage(regulator->supply);
 	}
 
 	return level_uv;
@@ -228,6 +238,56 @@ TEE_Result regulator_set_voltage(struct regulator *regulator, int level_uv)
 	return TEE_SUCCESS;
 }
 
+/* Limit the supported voltages by the regulator constraints */
+static TEE_Result regulator_limit_levels(struct regulator *regulator,
+					 struct regulator_voltages_desc **desc,
+					 const int **levels)
+{
+	unsigned int i = 0;
+	unsigned int last = (*desc)->num_levels - 1;
+	unsigned int start = 0;
+	unsigned int end = last;
+	int *fallback_levels = regulator->voltages_fallback.levels;
+
+	if ((*desc)->type == VOLTAGE_TYPE_FULL_LIST) {
+		/* First level higher than minimum */
+		for (i = 0; i <= last; i++)
+			if ((*levels)[i] >= regulator->min_uv) {
+				start = i;
+				break;
+			}
+		/* Last level lower than maximum */
+		for (; i  <= last ; i++)
+			if ((*levels)[i] > regulator->max_uv) {
+				end = i - 1;
+				break;
+			}
+		/* Expose only a subset of supported voltages by the supply */
+		assert(end >= start);
+		if (start > 0 && end != last) {
+			*levels = *levels + start;
+			(*desc)->num_levels = end - start + 1;
+		}
+	} else if ((*desc)->type == VOLTAGE_TYPE_INCREMENT) {
+		/* if supported voltage range doesn't respect the constraints */
+		if ((*levels)[0] < regulator->min_uv ||
+		    (*levels)[1] > regulator->max_uv) {
+			/* Use supply values limited by regulator constraint */
+			fallback_levels[0] = MAX((*levels)[0],
+						 regulator->min_uv);
+			fallback_levels[1] = MIN((*levels)[1],
+						 regulator->max_uv);
+			fallback_levels[2] = (*levels)[2];
+			/* Return expected error to use fallback  */
+			return TEE_ERROR_NOT_SUPPORTED;
+		}
+	} else {
+		assert(0);
+	}
+
+	return TEE_SUCCESS;
+}
+
 TEE_Result regulator_supported_voltages(struct regulator *regulator,
 					struct regulator_voltages_desc **desc,
 					const int **levels)
@@ -236,9 +296,16 @@ TEE_Result regulator_supported_voltages(struct regulator *regulator,
 
 	assert(regulator && desc && levels);
 
-	if (regulator->ops->supported_voltages)
+	if (regulator->ops->supported_voltages) {
 		res = regulator->ops->supported_voltages(regulator, desc,
 							 levels);
+	} else if (regulator->supply && regulator_is_switch(regulator)) {
+		res = regulator_supported_voltages(regulator->supply, desc,
+						   levels);
+		if (!res)
+			res = regulator_limit_levels(regulator, desc, levels);
+	}
+
 	if (res == TEE_ERROR_NOT_SUPPORTED) {
 		*desc = &regulator->voltages_fallback.desc;
 		*levels = regulator->voltages_fallback.levels;
