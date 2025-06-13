@@ -390,6 +390,14 @@ CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 CFG_STM32_LOWPOWER_SIP ?= y
 CFG_STM32_PWR_SIP ?= y
 
+# Support or not PSCI CPU_SUSPEND command.
+CFG_STM32_PSCI_OSI ?= y
+
+# PSCI CPU_SUSPEND is not supported in all SIP configurations
+ifeq ($(call cfg-one-enabled, CFG_STM32_LOWPOWER_SIP CFG_STM32_PWR_SIP), y)
+CFG_STM32_PSCI_OSI = n
+endif
+
 # Enable BSEC PTA for fuses access management
 CFG_STM32_BSEC_PTA ?= y
 ifeq ($(CFG_STM32_BSEC_PTA),y)

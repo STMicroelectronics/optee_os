@@ -147,6 +147,7 @@
 #define GIC_NON_SEC_SGI_0		0
 #define GIC_SEC_SGI_0			8
 #define GIC_SEC_SGI_1			9
+#define GIC_SEC_SGI_6			14
 
 #define STM32MP_GIC_PRIORITY_CSTOP	U(0xC0)
 
@@ -162,6 +163,7 @@
 #define TARGET_CPU0_GIC_MASK		BIT(0)
 #define TARGET_CPU1_GIC_MASK		BIT(1)
 #define TARGET_CPUS_GIC_MASK		GENMASK_32(CFG_TEE_CORE_NB_CORE - 1, 0)
+#define TARGET_CPUX_GIC_MASK(_x)	BIT(_x)
 
 /*
  * GPIO banks: 11 non secure banks (A to K) and 1 secure bank (Z)
