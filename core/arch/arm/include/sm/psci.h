@@ -52,6 +52,9 @@
 #define PSCI_POWER_STATE_TYPE_STANDBY		U(0)
 #define PSCI_POWER_STATE_TYPE_POWER_DOWN	U(1)
 
+#define PSCI_SUSPEND_MODE_PLATFORM_COORDINATED	U(0)
+#define PSCI_SUSPEND_MODE_OS_INITIATED		U(1)
+
 #define PSCI_RET_SUCCESS		(0)
 #define PSCI_RET_NOT_SUPPORTED		(-1)
 #define PSCI_RET_INVALID_PARAMETERS	(-2)
@@ -79,6 +82,7 @@ int psci_system_reset2(uint32_t reset_type, uint32_t cookie);
 int psci_mem_protect(uint32_t enable);
 int psci_mem_chk_range(paddr_t base, size_t length);
 int psci_node_hw_state(uint32_t cpu_id, uint32_t power_level);
+int psci_set_system_suspend_mode(uint32_t mode);
 int psci_system_suspend(uintptr_t entry, uint32_t context_id,
 			struct sm_nsec_ctx *nsec);
 int psci_stat_residency(uint32_t cpu_id, uint32_t power_state);
