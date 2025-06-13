@@ -96,7 +96,7 @@ static void loc_flush(struct serial_chip *chip)
 	if (!loc_chip_clk_is_enabled(chip))
 		return;
 
-	while (!(io_read32(base + UART_REG_ISR) & USART_ISR_TXFE))
+	while (!(io_read32(base + UART_REG_ISR) & USART_ISR_TC))
 		if (timeout_elapsed(timeout))
 			return;
 }
