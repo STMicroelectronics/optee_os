@@ -66,6 +66,11 @@
 #define PSCI_RET_DISABLED		(-8)
 #define PSCI_RET_INVALID_ADDRESS	(-9)
 
+#define PSCI_FEATURE_OSI_NOT_SUPPORTED		(0)
+#define PSCI_FEATURE_OSI_SUPPORTED		BIT32(0)
+#define PSCI_FEATURE_ORIGINAL_STATE_ID		(0)
+#define PSCI_FEATURE_EXTENDED_STATE_ID		BIT32(1)
+
 uint32_t psci_version(void);
 int psci_cpu_suspend(uint32_t power_state, uintptr_t entry,
 		     uint32_t context_id, struct sm_nsec_ctx *nsec);
