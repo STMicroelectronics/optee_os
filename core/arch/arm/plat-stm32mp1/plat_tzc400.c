@@ -446,13 +446,15 @@ static TEE_Result stm32mp_tzc_parse_fdt(struct tzc_device *tzc_dev,
 	return TEE_SUCCESS;
 }
 
-static TEE_Result stm32mp1_tzc_pm(enum pm_op op,
-				  unsigned int pm_hint __unused,
+static TEE_Result stm32mp1_tzc_pm(enum pm_op op, unsigned int pm_hint,
 				  const struct pm_callback_handle *hdl)
 {
 	unsigned int i = 0;
 	struct tzc_device *tzc_dev =
 		(struct tzc_device *)PM_CALLBACK_GET_HANDLE(hdl);
+
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
+		return TEE_SUCCESS;
 
 	if (op == PM_OP_RESUME) {
 		stm32mp_tzc_region0(true);
