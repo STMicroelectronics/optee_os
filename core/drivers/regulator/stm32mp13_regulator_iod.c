@@ -117,13 +117,6 @@ static TEE_Result iod_get_state(struct regulator *regu, bool *enabled)
 	return TEE_SUCCESS;
 }
 
-static TEE_Result iod_get_voltage(struct regulator *regu, int *level_uv)
-{
-	*level_uv = regulator_get_voltage(regu->supply);
-
-	return TEE_SUCCESS;
-}
-
 static TEE_Result iod_set_voltage(struct regulator *regu, int level_uv)
 {
 	struct iod_regul *iod = regu->priv;
@@ -173,14 +166,6 @@ static TEE_Result iod_set_voltage(struct regulator *regu, int level_uv)
 	return res;
 }
 
-static TEE_Result iod_list_voltages(struct regulator *regu,
-				    struct regulator_voltages_desc **desc,
-				    const int **levels)
-{
-	/* Return supply voltage list */
-	return regulator_supported_voltages(regu->supply, desc, levels);
-}
-
 /*
  * To protect the IOs, we disable High Speed Low Voltage mode before
  * entering suspend state and restore the configuration when resuming.
@@ -201,9 +186,7 @@ static TEE_Result iod_pm(enum pm_op op, unsigned int pm_hint __unused,
 		if (res)
 			return res;
 
-		res = iod_get_voltage(regu, &iod->suspend_level_uv);
-		if (res)
-			return res;
+		iod->suspend_level_uv = regulator_get_voltage(regu->supply);
 
 		stm32mp_set_hslv_state(iod->hslv_id, false);
 	} else {
@@ -246,8 +229,6 @@ static const struct regulator_ops iod_ops = {
 	.set_state = iod_set_state,
 	.get_state = iod_get_state,
 	.set_voltage = iod_set_voltage,
-	.get_voltage = iod_get_voltage,
-	.supported_voltages = iod_list_voltages,
 	.supplied_init = iod_supplied_init,
 };
 
