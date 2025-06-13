@@ -61,6 +61,7 @@ struct itr_chip {
  * @unmask	Unmask an interrupt, may be called from an interrupt context
  * @raise_pi	Raise per-cpu interrupt or NULL if not applicable
  * @raise_sgi	Raise a SGI or NULL if not applicable to that controller
+ * @ack_sgi	Acknowledge a SGI or NULL if not applicable to that controller
  * @set_affinity Set interrupt/cpu affinity or NULL if not applicable
  * @set_wake	Enable/disable power-management wake-on of an interrupt or NULL
  *		if not applicable
@@ -85,6 +86,8 @@ struct itr_ops {
 	void (*raise_pi)(struct itr_chip *chip, size_t it);
 	void (*raise_sgi)(struct itr_chip *chip, size_t it,
 			  uint32_t cpu_mask);
+	void (*ack_sgi)(struct itr_chip *chip, size_t it,
+			uint8_t cpu_mask);
 	void (*set_affinity)(struct itr_chip *chip, size_t it,
 		uint8_t cpu_mask);
 	void (*set_wake)(struct itr_chip *chip, size_t it, bool on);
@@ -271,6 +274,15 @@ static inline bool interrupt_can_raise_sgi(struct itr_chip *chip)
 }
 
 /*
+ * interrupt_can_ack_sgi() - Return whether controller embeds ack_sgi
+ * @chip	Interrupt controller
+ */
+static inline bool interrupt_can_ack_sgi(struct itr_chip *chip)
+{
+	return chip->ops->ack_sgi;
+}
+
+/*
  * interrupt_can_set_affinity() - Return whether controller embeds set_affinity
  * @chip	Interrupt controller
  */
@@ -312,6 +324,19 @@ static inline void interrupt_raise_sgi(struct itr_chip *chip, size_t itr_num,
 {
 	assert(interrupt_can_raise_sgi(chip));
 	chip->ops->raise_sgi(chip, itr_num, cpu_mask);
+}
+
+/*
+ * interrupt_raise_sgi() - Acknowledge a software generated interrupt
+ * @chip	Interrupt controller
+ * @itr_num	Interrupt number to raise
+ * @cpu_mask:	A bitfield of CPUs indicating the source of the interrupt.
+ */
+static inline void interrupt_ack_sgi(struct itr_chip *chip, size_t itr_num,
+				     uint8_t cpu_mask)
+{
+	assert(interrupt_can_ack_sgi(chip));
+	chip->ops->ack_sgi(chip, itr_num, cpu_mask);
 }
 
 /*
