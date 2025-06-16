@@ -573,14 +573,19 @@ static void stm32_exti_pm_suspend(struct stm32_exti_pdata *exti)
 	uint32_t base = exti->base;
 	uint32_t i = 0;
 
-	if (IS_ENABLED(CFG_STM32_RIF) && stm32_exti_maxcid(exti))
+	if (IS_ENABLED(CFG_STM32_RIF) && stm32_exti_maxcid(exti)) {
 		stm32_exti_rif_save(exti);
+	} else {
+		/* Save seccfgr registers */
+		for (i = 0; i < _EXTI_BANK_NR; i++)
+			exti->seccfgr_cache[i] =
+				io_read32(base + _EXTI_SECCFGR(i));
+	}
 
 	for (i = 0; i < _EXTI_BANK_NR; i++) {
-		/* Save ftsr, rtsr and seccfgr registers */
+		/* Save ftsr and rtsr registers */
 		exti->ftsr_cache[i] = io_read32(base + _EXTI_FTSR(i));
 		exti->rtsr_cache[i] = io_read32(base + _EXTI_RTSR(i));
-		exti->seccfgr_cache[i] = io_read32(base + _EXTI_SECCFGR(i));
 	}
 
 	/* Save EXTI port selection */
@@ -594,18 +599,23 @@ static void stm32_exti_pm_resume(struct stm32_exti_pdata *exti)
 	uint32_t i = 0;
 
 	for (i = 0; i < _EXTI_BANK_NR; i++) {
-		/* Restore ftsr, rtsr and seccfgr registers */
+		/* Restore ftsr and rtsr registers */
 		io_write32(base + _EXTI_FTSR(i), exti->ftsr_cache[i]);
 		io_write32(base + _EXTI_RTSR(i), exti->rtsr_cache[i]);
-		io_write32(base + _EXTI_SECCFGR(i), exti->seccfgr_cache[i]);
 	}
 
 	/* Restore EXTI port selection */
 	for (i = 0; i < _EXTI_MAX_CR; i++)
 		io_write32(base + _EXTI_CR(i), exti->port_sel_cache[i]);
 
-	if (IS_ENABLED(CFG_STM32_RIF) && stm32_exti_maxcid(exti))
+	if (IS_ENABLED(CFG_STM32_RIF) && stm32_exti_maxcid(exti)) {
 		stm32_exti_rif_apply(exti);
+	} else {
+		/* Restore seccfgr registers */
+		for (i = 0; i < _EXTI_BANK_NR; i++)
+			io_write32(base + _EXTI_SECCFGR(i),
+				   exti->seccfgr_cache[i]);
+	}
 }
 
 /* PM function: configure the wake_up line for OP-TEE */
