@@ -387,14 +387,16 @@ static TEE_Result stm32_exti_rif_check_access(struct stm32_exti_pdata *exti,
 {
 	unsigned int i = stm32_exti_get_bank(exti_line);
 	uint32_t mask = BIT(exti_line % _EXTI_LINES_PER_BANK);
+	uint32_t privcfgr = io_read32(exti->base + _EXTI_PRIVCFGR(i));
+	uint32_t seccfgr = io_read32(exti->base + _EXTI_SECCFGR(i));
+	uint32_t e_cids = io_read32(exti->base + _EXTI_EnCIDCFGR(exti_line));
 
 	/* only configured as secure and privileged */
-	if (!((exti->seccfgr_cache[i] & exti->privcfgr_cache[i] &
-	       exti->access_mask[i]) & mask))
+	if (!(seccfgr & privcfgr & mask))
 		return TEE_ERROR_ACCESS_DENIED;
 
-	if ((exti->e_cids[exti_line] & _EXTI_CIDCFGR_CFEN) &&
-	    ((exti->e_cids[exti_line] & _EXTI_CIDCFGR_SCID_MASK) !=
+	if ((e_cids & _EXTI_CIDCFGR_CFEN) &&
+	    ((e_cids & _EXTI_CIDCFGR_SCID_MASK) !=
 	     SHIFT_U32(_EXTI_CID1, _EXTI_CIDCFGR_SCID_SHIFT)))
 		return TEE_ERROR_ACCESS_DENIED;
 
