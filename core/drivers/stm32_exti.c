@@ -412,6 +412,11 @@ static void stm32_exti_rif_parse_dt(struct stm32_exti_pdata *exti,
 	unsigned int i = 0;
 	int len = 0;
 
+	exti->e_cids = calloc(stm32_exti_nbevents(exti), sizeof(uint32_t));
+	exti->c_cids = calloc(stm32_exti_nbcpus(exti), sizeof(uint32_t));
+	if (!exti->e_cids || !exti->c_cids)
+		panic("Out of memory");
+
 	if (fdt_getprop(fdt, node, "st,glocked", NULL))
 		exti->glock = true;
 	else
@@ -422,11 +427,6 @@ static void stm32_exti_rif_parse_dt(struct stm32_exti_pdata *exti,
 		DMSG("No RIF configuration available");
 		return;
 	}
-
-	exti->e_cids = calloc(stm32_exti_nbevents(exti), sizeof(uint32_t));
-	exti->c_cids = calloc(stm32_exti_nbcpus(exti), sizeof(uint32_t));
-	if (!exti->e_cids || !exti->c_cids)
-		panic("Out of memory");
 
 	conf_data.cid_confs   = exti->e_cids;
 	conf_data.sec_conf    = exti->seccfgr_cache;
