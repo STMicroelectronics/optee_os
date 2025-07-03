@@ -725,6 +725,12 @@ static int scmi_reset_start(fwk_id_t id)
     config = (struct mod_reset_domain_config*)fwk_module_get_data(
         FWK_ID_MODULE(FWK_MODULE_IDX_RESET_DOMAIN)
         );
+    /*
+     * Check config is present, config is required for notification
+     * without config no notification is expected from reset domain
+     */
+    if (!config)
+        return FWK_SUCCESS;
 
     scmi_rd_ctx.notification_id = config->notification_id;
 
