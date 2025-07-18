@@ -10,6 +10,7 @@
 #
 
 set (CFG_SCPFW_MOD_PSU_OPTEE_REGULATOR n)
+set (CFG_SCPFW_MOD_STM32_OPP n)
 
 add_library(${SCP_FIRMWARE_TARGET})
 
