@@ -162,6 +162,8 @@ static void scmi_clock_attributes(struct scmi_msg *msg)
 	return_values.attributes = plat_scmi_clock_get_state(msg->channel_id,
 							     clock_id);
 
+	return_values.attributes |= SCMI_CLOCK_ATTRIBUTES_EXTENDED_SUPPORT;
+
 	scmi_write_response(msg, &return_values, sizeof(return_values));
 }
 

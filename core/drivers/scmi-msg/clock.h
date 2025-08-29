@@ -55,6 +55,8 @@ struct scmi_clock_attributes_a2p {
 
 #define SCMI_CLOCK_NAME_LENGTH_MAX	16
 
+#define SCMI_CLOCK_ATTRIBUTES_EXTENDED_SUPPORT		BIT(27)
+
 struct scmi_clock_attributes_p2a {
 	int32_t status;
 	uint32_t attributes;
