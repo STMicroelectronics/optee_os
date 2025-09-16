@@ -337,36 +337,6 @@ TEE_Result stm32_pmic2_apply_pm_state(struct regulator *regulator, uint8_t mode)
 	FMSG("%s: suspend state:%#"PRIx8" %d uV",
 	     regulator_name(regulator), state, lp_level_uv);
 
-	/*
-	 * If the LP state is controlled by the consumer (power control line
-	 * disabled), and the suspend state was requested as OFF in device tree,
-	 * then disable the regulator and put a message.
-	 */
-	if (!regu->power_control_en && (state & STPMIC2_LP_STATE_OFF)) {
-		bool enabled;
-
-		res = stpmic2_regulator_get_state(regu->pmic, regu->id,
-						  &enabled);
-		if (res)
-			return res;
-
-		if (enabled) {
-			res = stpmic2_regulator_set_state(regu->pmic, regu->id,
-							  false);
-			if (res)
-				return res;
-
-			IMSG("regulator %s forced OFF",
-			     regulator_name(regulator));
-
-			regu->forced_off = true;
-		} else {
-			regu->forced_off = false;
-		}
-
-		return TEE_SUCCESS;
-	}
-
 	if (mode == regu->last_lp_mode)
 		return TEE_SUCCESS;
 
@@ -391,6 +361,43 @@ TEE_Result stm32_pmic2_apply_pm_state(struct regulator *regulator, uint8_t mode)
 	}
 
 	regu->last_lp_mode = mode;
+
+	return TEE_SUCCESS;
+}
+
+TEE_Result stm32_pmic2_suspend_regulator(struct regulator *regulator,
+					 uint8_t mode)
+{
+	struct pmic_regu *regu = regulator->priv;
+	uint8_t state = regu->lp_state[mode];
+	TEE_Result res = TEE_ERROR_GENERIC;
+	bool enabled = false;
+
+	/*
+	 * If the LP state is controlled by the consumer (power control line
+	 * disabled), and the suspend state was requested as OFF in device tree,
+	 * then disable the regulator and put a message.
+	 */
+	if (!regu->power_control_en && (state & STPMIC2_LP_STATE_OFF)) {
+		res = stpmic2_regulator_get_state(regu->pmic, regu->id,
+						  &enabled);
+		if (res)
+			return res;
+
+		if (enabled) {
+			res = stpmic2_regulator_set_state(regu->pmic, regu->id,
+							  false);
+			if (res)
+				return res;
+
+			IMSG("regulator %s forced OFF",
+			     regulator_name(regulator));
+
+			regu->forced_off = true;
+		} else {
+			regu->forced_off = false;
+		}
+	}
 
 	return TEE_SUCCESS;
 }
