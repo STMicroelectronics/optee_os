@@ -234,7 +234,7 @@ static TEE_Result read_available(vaddr_t rng_base, uint8_t *out, size_t *size)
 
 	if (io_read32(rng_base + RNG_SR) & RNG_SR_SEIS) {
 		FMSG("RNG noise error");
-		return TEE_ERROR_NO_DATA;
+		return TEE_ERROR_BAD_STATE;
 	}
 
 	buf = out;
@@ -393,7 +393,7 @@ static TEE_Result stm32_rng_init(void)
 	if (IO_READ32_POLL_TIMEOUT(rng_base + RNG_SR, value,
 				   value & RNG_SR_DRDY, 0,
 				   RNG_READY_TIMEOUT_US))
-		return TEE_ERROR_GENERIC;
+		return TEE_ERROR_BAD_STATE;
 
 	res =  TEE_SUCCESS;
 
@@ -437,14 +437,13 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 		rc = read_available(rng_base, out_ptr, &sz);
 
 		/* Raise timeout only if we failed to get some samples */
-		assert(!rc || rc == TEE_ERROR_NO_DATA);
 		if (rc)
 			burst_timeout = timeout_elapsed(timeout_ref);
 
 		may_spin_unlock(&stm32_rng->lock, exceptions);
 
 		if (burst_timeout) {
-			rc = TEE_ERROR_GENERIC;
+			rc = TEE_ERROR_TIMEOUT;
 			goto out;
 		}
 
@@ -458,7 +457,6 @@ static TEE_Result stm32_rng_read(uint8_t *out, size_t size)
 	}
 
 out:
-	assert(!rc || rc == TEE_ERROR_GENERIC);
 	disable_rng_clock();
 
 	return rc;
