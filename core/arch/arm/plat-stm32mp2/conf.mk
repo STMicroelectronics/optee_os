@@ -96,6 +96,7 @@ $(call force,CFG_STM32_TAMP,n)
 $(call force,CFG_STM32MP_PROVISIONING,n)
 $(call force,CFG_TA_STM32MP_NVMEM,n)
 $(call force,CFG_STM32_PSA_SERVICE,y)
+$(call force,CFG_STM32_DEBUG_ACCESS_PTA,n)
 endif
 
 $(call force,CFG_ARM_GIC_PM,y)
@@ -269,6 +270,12 @@ endif
 CFG_STM32_BSEC_PTA ?= y
 ifeq ($(CFG_STM32_BSEC_PTA),y)
 $(call force,CFG_STM32_BSEC3,y,Mandated by CFG_STM32_BSEC_PTA)
+endif
+
+# Enable Debug Access PTA
+CFG_STM32_DEBUG_ACCESS_PTA ?= y
+ifeq ($(CFG_STM32_DEBUG_ACCESS_PTA),y)
+$(call force,CFG_STM32_BSEC3,y,Mandated by CFG_STM32_DEBUG_ACCESS_PTA)
 endif
 
 # Enable Early TA NVMEM for provisioning management
