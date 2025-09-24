@@ -599,20 +599,6 @@ bool stm32_bsec_self_hosted_debug_is_enabled(void)
 	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_DBGSWEN;
 }
 
-bool stm32_bsec_hdp_is_enabled(void)
-{
-	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
-}
-
-bool stm32_bsec_coresight_is_enabled(void)
-{
-	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
-	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
-				  BSEC_DENR_DBGSWEN;
-
-	return (denr & coresight_mask) == coresight_mask;
-}
-
 static TEE_Result set_bsec_lock(uint32_t otp_id, size_t lock_offset)
 {
 	uint32_t bank = otp_bank_offset(otp_id);
@@ -817,6 +803,20 @@ TEE_Result stm32_bsec_get_state(enum stm32_bsec_sec_state *state)
 	}
 
 	return TEE_SUCCESS;
+}
+
+bool stm32_bsec_hdp_is_enabled(void)
+{
+	return io_read32(bsec_base() + BSEC_DEN_OFF) & BSEC_DENR_HDPEN;
+}
+
+bool stm32_bsec_coresight_is_enabled(void)
+{
+	uint32_t denr = io_read32(bsec_base() + BSEC_DEN_OFF);
+	uint32_t coresight_mask = BSEC_DENR_DBGEN | BSEC_DENR_DEVICEEN |
+				  BSEC_DENR_DBGSWEN;
+
+	return (denr & coresight_mask) == coresight_mask;
 }
 
 static void enable_nsec_access(unsigned int otp_id)

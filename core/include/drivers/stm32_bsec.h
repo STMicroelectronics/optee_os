@@ -229,7 +229,7 @@ bool stm32_bsec_nsec_can_access_otp(uint32_t otp_id);
 bool stm32_bsec_self_hosted_debug_is_enabled(void);
 
 /*
- * Return true if HDP is enabled.
+ * Return true if Hardware Debug Port (HDP) is enabled.
  */
 bool stm32_bsec_hdp_is_enabled(void);
 
