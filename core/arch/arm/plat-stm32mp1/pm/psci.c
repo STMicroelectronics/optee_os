@@ -243,8 +243,8 @@ static int enter_cstop_suspend(unsigned int soc_mode)
 	stm32_enter_cstop(soc_mode);
 
 #ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
-	stm32mp_pm_call_bl2_lp_entry(soc_mode);
-	rc = 0;
+	if (stm32mp_pm_call_bl2_lp_entry(soc_mode) == TEE_SUCCESS)
+		rc = 0;
 #else
 	if (need_to_backup_cpu_context(soc_mode)) {
 		stm32_pm_cpu_power_down_wfi();
@@ -387,6 +387,18 @@ uint32_t __weak __psci_system_suspend(uintptr_t entry,
 			if (!IS_ENABLED(CFG_PAGED_PSCI_SYSTEM_SUSPEND))
 				sm_restore_unbanked_regs(&nsec->ub_regs);
 		}
+#ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
+		/*
+		 * TF-A return to caller if standby is aborted (error)
+		 * or is reduced to Stop mode with simple WFI exit
+		 * so result OK as low power mode is performed (Stop)
+		 * PS: for OPTEE in SYSRAM and aborted Standby,
+		 *     stm32_pm_cpu_power_down_wfi() calls
+		 *     stm32mp_sysram_resume()
+		 *     and this part is NOT reached
+		 */
+		ret = 0;
+#endif
 	} else {
 		ret = plat_suspend((uint32_t)soc_mode);
 	}
