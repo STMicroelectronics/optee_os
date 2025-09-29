@@ -396,6 +396,7 @@ uint32_t __weak __psci_system_suspend(uintptr_t entry,
 		IMSG("Resumed");
 		return PSCI_RET_SUCCESS;
 	}
+	EMSG("Resumed with error (%d)", ret);
 
 	return PSCI_RET_INTERNAL_FAILURE;
 }
