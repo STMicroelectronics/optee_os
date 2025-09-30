@@ -3970,7 +3970,7 @@ static void enable_kernel_clocks(void)
 static void clear_rcc_reset_status(void)
 {
 	/* Clear reset status fields */
-	io_write32(stm32_rcc_base() + RCC_MP_RSTSCLRR, 0);
+	io_write32(stm32_rcc_base() + RCC_MP_RSTSCLRR, ~0);
 }
 
 void stm32mp1_clk_save_context_for_stop(void)
@@ -4017,7 +4017,6 @@ static void stm32_clock_suspend(void)
 	save_pll34_state();
 
 	enable_kernel_clocks();
-	clear_rcc_reset_status();
 }
 
 static void stm32_clock_resume(void)
@@ -4059,6 +4058,7 @@ static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint __unused,
 		/* Make sure the pending operations are visible */
 		dsb();
 		stm32_clock_suspend();
+		clear_rcc_reset_status();
 	} else {
 #ifdef CFG_STM32_CPU_OPP
 		pll1_config_from_opp_khz(current_opp_khz);
