@@ -162,6 +162,15 @@ uint32_t tee_psci_handler(struct thread_smc_args *args,
 		args->a0 = psci_version();
 		break;
 	case PSCI_CPU_SUSPEND:
+		if (IS_ENABLED(CFG_PAGED_PSCI_CPU_SUSPEND)) {
+			args->a0 = a1;
+			args->a1 = a2;
+			args->a2 = a3;
+			args->a3 = (vaddr_t)nsec;
+			*thread_pm_handler = (vaddr_t)psci_cpu_suspend;
+
+			return SM_EXIT_TO_PM_THREAD;
+		}
 		args->a0 = psci_cpu_suspend(a1, a2, a3, nsec);
 		break;
 	case PSCI_CPU_OFF:

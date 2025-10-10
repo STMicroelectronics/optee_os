@@ -46,11 +46,13 @@
 #endif /* __ASSEMBLER__ */
 
 /*
- * DECLARE_KEEP_PAGER_PM() makes resource unpaged unless both of
- * CFG_PAGED_PSCI_SYSTEM_SUSPEND and CFG_PAGED_PSCI_SYSTEM_OFF
- * are enabled.
+ * DECLARE_KEEP_PAGER_PM() makes resource unpaged unless
+ * CFG_PAGED_PSCI_SYSTEM_SUSPEND, CFG_PAGED_PSCI_SYSTEM_OFF and
+ * CFG_PAGED_PSCI_CPU_SUSPEND are enabled.
  */
-#if defined(CFG_PAGED_PSCI_SYSTEM_SUSPEND) && defined(CFG_PAGED_PSCI_SYSTEM_OFF)
+#if defined(CFG_PAGED_PSCI_SYSTEM_SUSPEND) && \
+    defined(CFG_PAGED_PSCI_SYSTEM_OFF) && \
+    defined(CFG_PAGED_PSCI_CPU_SUSPEND)
 #define DECLARE_KEEP_PAGER_PM(sym)	static int __unused sym##__LINE__
 #else
 #define DECLARE_KEEP_PAGER_PM(sym)	DECLARE_KEEP_PAGER(sym)
