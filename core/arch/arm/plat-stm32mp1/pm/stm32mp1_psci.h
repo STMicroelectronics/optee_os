@@ -16,4 +16,8 @@ uint32_t __psci_system_suspend(uintptr_t entry, uint32_t context_id,
 /* STM32MP1 PSCI system off entry, possibly excluded from unpaged memory */
 void __psci_system_off(void);
 
+/* STM32MP1 PSCI cpu suspend entry, possibly excluded from unpaged memory */
+int __psci_cpu_suspend(uint32_t power_state, uintptr_t entry,
+		       uint32_t context_id, struct sm_nsec_ctx *nsec);
+
 #endif /*__PM_STM32MP1_PSCI_H*/

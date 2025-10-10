@@ -28,3 +28,14 @@ __psci_system_off(void)
 	panic();
 }
 #endif
+
+#if defined(CFG_PAGED_PSCI_CPU_SUSPEND) && defined(CFG_STM32_PSCI_OSI)
+int __section(".text.dummy.__psci_cpu_suspend")
+__psci_cpu_suspend(uint32_t power_state __unused,
+		   uintptr_t entry __unused,
+		   uint32_t context_id __unused,
+		   struct sm_nsec_ctx *nsec __unused)
+{
+	return 0;
+}
+#endif

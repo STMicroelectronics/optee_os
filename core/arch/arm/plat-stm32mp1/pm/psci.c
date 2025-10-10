@@ -572,6 +572,7 @@ static void stm32_cpu_standby(void)
 	while (get_locked(&cstop_enter) != STATE_NONE)
 		wfe();
 }
+DECLARE_KEEP_PAGER(stm32_cpu_standby);
 
 static void stm32_pwr_domain_suspend(unsigned int soc_mode)
 {
@@ -613,10 +614,14 @@ static_assert(CFG_TEE_CORE_NB_CORE <= 2);
 #define STM32_STATE_ID_LP_STOP1		U(0x22)
 #define STM32_STATE_ID_LPLV_STOP1	U(0x222)
 
-int psci_cpu_suspend(uint32_t power_state,
-		     uintptr_t entry __unused,
-		     uint32_t context_id __unused,
-		     struct sm_nsec_ctx *nsec __unused)
+/*
+ * Note: this function is weak just to make it possible to exclude it from
+ * the unpaged area.
+ */
+int __weak __psci_cpu_suspend(uint32_t power_state,
+			      uintptr_t entry __unused,
+			      uint32_t context_id __unused,
+			      struct sm_nsec_ctx *nsec __unused)
 {
 	uint32_t state_id = 0;
 	uint32_t state_type = 0;
@@ -657,6 +662,13 @@ int psci_cpu_suspend(uint32_t power_state,
 	}
 
 	return ret;
+}
+
+/* Override default psci_cpu_suspend() with platform specific sequence */
+int psci_cpu_suspend(uint32_t power_state, uintptr_t entry, uint32_t context_id,
+		     struct sm_nsec_ctx *nsec)
+{
+	return __psci_cpu_suspend(power_state, entry, context_id, nsec);
 }
 
 #endif /* CFG_STM32_PSCI_OSI */
