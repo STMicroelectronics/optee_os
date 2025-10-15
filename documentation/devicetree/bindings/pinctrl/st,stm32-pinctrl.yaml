@@ -157,8 +157,10 @@ patternProperties:
               Integer array, represents gpio pin number and mux setting.
               Supported pin number and mux varies for different SoCs, and are
               defined in dt-bindings/pinctrl/<soc>-pinfunc.h directly.
-              These defines are calculated as: ((port * 16 + line) << 8) | function
+              These defines are calculated as:
+                (nsec-state << 31) | ((port * 16 + line) << 8) | function
               With:
+              - nsec-state: Hint on expected state of the pin: 0 if secure, 1 otherwise
               - port: The gpio port index (PA = 0, PB = 1, ..., PK = 11)
               - line: The line offset within the port (PA0 = 0, PA1 = 1, ..., PA15 = 15)
               - function: The function number, can be:
@@ -170,7 +172,7 @@ patternProperties:
               * 16 : Alternate Function 15
               * 17 : Analog
               * 18 : Reserved
-              To simplify the usage, macro is available to generate "pinmux" field.
+              To simplify the usage, macros are available to generate "pinmux" field.
               This macro is available here:
                 - include/dt-bindings/pinctrl/stm32-pinfunc.h
               Setting the pinmux's function to the Reserved (RSVD) value is used to inform
@@ -185,9 +187,9 @@ patternProperties:
                ... {
                           pinmux = <STM32_PINMUX('A', 9, GPIO)>;
                };
-               /* GPIO A9 set as analog */
+               /* Non-secure GPIO A9 set as analog */
                ... {
-                          pinmux = <STM32_PINMUX('A', 9, ANALOG)>;
+                          pinmux = <STM32_PINMUX_NSEC('A', 9, ANALOG)>;
                };
                /* GPIO A9 reserved for co-processor */
                ... {
