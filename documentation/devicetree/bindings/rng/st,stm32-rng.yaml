@@ -18,6 +18,7 @@ properties:
     enum:
       - st,stm32-rng
       - st,stm32mp13-rng
+      - st,stm32mp21-rng
       - st,stm32mp25-rng
 
   reg:
@@ -39,11 +40,6 @@ properties:
     type: boolean
     description: If set enable the clock detection management
 
-  st,rng-lock-conf:
-    type: boolean
-    description: If set, the RNG configuration in RNG_CR, RNG_HTCR and
-                  RNG_NSCR will be locked.
-
   access-controllers:
     minItems: 1
     maxItems: 2
@@ -59,10 +55,14 @@ allOf:
         compatible:
           contains:
             enum:
-              - st,stm32-rng
+              - st,stm32mp13-rng
+              - st,stm32mp25-rng
     then:
       properties:
-        st,rng-lock-conf: false
+        st,rng-lock-conf:
+          type: boolean
+          description: If set, the RNG configuration in RNG_CR, RNG_HTCR and
+                       RNG_NSCR will be locked.
 
   - if:
       properties:
@@ -80,8 +80,43 @@ allOf:
       properties:
         clocks:
           minItems: 2
+
+        clock-names:
+          items:
+            - const: rng_clk  # RNG kernel clock
+            - const: rng_hclk # RNG bus clock
+
       required:
         - clock-names
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - st,stm32mp13-rng
+              - st,stm32mp21-rng
+              - st,stm32mp25-rng
+    then:
+      properties:
+        st,rng-cfg:
+          minItems: 1
+          maxItems: 3
+          type: boolean
+          description: The configuration bitfields to initialize the RNG. They
+                       must be listed in the numerical order. If not specified,
+                       the default hard-coded values will be used. Number of
+                       values depends on the presence of
+                       st,rng-nist-custom property.
+
+        st,rng-cfg-nist-custom:
+          type: boolean
+          description: Enable custom values for NIST compliant RNG.
+
+        st,rng-htcfg:
+          maxItems: 1
+          description: The values to configure health tests. If not specified,
+                       the default hard-coded values will be used.
 
 additionalProperties: false
 
