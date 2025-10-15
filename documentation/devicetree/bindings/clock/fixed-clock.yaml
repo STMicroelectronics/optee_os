@@ -35,6 +35,24 @@ properties:
   clock-output-names:
     maxItems: 1
 
+  st,bypass:
+    type: boolean
+    description: configures the oscillator bypass mode for LSE and HSE
+                  (HSEBYP, LSEBYP)
+  st,digbypass:
+    type: boolean
+    description: configures the bypass mode as full-swing digital
+                  signal (DIGBYP)
+  st,css:
+    type: boolean
+    description: activates the clock security system (HSECSSON, LSECSSON)
+
+  st,drive:
+    type: int
+    description: (only for LSE) contains the value of the drive for the
+                  oscillator
+    enum: [0, 1, 2, 3]
+
 required:
   - compatible
   - "#clock-cells"
