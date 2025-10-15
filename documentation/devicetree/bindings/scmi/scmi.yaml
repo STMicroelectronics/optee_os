@@ -1,0 +1,337 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/scmi/scmi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+maintainers:
+  - Valentin Caron <valentin.caron@foss.st.com>
+
+title: System Control and Management Interface (SCMI) server
+
+description: |
+  The SCMI is intended to allow agents to manage various functions
+  that are provided by the hardware platform it is running on, including power
+  and performance functions.
+
+  This binding is intended to define in the device tree the interface implementing
+  the SCMI, as described in ARM document number ARM DEN 0056 ("ARM System Control
+  and Management Interface Platform Design Document")[0], provided by OP-TEE
+  that is acting as a platform controller.
+
+  [0] https://developer.arm.com/documentation/den0056/latest
+
+properties:
+  compatible:
+    const: optee,scmi-server
+
+  "#address-cells":
+    const: 1
+  "#size-cells":
+    const: 0
+
+patternProperties:
+  "^agent@[0-9a-f]+$":
+    type: object
+    description: |
+      SCMI Agent, describe the communication configuration and services exposed to an SCMI agent.
+    properties:
+      compatible:
+        enum:
+          - linaro,scmi-optee
+          - arm,scmi
+
+      reg:
+        description: Identifier of the agent
+        maxItems: 1
+        minimum: 1
+
+      scmi-channel-id:
+        description: Channel identifier used by the agent
+        maxItems: 1
+
+      mboxes:
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        description: |
+          Mailbox between client and server to notify for a new SCMI message.
+        maxItem: 1
+
+      mbox-names:
+        $ref: /schemas/types.yaml#/definitions/string-array
+        description: Mailbox informative name.
+        maxItem: 1
+
+      shmem:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description: |
+          Shared memory between client and server to exchange SCMI messages.
+        maxItem: 1
+
+      "#address-cells":
+        const: 1
+
+      "#size-cells":
+        const: 0
+
+      protocol@11:
+        $ref: '#/$defs/protocol-node'
+        unevaluatedProperties: false
+        description: |
+          Describe resources exposed with power domain management protocol
+        properties:
+          reg:
+            description: Identifier of the power domain management protocol
+            const: 0x11
+          power-domains:
+            maxItems: 1
+            type: object
+            properties:
+              "#address-cells":
+                const: 1
+              "#size-cells":
+                const: 0
+            patternProperties:
+              "^pd@[0-9a-f]+$":
+                type: object
+                properties:
+                  reg:
+                    description: Identifier for the power domain
+                    maxItems: 1
+                  clocks:
+                    maxItems: 1
+                  voltd-supply:
+                    maxItems: 1
+                  domain-name:
+                    description: Name for the power domain
+                    maxItems: 1
+                required:
+                  - reg
+                  - clocks
+                  - voltd-supply
+            required:
+              - "#address-cells"
+              - "#size-cells"
+
+      protocol@14:
+        $ref: '#/$defs/protocol-node'
+        unevaluatedProperties: false
+        description: |
+          Describe resources exposed with clock management protocol
+        properties:
+          reg:
+            description: Identifier of the clock management protocol
+            const: 0x14
+          clocks:
+            type: object
+            properties:
+              "#address-cells":
+                const: 1
+              "#size-cells":
+                const: 0
+            patternProperties:
+              "^clock@[0-9a-f]+$":
+                type: object
+                properties:
+                  reg:
+                    description: Identifier for the clock device
+                    maxItems: 1
+                  clocks:
+                    maxItems: 1
+                  domain-name:
+                    description: Name for the clock device
+                    maxItems: 1
+                required:
+                  - reg
+                  - clocks
+            required:
+              - "#address-cells"
+              - "#size-cells"
+
+      protocol@16:
+        $ref: '#/$defs/protocol-node'
+        unevaluatedProperties: false
+        description: |
+          Describe resources exposed with reset domain management protocol
+        properties:
+          reg:
+            description: Identifier of the reset domain management protocol
+            const: 0x16
+          resets:
+            type: object
+            properties:
+              "#address-cells":
+                const: 1
+              "#size-cells":
+                const: 0
+            patternProperties:
+              "^reset@[0-9a-f]+$":
+                type: object
+                properties:
+                  reg:
+                    description: Identifier for the reset domain
+                    maxItems: 1
+                  resets:
+                    maxItems: 1
+                  domain-name:
+                    description: Name for the reset domain
+                    maxItems: 1
+                required:
+                  - reg
+                  - resets
+            required:
+              - "#address-cells"
+              - "#size-cells"
+
+      protocol@17:
+        $ref: '#/$defs/protocol-node'
+        unevaluatedProperties: false
+        description: |
+          Describe resources exposed with voltage domain management protocol
+        properties:
+          reg:
+            description: Identifier of the voltage domain management protocol
+            const: 0x17
+          regulators:
+            type: object
+            properties:
+              "#address-cells":
+                const: 1
+              "#size-cells":
+                const: 0
+            patternProperties:
+              "^voltd@[0-9a-f]+$":
+                type: object
+                properties:
+                  reg:
+                    description: Identifier for the voltage domain
+                    maxItems: 1
+                  voltd-supply:
+                    maxItems: 1
+                  domain-name:
+                    description: Name for the voltage domain
+                    maxItems: 1
+                required:
+                  - reg
+                  - voltd-supply
+            required:
+              - "#address-cells"
+              - "#size-cells"
+
+    required:
+      - compatible
+      - reg
+      - scmi-channel-id
+      - "#address-cells"
+      - "#size-cells"
+
+    allOf:
+      - if:
+          properties:
+            compatible:
+              contains:
+                const: arm,scmi
+        then:
+          required:
+            - mboxes
+            - shmem
+
+required:
+  - compatible
+  - "#address-cells"
+  - "#size-cells"
+
+unevaluatedProperties: false
+
+$defs:
+  protocol-node:
+    maxItems: 1
+    properties:
+      reg:
+        maxItems: 1
+      "#address-cells":
+        const: 1
+      "#size-cells":
+        const: 0
+    required:
+      - reg
+      - "#address-cells"
+      - "#size-cells"
+
+examples:
+  - |
+    #include <dt-bindings/scmi/scmi-clock.h>
+
+    scmi {
+      compatible = "optee,scmi-server";
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      agent@1 {
+        reg = <1>;
+        compatible = "linaro,scmi-optee";
+        scmi-channel-id = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        protocol@11 {
+          reg = <0x11>;
+
+          power-domains {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            pd@0 {
+              reg = <0>;
+              clocks = <&clock_drv 36>;
+              voltd-supply = <&voltd_drv 72>;
+              domain-name = "pd";
+            };
+          };
+        };
+
+        protocol@14 {
+          reg = <0x14>;
+
+          clocks {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            clock@0 {
+              reg = <0>;
+              domain-name = "clock";
+              clocks = <&clock_drv 25>;
+              flags = <SCMI_CLOCK_DEFAULT_ENABLED | SCMI_CLOCK_ALLOW_SET_RATE>;
+            };
+          };
+        };
+
+        protocol@16 {
+          reg = <0x16>;
+
+          resets {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            reset@0 {
+              reg = <0>;
+              domain-name = "reset";
+              resets = <&reset_drv 53>;
+            };
+          };
+        };
+
+        protocol@17 {
+          reg = <0x17>;
+
+          regulators {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            voltd@0 {
+              reg = <0>;
+              voltd-supply = <&voltd_drv 84>;
+            };
+          };
+        };
+      };
+    };
