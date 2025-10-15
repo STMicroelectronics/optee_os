@@ -133,6 +133,7 @@ properties:
 
         "enc" States that the region is encrypted.
           RIF_ENC_DIS, encryption is disabled
+          RIF_ENC_MCE_EN, encryption is enabled (side-channel attack protection)
           RIF_ENC_EN, encryption is enabled
 
         "enabled" Enables the region. Access controls applies.
