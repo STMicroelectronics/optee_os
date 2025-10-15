@@ -131,6 +131,46 @@ properties:
         RIF_CIDSEL_P, master CID is inherited from the associated RISUP.
         RIF_CIDSEL_M, master CID is defined in the “scid” field
 
+  st,risal:
+    minItems: 1
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    description:
+      Describes the firewall hardware configuration to apply for a given
+      memory under RISAL logic. It is only accessible by the TDCID.
+
+      RISALPROT(risal_id, block_id, srcid, lock, sec, priv, sren)
+
+      When a field isn't effective, it should be filled with RIF_UNUSED.
+
+      “risal_id” ID of the RISAL memory region.
+
+      “block_id” ID of the RISAL memory subregion block.
+        RIF_BLOCK_A, selects the subregion A
+        RIF_BLOCK_B, selects the subregion B
+
+      “srcid” CID by which the subregion is accessible. Effective only if “sren” =
+             RIF_SREN. When “sren” = RIF_SRDIS, "srcid" should be set to
+             RIF_UNUSED.
+
+      "lock" Specifies whether the RISAL configuration is locked until
+             next platform reset for this memory subregion.
+        RIF_UNLOCK, the RISAL configuration will not be locked for this
+                    subregion
+        RIF_LOCK, the RISAL configuration will be locked and will not be
+                  editable until next platform reset for this subregion
+
+      "sec" Defines the secure level necessary to access this memory subregion.
+        RIF_SEC, subregion is accessible by secure masters only
+        RIF_NSEC, subregion is accessible by non secure masters only.
+
+      "priv" Defines the privilege level necessary to access this memory subregion.
+        RIF_PRIV, subregion is accessible by privileged masters only
+        RIF_NPRIV, subregion is accessible by privileged and non-privileged masters
+
+      “sren” Defines if the RISAL memory subregion is enabled and its CID filtering is enabled.
+        RIF_SREN, enables the subregion and its CID filtering
+        RIF_SRDIS, disables the subregion and its CID filtering
+
   st,glocked:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
