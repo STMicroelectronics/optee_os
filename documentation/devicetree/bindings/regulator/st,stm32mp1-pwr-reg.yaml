@@ -14,9 +14,6 @@ properties:
     oneOf:
       - items:
           - const: st,stm32mp1,pwr-reg
-      - items:
-          - const: st,stm32mp13-pwr-reg
-          - const: st,stm32mp1,pwr-reg
 
   reg:
     maxItems: 1
@@ -42,7 +39,7 @@ additionalProperties: false
 examples:
   - |
     pwr@50001000 {
-      compatible = "st,stm32mp1,pwr-reg";
+      compatible = "st,stm32mp1-pwr-reg";
       reg = <0x50001000 0x10>;
       vdd-supply = <&vdd>;
       vdd_3v3_usbfs-supply = <&vdd_usb>;
