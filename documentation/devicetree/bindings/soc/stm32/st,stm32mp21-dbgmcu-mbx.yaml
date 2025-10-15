@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/stm32/st,stm32mp21-dbgmcu-mbx.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STM32 DBGMCU secure debug mailbox for Authenticated Debug Access Control
+
+maintainers:
+  - Amelie Delaunay <amelie.delaunay@foss.st.com>
+
+description: |
+  On STM32MP21, the debug authentication protocol implements a bidirectional
+  communication between the debugger (host) and the target (STM32MP21) through
+  a mailbox interface located in the DBGMCU.
+
+properties:
+  compatible:
+    const: st,stm32mp21-dbgmcu-mbx
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: Detection of debugger write in DBG_AUTH_HOST register
+      - description: Detection of debugger read DBG_AUTH_DEV register
+
+  interrupt-names:
+    items:
+      - const: dbg_auth_wr
+      - const: dbg_auth_rd
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+  - interrupt-names
+
+additionalProperties: false
+
+examples:
+  - |
+        dbgmcu_mbx: mailbox@440a0100 {
+          compatible = "st,stm32mp21-dbgmcu-mbx";
+          reg = <0x440a0100 0xc>;
+          interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>,
+                       <GIC_SPI 209 IRQ_TYPE_EDGE_RISING>;
+          interrupt-names = "dbg_auth_wr", "dbg_auth_rd";
+          clocks = <&rcc CK_DBGMCU>;
+        };

@@ -64,17 +64,23 @@ properties:
         to sample the data in their valid window.
         Tune the phase of the TX launch clock in order to meet setup
         and hold constraints of TX signals versus the memory clock.
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
       minItems: 2
       maxItems: 2
 
-  feature-domains:
+  access-controllers:
     $ref: /schemas/types.yaml#/definitions/phandle-array
     description: |
       Phandle to the rifsc device to check access right.
 
-  ranges: true
+  power-domains:
+    maxItems: 1
+
+  cs-gpios:
+    maxItems: 1
+    description:
+      GPIO for chip select
 
 required:
   - compatible
@@ -83,6 +89,7 @@ required:
   - "#size-cells"
   - clocks
   - interrupts
+  - st,syscfg-dlyb
 
 patternProperties:
   "flash@[0-9a-f]+$":
@@ -97,6 +104,7 @@ patternProperties:
           - enum:
               - jedec,spi-nor
               - spi-nand
+              - st,octal-bus
 
     allOf:
       - if:
@@ -105,9 +113,10 @@ patternProperties:
               enum:
                 - jedec,spi-nor
                 - spi-nand
+                - st,octal-bus
 
         then:
-          $ref: "/schemas/spi/spi-controller.yaml#"
+          $ref: /schemas/spi/spi-controller.yaml#
 
       - if:
           properties:
@@ -117,11 +126,10 @@ patternProperties:
                   - cfi-flash
 
         then:
-          $ref: "/schemas/mtd/mtd-physmap.yaml#"
+          $ref: /schemas/mtd/mtd-physmap.yaml#
 
           properties:
             st,max-frequency:
-              $ref: /schemas/types.yaml#/definitions/uint32
               description:
                 Maximum clocking speed of the device in Hz.
 
@@ -137,14 +145,26 @@ patternProperties:
           required:
             - st,max-frequency
 
+      - if:
+          properties:
+            compatible:
+              contains:
+                enum:
+                  - st,octal-bus
+
+        then:
+          required:
+            - spi-max-frequency
+
+    additionalProperties: true
+
 additionalProperties: false
 
 examples:
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/bus/stm32mp25_sys_bus.h>
-    #include <dt-bindings/clock/stm32mp25-clks.h>
-    #include <dt-bindings/reset/stm32mp25-resets.h>
+    #include <dt-bindings/clock/st,stm32mp25-rcc.h>
+    #include <dt-bindings/reset/st,stm32mp25-rcc.h>
     spi@0 {
       compatible = "st,stm32mp25-omi";
       reg = <0x40430000 0x400>;
@@ -153,9 +173,11 @@ examples:
       dmas = <&hpdma 2 0x62 0x00003121 0x0>,
              <&hpdma 2 0x42 0x00003112 0x0>;
       dma-names = "tx", "rx";
+      st,syscfg-dlyb = <&syscfg 0x1000>;
       clocks = <&scmi_clk CK_SCMI_OSPI1>;
       resets = <&scmi_reset RST_SCMI_OSPI1DLL>, <&scmi_reset RST_SCMI_OSPI1DLL>;
-      feature-domains = <&rifsc STM32MP25_RIFSC_OCTOSPI1_ID>;
+      access-controllers = <&rifsc 74>;
+      power-domains = <&CLUSTER_PD>;
 
       #address-cells = <1>;
       #size-cells = <0>;
@@ -170,9 +192,8 @@ examples:
 
   - |
     #include <dt-bindings/interrupt-controller/arm-gic.h>
-    #include <dt-bindings/bus/stm32mp25_sys_bus.h>
-    #include <dt-bindings/clock/stm32mp25-clks.h>
-    #include <dt-bindings/reset/stm32mp25-resets.h>
+    #include <dt-bindings/clock/st,stm32mp25-rcc.h>
+    #include <dt-bindings/reset/st,stm32mp25-rcc.h>
     memory-controller@40430000 {
       compatible = "st,stm32mp25-omi";
       reg = <0x40430000 0x400>;
@@ -183,7 +204,8 @@ examples:
       st,syscfg-dlyb = <&syscfg 0x1000>;
       clocks = <&scmi_clk CK_SCMI_OSPI1>;
       resets = <&scmi_reset RST_SCMI_OSPI1>, <&scmi_reset RST_SCMI_OSPI1DLL>;
-      feature-domains = <&rifsc STM32MP25_RIFSC_OCTOSPI1_ID>;
+      access-controllers = <&rifsc 74>;
+      power-domains = <&CLUSTER_PD>;
 
       #address-cells = <2>;
       #size-cells = <1>;
@@ -193,5 +215,34 @@ examples:
         reg = <0x2 0x0 0x4000000>;
         st,max-frequency = <100000000>;
         st,tacc-ns = <48>;
+      };
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/st,stm32mp25-rcc.h>
+    #include <dt-bindings/reset/st,stm32mp25-rcc.h>
+    spi@0 {
+      compatible = "st,stm32mp25-omi";
+      reg = <0x40430000 0x400>;
+      memory-region = <&mm_ospi1>;
+      interrupts = <GIC_SPI 163 IRQ_TYPE_LEVEL_HIGH>;
+      dmas = <&hpdma 2 0x62 0x00003121 0x0>,
+             <&hpdma 2 0x42 0x00003112 0x0>;
+      dma-names = "tx", "rx";
+      st,syscfg-dlyb = <&syscfg 0x1000>;
+      clocks = <&scmi_clk CK_SCMI_OSPI1>;
+      resets = <&scmi_reset RST_SCMI_OSPI1>, <&scmi_reset RST_SCMI_OSPI1DLL>;
+      access-controllers = <&rifsc 74>;
+      power-domains = <&CLUSTER_PD>;
+      cs-gpios = <&gpiod 1 GPIO_ACTIVE_LOW>;
+
+      #address-cells = <1>;
+      #size-cells = <0>;
+
+      flash@0 {
+        compatible = "st,octal-bus";
+        reg = <0>;
+        spi-max-frequency = <50000000>;
       };
     };

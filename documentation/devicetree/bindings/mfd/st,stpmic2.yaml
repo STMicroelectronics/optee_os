@@ -13,145 +13,151 @@ maintainers:
 
 properties:
   compatible:
-    const: st,stpmic2
+    enum:
+      - st,stpmic1l
+      - st,stpmic2
+      - st,stpmic2l
 
+    description: |
+      The STPMIC25 uses "st,stpmic2" compatible string and can provide
+      BUCK1..7, LDO1..7, REFDDR regulators
+      The STPMIC1L uses "st,stpmic1l" compatible string and can provide
+      BUCK1, BUCK2, LDO2..5, GPO1..2 regulators
+      The STPMIC2L uses "st,stpmic2l" compatible string and can provide
+      BUCK1..4, LDO1..LDO7, GPO1..5 regulators
   reg:
     const: 0x33
+
+  interrupts:
+    maxItems: 1
+
+  st,pmic-it-id:
+    description: PMIC interruptions ids to forward to the non-secure world
+      in the form of OPTEE notifications described by st,notif-it-id.
+        PKEY_FA = 0
+        PKEY_RI = 1
+        WKP_FA = 2
+        WKP_RI = 3
+        VINLOW_FA = 4
+        VINLOW_RI = 5
+        VBUS_FA = 6
+        VBUS_RI = 7
+        THW_FA = 8
+        THW_RI = 9
+        BUCK1_OCP = 16
+        BUCK2_OCP = 17
+        BUCK3_OCP = 18
+        BUCK4_OCP = 19
+        BUCK5_OCP = 20
+        BUCK6_OCP = 21
+        BUCK7_OCP = 22
+        REFDDR_OC = 23
+        LDO1_OCP2 = 24
+        LDO2_OCP2 = 25
+        LDO3_OCP2 = 26
+        LDO4_OCP2 = 27
+        LDO5_OCP2 = 28
+        LDO6_OCP2 = 29
+        LDO7_OCP3 = 30
+        LDO8_OCP3 = 31
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 32
+
+  st,notif-it-id:
+    description: OP-TEE notification IDs to forward to the non-secure world
+      for each PMIC interruption listed by st,pmic-it-id.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 1
+    maxItems: 32
 
   regulators:
     type: object
 
     description: |
-      Available regulators in STPMIC2 device are:
-        - buck1 for Buck BUCK1
-        - buck2 for Buck BUCK2
-        - buck3 for Buck BUCK3
-        - buck4 for Buck BUCK4
-        - buck5 for Buck BUCK5
-        - buck6 for Buck BUCK6
-        - buck7 for Buck BUCK7
-        - ldo1 for LDO LDO1
-        - ldo2 for LDO LDO2
-        - ldo3 for LDO LDO3
-        - ldo4 for LDO LDO4
-        - ldo5 for LDO LDO5
-        - ldo6 for LDO LDO6
-        - ldo7 for LDO LDO7
-        - ldo8 for LDO LDO8
-        - refddr for LDO REFDDR
+      Available regulators in STPMIC2 devices are:
+        - buck1..7 for BUCK1..7
+        - ldo1..8 for LDO1..8
+        - gpo1..5 for GDO1..5
+        - refddr for REFDDR
 
     properties:
       compatible:
         const: st,stpmic2-regulators
 
-      ldo3:
-        type: object
-
-        properties:
-          st,mask-reset:
-            description: mask reset for this regulator, the regulator configuration
-              is maintained during pmic reset.
-            $ref: /schemas/types.yaml#/definitions/flag
-
-          regulator-name: true
-          regulator-boot-on: true
-          regulator-always-on: true
-          regulator-min-microvolt: true
-          regulator-max-microvolt: true
-          regulator-over-current-protection: true
-
-        additionalProperties: false
-
-      ldo4:
-        type: object
-
-        properties:
-          st,mask-reset:
-            description: mask reset for this regulator, the regulator configuration
-              is maintained during pmic reset.
-            $ref: /schemas/types.yaml#/definitions/flag
-
-          regulator-name: true
-          regulator-boot-on: true
-          regulator-always-on: true
-          regulator-over-current-protection: true
-
-        additionalProperties: false
-
-      refddr:
-        type: object
-
-        properties:
-          st,mask-reset:
-            description: mask reset for this regulator, the regulator configuration
-              is maintained during STPMIC2 reset cycle.
-            $ref: /schemas/types.yaml#/definitions/flag
-
-          regulator-name: true
-          regulator-boot-on: true
-          regulator-always-on: true
-
-        additionalProperties: false
-
     patternProperties:
-      "^(buck[1-7]|ldo[1-8]|refddr)-supply$":
-        description: STPMIC2 voltage regulators supplies
-
-      "^(buck[1-7]|ldo[1-8]|refddr)$":
+      "^(buck[1-7]|ldo[1-8]|gdo[1-5]|refddr)$":
+        type: object
         $ref: ../regulator/regulator.yaml
 
-      "^ldo[1-2,5-8]$":
-        type: object
-
         properties:
           st,mask-reset:
-            description: mask reset for this regulator, the regulator configuration
-              is maintained during pmic reset.
-            $ref: /schemas/types.yaml#/definitions/flag
-
-          regulator-name: true
-          regulator-boot-on: true
-          regulator-always-on: true
-          regulator-min-microvolt: true
-          regulator-max-microvolt: true
-          regulator-over-current-protection: true
-          regulator-enable-ramp-delay: true
-
-        additionalProperties: false
-
-      "^buck[1-7]$":
-        type: object
-
-        properties:
-          st,mask-reset:
-            description: mask reset for this regulator, the regulator configuration
-              is maintained during pmic reset.
+            description: mask reset for this regulator, the regulator
+              configuration is maintained during STPMIC2 reset cycle.
             $ref: /schemas/types.yaml#/definitions/flag
 
           st,regulator-bypass-microvolt:
             description: regulator output voltage when configured in bypass.
               Authorize automatic bypass mode selection depending on voltage.
-            $ref: "/schemas/types.yaml#/definitions/uint32"
+              Available only for LDO2, LDO3, LDOs5-8.
 
-          regulator-name: true
-          regulator-boot-on: true
-          regulator-always-on: true
-          regulator-min-microvolt: true
-          regulator-max-microvolt: true
-          regulator-pull-down: true
-          regulator-over-current-protection: true
-          regulator-enable-ramp-delay: true
+          st,alternate-input-source:
+            description: select VOUT4 as input source for LDO1.
+            $ref: /schemas/types.yaml#/definitions/flag
 
+          st,pwrctrl-enable:
+            description: Enable the power control input line for the regulator.
+            $ref: /schemas/types.yaml#/definitions/flag
 
-        additionalProperties: false
+          st,pwrctrl-sel:
+            description: Power control input line number to use to drive
+              the regulator low power state.
+            $ref: /schemas/types.yaml#/definitions/uint32
+
+          st,pwrctrl-reset:
+            description: The regulator state is reset to it's NVMEM default
+              value when exit from low power. It is disabled when the
+              power control line is low.
+            $ref: /schemas/types.yaml#/definitions/flag
+
+        patternProperties:
+          "^(default|lplv|standby|off|lp-stop|lplv-stop|lplv-stop2|standby-ddr-sr|standby-ddr-off)$":
+            type: object
+            description:
+              sub-nodes for regulator low power states.
+              On STM32MP1:
+                lp-stop is applied for LP-STOP
+                lplv-stop is applied for LPLV-STOP
+                lplv-stop2 is applied for LPLV-STOP2
+                standby-ddr-sr is applied for STANDBY-DDR-SR
+                standby-ddr-off is applied before shutdown
+              On STM32MP2:
+                default is applied for STOP1, LP-STOP1, STOP2, LP-STOP2
+                lplv is applied for LPLV-STOP1, LPLV-STOP2
+                standby is applied for STANDBY1-DDR-SR
+                off is applied for STANDBY-DDR-OFF
+
+            properties:
+              regulator-on-in-suspend:
+                description: regulator should be on in suspend state.
+                type: boolean
+
+              regulator-off-in-suspend:
+                description: regulator should be off in suspend state.
+                  If it is controlled by a pwrctrl line, it is turned off
+                  once the pwrctrl state changes.
+                  If st,pwrctrl-enable is false, it is turned off during
+                  suspend preparation and re-enabled during resume.
+                type: boolean
+
+              regulator-suspend-microvolt:
+                description: the voltage which regulator should be set in
+                  suspend.
+
+      "^(buck[1-7]|ldo[1-8]|refddr)-supply$":
+        description: STPMIC2 voltage regulators supplies
 
     additionalProperties: false
-
-  st,wakeup-pin-number:
-    description: Pin used as wake-up source when for MP2
-    $ref: /schemas/types.yaml#/definitions/uint32
-    minItems: 1
-    maxItems: 1
 
 additionalProperties: false
 
@@ -161,6 +167,7 @@ required:
 
 examples:
   - |
+    #include <dt-bindings/mfd/st,stpmic2.h>
     i2c {
       #address-cells = <1>;
       #size-cells = <0>;
@@ -168,7 +175,9 @@ examples:
         compatible = "st,stpmic2";
         reg = <0x33>;
 
-        st,wakeup-pin-number = <1>;
+        interrupts-extended = <&exti1 52 IRQ_TYPE_EDGE_FALLING>;
+        st,pmic-it-id = <IT_PKEY_FA IT_PKEY_RI>;
+        st,notif-it-id = <0 1>;
 
         regulators {
           compatible = "st,stpmic2-regulators";
@@ -177,24 +186,24 @@ examples:
 
           buck1 {
             regulator-name = "vdd_core";
-            st,mask-reset;
-            regulator-boot-on;
-            regulator-min-microvolt = <700000>;
+            st,pwrctrl-sel = <1>;
+            st,pwrctrl-enable;
+            regulator-min-microvolt = <1200000>;
             regulator-max-microvolt = <1200000>;
-            lp-stop {
-              regulator-suspend-microvolt = <1250000>;
+            default {
+              regulator-on-in-suspend;
+              regulator-suspend-microvolt = <1200000>;
             };
-            lplv-stop {
-              regulator-suspend-microvolt = <900000>;
+            lplv {
+              regulator-on-in-suspend;
+              regulator-suspend-microvolt = <700000>;
             };
-            lplv-stop2 {
+            standby {
               regulator-off-in-suspend;
             };
-            standby-ddr-sr {
+            off {
               regulator-off-in-suspend;
             };
-            standby-ddr-off {
-              regulator-off-in-suspend;
           };
 
           buck3 {
@@ -203,6 +212,7 @@ examples:
             regulator-max-microvolt = <3300000>;
             regulator-boot-on;
             regulator-pull-down;
+            st,mask-reset;
           };
 
           buck4 {
@@ -211,32 +221,12 @@ examples:
             regulator-max-microvolt = <3300000>;
             regulator-always-on;
             regulator-over-current-protection;
-
-            lplv-stop {
-              regulator-suspend-microvolt = <900000>;
-            };
-            lplv-stop2 {
-              regulator-suspend-microvolt = <900000>;
-            };
-            standby-ddr-sr {
-              regulator-off-in-suspend;
-            };
-            standby-ddr-off {
-              regulator-off-in-suspend;
-            };
           };
 
           ldo6 {
             regulator-name = "v1v8";
             regulator-min-microvolt = <1800000>;
             regulator-max-microvolt = <1800000>;
-            regulator-over-current-protection;
-            standby-ddr-sr {
-              regulator-off-in-suspend;
-            };
-            standby-ddr-off {
-              regulator-off-in-suspend;
-            };
           };
 
           ldo8 {

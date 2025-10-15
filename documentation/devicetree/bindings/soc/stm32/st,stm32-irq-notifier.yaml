@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/stm32/st,stm32-irq-notifier.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STM32 irq client to notify NS
+
+maintainers:
+  - Antonio Borneo <antonio.borneo@foss.st.com>
+
+properties:
+  compatible:
+    const: "st,stm32-irq-notifier"
+
+  interrupts:
+    maxItems: 1
+    description: A single interrupt specifier
+
+  wakeup-source:
+    type: boolean
+    description: Interrupt can be used as a wakeup source
+
+  st,notif-it-id:
+    description: OPTEE notification number to send to the non-secure world.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+required:
+  - compatible
+  - interrupts
+
+additionalProperties: false
+
+examples:
+  - |
+    typec_wakeup {
+      compatible = "st,stm32-irq-notifier";
+      interrupts-extended = <&exti 59 IRQ_TYPE_EDGE_FALLING>;
+      wakeup-source;
+      st,notif-it-id = <1>;
+    };
