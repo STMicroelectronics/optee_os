@@ -199,7 +199,7 @@ patternProperties:
               "#size-cells":
                 const: 0
             patternProperties:
-              "^voltd@[0-9a-f]+$":
+              "^regulator@[0-9a-f]+$":
                 type: object
                 properties:
                   reg:
