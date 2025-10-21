@@ -1148,7 +1148,7 @@ static int scmi_pd_init(fwk_id_t module_id, unsigned int element_count,
         return status;
     }
 
-    if (domain_count <= 1) {
+    if (domain_count < 1) {
         return FWK_E_SUPPORT;
     }
 
