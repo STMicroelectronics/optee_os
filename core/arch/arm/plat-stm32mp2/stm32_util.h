@@ -20,4 +20,12 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
 /* Print a message and reset the system */
 void __noreturn do_reset(const char *str);
 
+#ifdef CFG_STPMIC2
+bool stm32_stpmic2_is_present(void);
+#else
+static inline bool stm32_stpmic2_is_present(void)
+{
+	return false;
+}
+#endif
 #endif /*__STM32_UTIL_H__*/
