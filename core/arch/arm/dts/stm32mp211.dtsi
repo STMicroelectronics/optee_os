@@ -176,6 +176,47 @@
 				      "clk-lsi", "clk-msi", "clk-i2sin";
 		};
 
+		pwr: pwr@44210000 {
+			compatible = "st,stm32mp21-pwr";
+			reg = <0x44210000 0x400>;
+			status = "disabled";
+
+			vdda18adc: vdda18adc {
+				compatible = "st,stm32mp21-pwr-regu";
+				regulator-name = "vdda18adc";
+				status = "disabled";
+			};
+
+			vddio1: vddio1 {
+				compatible = "st,stm32mp21-pwr-regu";
+				regulator-name = "vddio1";
+				st,iocomp = <8 7>;
+				status = "disabled";
+			};
+
+			vddio2: vddio2 {
+				compatible = "st,stm32mp21-pwr-regu";
+				regulator-name = "vddio2";
+				st,iocomp = <8 7>;
+				status = "disabled";
+			};
+
+			vddio3: vddio3 {
+				compatible = "st,stm32mp21-pwr-regu";
+				regulator-name = "vddio3";
+				st,iocomp = <8 7>;
+				status = "disabled";
+			};
+
+			vddio: vddio {
+				compatible = "st,stm32mp21-pwr-regu";
+				regulator-name = "vddio";
+				st,iocomp = <8 7>;
+				regulator-always-on;
+				status = "disabled";
+			};
+		};
+
 		syscfg: syscon@44230000 {
 			reg = <0x44230000 0x10000>;
 			status = "disabled";
