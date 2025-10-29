@@ -391,6 +391,50 @@
 	status = "okay";
 };
 
+&scmi_regulator {
+	regulators {
+		regulator@b {
+			reg = <VOLTD_SCMI_STPMIC2_BUCK2>;
+			voltd-supply = <&vddcore>;
+		};
+
+		regulator@e {
+			reg = <VOLTD_SCMI_STPMIC2_BUCK5>;
+			voltd-supply = <&v1v8>;
+		};
+
+		regulator@10 {
+			reg = <VOLTD_SCMI_STPMIC2_BUCK7>;
+			voltd-supply = <&v3v3>;
+		};
+
+		regulator@15 {
+			reg = <VOLTD_SCMI_STPMIC2_LDO5>;
+			voltd-supply = <&v5v_hdmi>;
+		};
+
+		regulator@16 {
+			reg = <VOLTD_SCMI_STPMIC2_LDO6>;
+			voltd-supply = <&v5v_vconn>;
+		};
+
+		regulator@12 {
+			reg = <VOLTD_SCMI_STPMIC2_LDO2>;
+			voltd-supply = <&vdd_emmc>;
+		};
+
+		regulator@14 {
+			reg = <VOLTD_SCMI_STPMIC2_LDO4>;
+			voltd-supply = <&vdd3v3_usb>;
+		};
+
+		regulator@17 {
+			reg = <VOLTD_SCMI_STPMIC2_LDO7>;
+			voltd-supply = <&vdd_sdcard>;
+		};
+	};
+};
+
 &tamp {
 	st,tamp-passive-precharge = <2>;
 	st,tamp-passive-nb-sample = <4>;
