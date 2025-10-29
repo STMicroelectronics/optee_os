@@ -6,6 +6,7 @@
  * boards when CA35 is TDCID
  */
 
+#include <dt-bindings/regulator/st,stm32mp21-regulator.h>
 #include <dt-bindings/scmi/scmi-clock.h>
 
 / {
@@ -699,6 +700,35 @@
 						reg = <RST_SCMI_OSPI1DLL>;
 						domain-name = "ospi1_ddl";
 						resets = <&rcc OSPI1DLL_R>;
+					};
+				};
+			};
+
+			scmi_regulator: protocol@17 {
+				reg = <0x17>;
+
+				regulators {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					regulator@0 {
+						reg = <VOLTD_SCMI_VDDIO1>;
+						voltd-supply = <&vddio1>;
+					};
+
+					regulator@1 {
+						reg = <VOLTD_SCMI_VDDIO2>;
+						voltd-supply = <&vddio2>;
+					};
+
+					regulator@2 {
+						reg = <VOLTD_SCMI_VDDIO3>;
+						voltd-supply = <&vddio3>;
+					};
+
+					regulator@3 {
+						reg = <VOLTD_SCMI_ADC>;
+						voltd-supply = <&vdda18adc>;
 					};
 				};
 			};

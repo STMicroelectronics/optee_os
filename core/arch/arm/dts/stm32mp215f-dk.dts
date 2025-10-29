@@ -294,3 +294,32 @@
 	};
 };
 
+
+&scmi_regulator {
+	regulators {
+		regulator@5 {
+			reg = <VOLTD_SCMI_STPMIC_BUCK1>;
+			voltd-supply = <&vddcore>;
+		};
+
+		regulator@f {
+			reg = <VOLTD_SCMI_STPMIC_LDO4>;
+			voltd-supply = <&vdd3v3_usb>;
+		};
+
+		regulator@10 {
+			reg = <VOLTD_SCMI_STPMIC_LDO5>;
+			voltd-supply = <&vdd_flash>;
+		};
+
+		regulator@11 {
+			reg = <VOLTD_SCMI_STPMIC_LDO6>;
+			voltd-supply = <&vdda_1v8>;
+		};
+
+		regulator@15 {
+			reg = <VOLTD_SCMI_STPMIC_GPO1>;
+			voltd-supply = <&v3v3>;
+		};
+	};
+};
