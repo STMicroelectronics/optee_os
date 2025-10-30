@@ -492,7 +492,7 @@ static int scmi_sys_power_state_set_handler(fwk_id_t service_id,
             scmi_sys_power_state_notify(
                 service_id,
                 mod_scmi_system_state,
-                (parameters->flags & STATE_SET_FLAGS_GRACEFUL_REQUEST) != 0);
+                (parameters->flags & STATE_SET_FLAGS_GRACEFUL_REQUEST) == 0);
         }
     }
 #endif
