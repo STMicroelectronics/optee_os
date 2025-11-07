@@ -462,9 +462,7 @@ int psci_features(uint32_t psci_fid)
 		return PSCI_RET_SUCCESS;
 	case PSCI_CPU_ON:
 	case PSCI_CPU_OFF:
-		if (stm32mp_supports_second_core())
-			return PSCI_RET_SUCCESS;
-		return PSCI_RET_NOT_SUPPORTED;
+		return PSCI_RET_SUCCESS;
 	case PSCI_SYSTEM_OFF:
 		if (stm32mp_with_pmic())
 			return PSCI_RET_SUCCESS;
