@@ -237,6 +237,17 @@ static struct stm32_scmi_clk stm32_scmi_clock[] = {
 			   STM32MP1_ETZPC_SPI6_ID),
 	CLOCK_CELL_DECPROT(CK_SCMI_USART1, USART1_K, "usart1_k", false,
 			   STM32MP1_ETZPC_USART1_ID),
+	CLOCK_CELL(CK_SCMI_GPIOA, GPIOA, "gpioa", false),
+	CLOCK_CELL(CK_SCMI_GPIOB, GPIOB, "gpiob", false),
+	CLOCK_CELL(CK_SCMI_GPIOC, GPIOC, "gpioc", false),
+	CLOCK_CELL(CK_SCMI_GPIOD, GPIOD, "gpiod", false),
+	CLOCK_CELL(CK_SCMI_GPIOE, GPIOE, "gpioe", false),
+	CLOCK_CELL(CK_SCMI_GPIOF, GPIOF, "gpiof", false),
+	CLOCK_CELL(CK_SCMI_GPIOG, GPIOG, "gpiog", false),
+	CLOCK_CELL(CK_SCMI_GPIOH, GPIOH, "gpioh", false),
+	CLOCK_CELL(CK_SCMI_GPIOI, GPIOI, "gpioi", false),
+	CLOCK_CELL(CK_SCMI_GPIOJ, GPIOJ, "gpioj", false),
+	CLOCK_CELL(CK_SCMI_GPIOK, GPIOK, "gpiok", false),
 };
 #endif
 
