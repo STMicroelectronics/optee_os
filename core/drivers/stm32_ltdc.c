@@ -103,13 +103,13 @@ struct ltdc_device {
 #define LTDC_LXDCCR_DCALPHA	GENMASK_32(31, 24)
 
 enum ltdc_pix_fmt {
-	LXPFCR_PF_ARGB8888,
-	LXPFCR_PF_ABGR8888,
-	LXPFCR_PF_RGBA8888,
-	LXPFCR_PF_BGRA8888,
-	LXPFCR_PF_RGB565,
-	LXPFCR_PF_BGR565,
-	LXPFCR_PF_RGB888
+	LXPFCR_PF_ARGB8888,		/* ARGB [32 bits] */
+	LXPFCR_PF_ABGR8888,		/* ABGR [32 bits] */
+	LXPFCR_PF_RGBA8888,		/* RGBA [32 bits] */
+	LXPFCR_PF_BGRA8888,		/* BGRA [32 bits] */
+	LXPFCR_PF_RGB565,		/* RGB  [16 bits] */
+	LXPFCR_PF_BGR565,		/* BGR  [16 bits] */
+	LXPFCR_PF_RGB888,		/* RGB  [24 bits] */
 };
 
 /* Within mask LTDC_LXBFCR_BF1 */
@@ -294,9 +294,34 @@ static TEE_Result stm32_ltdc_activate(void *device,
 	io_clrsetbits32(ldev->regs + LTDC_LXWVPCR,
 			LTDC_LXWVPCR_WVSTPOS | LTDC_LXWVPCR_WVSPPOS, value);
 
+	switch (fb->bpp) {
+	case FB_ARGB_32BPP:
+		value = LXPFCR_PF_ARGB8888;
+		break;
+	case FB_ABGR_32_BPP:
+		value = LXPFCR_PF_ABGR8888;
+		break;
+	case FB_RGBA_32_BPP:
+		value = LXPFCR_PF_RGBA8888;
+		break;
+	case FB_BGRA_32_BPP:
+		value = LXPFCR_PF_BGRA8888;
+		break;
+	case FB_RGB_24_BPP:
+		value = LXPFCR_PF_RGB888;
+		break;
+	case FB_RGB_16_BPP:
+		value = LXPFCR_PF_RGB565;
+		break;
+	case FB_BGR_16_BPP:
+		value = LXPFCR_PF_BGR565;
+		break;
+	default:
+		panic("Invalid Pixel format");
+	}
+
 	/* Specifies the pixel format, hard coded */
-	io_clrsetbits32(ldev->regs + LTDC_LXPFCR, LTDC_LXPFCR_PF,
-			LXPFCR_PF_ARGB8888);
+	io_clrsetbits32(ldev->regs + LTDC_LXPFCR, LTDC_LXPFCR_PF, value);
 
 	/* Configure the default color values, hard coded */
 	io_clrsetbits32(ldev->regs + LTDC_LXDCCR,

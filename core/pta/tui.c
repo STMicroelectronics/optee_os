@@ -29,7 +29,7 @@ static TEE_Result taf_get_screen_info(struct ts_session *s __unused,
 	params[0].value.b = fb->height;
 	params[1].value.a = fb->width_dpi;
 	params[1].value.b = fb->height_dpi;
-	COMPILE_TIME_ASSERT(PTA_TUI_SCREEN_24BPP == FB_24BPP);
+	COMPILE_TIME_ASSERT(PTA_TUI_SCREEN_32BPP == FB_ARGB_32BPP);
 	params[2].value.a = fb->bpp;
 	return TEE_SUCCESS;
 }

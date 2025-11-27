@@ -9,7 +9,7 @@
 #define PTA_TUI_UUID	{ 0x9c199eb0, 0x4d2d, 0x41a5, { \
 			  0x8c, 0xe9, 0xf2, 0x08, 0x52, 0x15, 0x77, 0xd1 } }
 
-#define PTA_TUI_SCREEN_24BPP	0
+#define PTA_TUI_SCREEN_32BPP	0
 
 /*
  * [out]  value[0].a:	width
