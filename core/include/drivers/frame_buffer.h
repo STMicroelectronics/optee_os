@@ -22,6 +22,7 @@ struct frame_buffer {
 	size_t height;
 	size_t width_dpi;
 	size_t height_dpi;
+	uint8_t alpha;
 	enum frame_buffer_bpp bpp;
 	void *base;
 };

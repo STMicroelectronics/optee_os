@@ -329,8 +329,9 @@ static TEE_Result stm32_ltdc_activate(void *device,
 			LTDC_LXDCCR_DCRED | LTDC_LXDCCR_DCALPHA,
 			0x00FFFFFF);
 
-	/* Specifies the constant alpha value, hard coded. */
-	io_clrsetbits32(ldev->regs + LTDC_LXCACR, LTDC_LXCACR_CONSTA, 0xFF);
+	/* Specifies the constant alpha value. */
+	io_clrsetbits32(ldev->regs + LTDC_LXCACR, LTDC_LXCACR_CONSTA,
+			fb->alpha);
 
 	/* Specifies the blending factors, hard coded. */
 	io_clrsetbits32(ldev->regs + LTDC_LXBFCR, LXBFCR_BF2 | LXBFCR_BF1,
