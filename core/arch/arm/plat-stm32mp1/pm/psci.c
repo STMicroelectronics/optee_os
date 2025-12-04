@@ -535,11 +535,8 @@ static inline size_t stm32_get_pos_other(void) {
 
 static void stm32_cpu_standby(void)
 {
-	struct itr_chip *itr_chip = interrupt_get_main_chip();
 	size_t pos = get_core_pos();
-	size_t other_pos = stm32_get_pos_other();
 	uint32_t exceptions = 0;
-	bool again = true;
 
 	set_locked(&cstop_cpux_state[pos], STATE_AUTO_CSTOP_ENTRY);
 
@@ -548,20 +545,21 @@ static void stm32_cpu_standby(void)
 	 * Synchronize on memory accesses and instruction flow before the WFI
 	 * instruction.
 	 */
-	while (again) {
+	do {
 		dsb();
 		isb();
 		wfi();
-
-		if (read_isr())
-			again = false;
-	}
+	} while (!read_isr());
 
 	exceptions = may_spin_lock(&cstop_lock);
 
-	if (cstop_enter == STATE_AUTO_CSTOP_ENTRY)
+	if (cstop_enter == STATE_AUTO_CSTOP_ENTRY) {
+		struct itr_chip *itr_chip = interrupt_get_main_chip();
+		size_t other_pos = stm32_get_pos_other();
+
 		interrupt_raise_sgi(itr_chip, GIC_SEC_SGI_6,
 				    TARGET_CPUX_GIC_MASK(other_pos));
+	}
 
 	cstop_cpux_state[pos] = STATE_NONE;
 
@@ -576,30 +574,30 @@ static void stm32_pwr_domain_suspend(unsigned int soc_mode)
 {
 	size_t other_pos = stm32_get_pos_other();
 	uint32_t exceptions = 0;
+	uint32_t scr = 0;
 
 	exceptions = may_spin_lock(&cstop_lock);
-	if ((core_state[other_pos] == CORE_OFF) ||
-	    (cstop_cpux_state[other_pos] == STATE_AUTO_CSTOP_ENTRY)) {
-		uint32_t scr = 0;
-
-		cstop_enter = STATE_AUTO_CSTOP_ENTRY;
-
+	if (core_state[other_pos] != CORE_OFF &&
+	    cstop_cpux_state[other_pos] != STATE_AUTO_CSTOP_ENTRY) {
 		may_spin_unlock(&cstop_lock, exceptions);
-
-		scr = read_scr();
-		write_scr(scr | SCR_IRQ | SCR_FIQ);
-
-		plat_suspend((uint32_t)soc_mode);
-		interrupt_ack_sgi(interrupt_get_main_chip(),
-				  GIC_SEC_SGI_6,
-				  TARGET_CPUX_GIC_MASK(other_pos));
-
-		write_scr(scr);
-		set_locked(&cstop_enter, STATE_NONE);
-		sev();
-	} else {
-		may_spin_unlock(&cstop_lock, exceptions);
+		return;
 	}
+
+	cstop_enter = STATE_AUTO_CSTOP_ENTRY;
+
+	may_spin_unlock(&cstop_lock, exceptions);
+
+	scr = read_scr();
+	write_scr(scr | SCR_IRQ | SCR_FIQ);
+
+	plat_suspend((uint32_t)soc_mode);
+	interrupt_ack_sgi(interrupt_get_main_chip(),
+			  GIC_SEC_SGI_6,
+			  TARGET_CPUX_GIC_MASK(other_pos));
+
+	write_scr(scr);
+	set_locked(&cstop_enter, STATE_NONE);
+	sev();
 }
 
 /*
