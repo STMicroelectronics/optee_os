@@ -237,6 +237,7 @@ int psci_cpu_off(void)
 /* Start non-pageable section */
 static int enter_cstop_suspend(unsigned int soc_mode)
 {
+	TEE_Result __maybe_unused ret = TEE_ERROR_GENERIC;
 	int rc = 1;
 
 	if (read_isr())
@@ -245,7 +246,10 @@ static int enter_cstop_suspend(unsigned int soc_mode)
 	stm32_enter_cstop(soc_mode);
 
 #ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
-	if (stm32mp_pm_call_bl2_lp_entry(soc_mode) == TEE_SUCCESS)
+	ret = stm32mp_pm_call_bl2_lp_entry(soc_mode);
+	if (ret == TEE_ERROR_BAD_STATE)
+		rc = -1;
+	else if (ret == TEE_SUCCESS)
 		rc = 0;
 #else
 	if (need_to_backup_cpu_context(soc_mode)) {
@@ -570,17 +574,19 @@ static void stm32_cpu_standby(void)
 }
 DECLARE_KEEP_PAGER(stm32_cpu_standby);
 
-static void stm32_pwr_domain_suspend(unsigned int soc_mode)
+static int stm32_pwr_domain_suspend(unsigned int soc_mode)
 {
 	size_t other_pos = stm32_get_pos_other();
+	int ret = PSCI_RET_INTERNAL_FAILURE;
 	uint32_t exceptions = 0;
 	uint32_t scr = 0;
+	int rc = 1;
 
 	exceptions = may_spin_lock(&cstop_lock);
 	if (core_state[other_pos] != CORE_OFF &&
 	    cstop_cpux_state[other_pos] != STATE_AUTO_CSTOP_ENTRY) {
 		may_spin_unlock(&cstop_lock, exceptions);
-		return;
+		return PSCI_RET_DENIED;
 	}
 
 	cstop_enter = STATE_AUTO_CSTOP_ENTRY;
@@ -590,7 +596,12 @@ static void stm32_pwr_domain_suspend(unsigned int soc_mode)
 	scr = read_scr();
 	write_scr(scr | SCR_IRQ | SCR_FIQ);
 
-	plat_suspend((uint32_t)soc_mode);
+	rc = plat_suspend((uint32_t)soc_mode);
+	if (rc == -1)
+		ret = PSCI_RET_DENIED;
+	else if (rc == 0)
+		ret = PSCI_RET_SUCCESS;
+
 	interrupt_ack_sgi(interrupt_get_main_chip(),
 			  GIC_SEC_SGI_6,
 			  TARGET_CPUX_GIC_MASK(other_pos));
@@ -598,6 +609,8 @@ static void stm32_pwr_domain_suspend(unsigned int soc_mode)
 	write_scr(scr);
 	set_locked(&cstop_enter, STATE_NONE);
 	sev();
+
+	return ret;
 }
 
 /*
@@ -622,7 +635,7 @@ int __weak __psci_cpu_suspend(uint32_t power_state,
 	uint32_t state_id = 0;
 	uint32_t state_type = 0;
 	uint32_t power_level __maybe_unused = 0;
-	int ret = PSCI_RET_INVALID_PARAMETERS;
+	int ret = PSCI_RET_INTERNAL_FAILURE;
 
 	state_id = (power_state & PSCI_POWER_STATE_ID_MASK) >>
 		   PSCI_POWER_STATE_ID_SHIFT;
@@ -635,7 +648,7 @@ int __weak __psci_cpu_suspend(uint32_t power_state,
 	     power_level, state_type, state_id);
 
 	if (state_type != PSCI_POWER_STATE_TYPE_STANDBY)
-		return ret;
+		return PSCI_RET_INVALID_PARAMETERS;
 
 	switch (state_id) {
 	case STM32_STATE_ID_CPU_PWRDN:
@@ -643,16 +656,13 @@ int __weak __psci_cpu_suspend(uint32_t power_state,
 		ret = PSCI_RET_SUCCESS;
 		break;
 	case STM32_STATE_ID_STOP1:
-		stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_STOP);
-		ret = PSCI_RET_SUCCESS;
+		ret = stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_STOP);
 		break;
 	case STM32_STATE_ID_LP_STOP1:
-		stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_LP_STOP);
-		ret = PSCI_RET_SUCCESS;
+		ret = stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_LP_STOP);
 		break;
 	case STM32_STATE_ID_LPLV_STOP1:
-		stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_LPLV_STOP);
-		ret = PSCI_RET_SUCCESS;
+		ret = stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_LPLV_STOP);
 		break;
 	default:
 	}
