@@ -41,6 +41,8 @@
 
 #define CONSOLE_FLUSH_DELAY_MS		10
 
+#define STM32_PM_CPU_STANDBY_FLAG		BIT(31)
+#define STM32_PM_CARE_OTHER_CPU_STATE_FLAG	BIT(30)
 #define STM32_PM_SOC_MODE_MASK			GENMASK_32(7, 0)
 
 static_assert(STM32_PM_MAX_SOC_MODE ==
@@ -57,7 +59,7 @@ enum core_state_id {
 	CORE_ON,
 };
 
-static enum core_state_id core_state[CFG_TEE_CORE_NB_CORE];
+static enum core_state_id core_state[2];
 static unsigned int __maybe_unused state_lock = SPINLOCK_UNLOCK;
 
 static uint32_t __maybe_unused lock_state_access(void)
@@ -550,6 +552,7 @@ static void stm32_cpu_standby(void)
 
 	set_locked(&cstop_cpux_state[pos], STATE_AUTO_CSTOP_ENTRY);
 
+#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
 	/*
 	 * Enter standby state.
 	 * Synchronize on memory accesses and instruction flow before the WFI
@@ -560,9 +563,14 @@ static void stm32_cpu_standby(void)
 		isb();
 		wfi();
 	} while (!read_isr());
+#else
+	if (stm32mp_pm_call_bl2_lp_entry(STM32_PM_CPU_STANDBY_FLAG))
+		panic();
+#endif
 
 	exceptions = may_spin_lock(&cstop_lock);
 
+#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
 	if (cstop_enter == STATE_AUTO_CSTOP_ENTRY) {
 		struct itr_chip *itr_chip = interrupt_get_main_chip();
 		size_t other_pos = stm32_get_pos_other();
@@ -570,6 +578,7 @@ static void stm32_cpu_standby(void)
 		interrupt_raise_sgi(itr_chip, GIC_SEC_SGI_6,
 				    TARGET_CPUX_GIC_MASK(other_pos));
 	}
+#endif
 
 	cstop_cpux_state[pos] = STATE_NONE;
 
@@ -586,12 +595,29 @@ static int stm32_pwr_domain_suspend(unsigned int soc_mode)
 	int ret = PSCI_RET_INTERNAL_FAILURE;
 	uint32_t arg = (uint32_t)soc_mode;
 	uint32_t exceptions = 0;
+	bool denied = false;
 	uint32_t scr = 0;
 	int rc = 1;
 
 	exceptions = may_spin_lock(&cstop_lock);
-	if (core_state[other_pos] != CORE_OFF &&
-	    cstop_cpux_state[other_pos] != STATE_AUTO_CSTOP_ENTRY) {
+
+	/* If we are already handling a low power request */
+	if (cstop_enter == STATE_AUTO_CSTOP_ENTRY)
+		denied = true;
+
+	if (core_state[other_pos] != CORE_OFF) {
+		arg |= STM32_PM_CARE_OTHER_CPU_STATE_FLAG;
+
+		/* If the other core is ON but not already in LP */
+		if (cstop_cpux_state[other_pos] != STATE_AUTO_CSTOP_ENTRY)
+			denied = true;
+	}
+
+	/* If an IRQ is pending */
+	if (read_isr())
+		denied = true;
+
+	if (denied) {
 		may_spin_unlock(&cstop_lock, exceptions);
 		return PSCI_RET_DENIED;
 	}
