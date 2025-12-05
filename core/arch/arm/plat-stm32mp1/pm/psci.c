@@ -41,6 +41,11 @@
 
 #define CONSOLE_FLUSH_DELAY_MS		10
 
+#define STM32_PM_SOC_MODE_MASK			GENMASK_32(7, 0)
+
+static_assert(STM32_PM_MAX_SOC_MODE ==
+	      (STM32_PM_MAX_SOC_MODE & STM32_PM_SOC_MODE_MASK));
+
 /*
  * SMP boot support and access to the mailbox
  */
@@ -235,8 +240,9 @@ int psci_cpu_off(void)
 #endif
 
 /* Start non-pageable section */
-static int enter_cstop_suspend(unsigned int soc_mode)
+static int enter_cstop_suspend(unsigned int arg)
 {
+	unsigned int soc_mode = arg & STM32_PM_SOC_MODE_MASK;
 	TEE_Result __maybe_unused ret = TEE_ERROR_GENERIC;
 	int rc = 1;
 
@@ -246,7 +252,7 @@ static int enter_cstop_suspend(unsigned int soc_mode)
 	stm32_enter_cstop(soc_mode);
 
 #ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
-	ret = stm32mp_pm_call_bl2_lp_entry(soc_mode);
+	ret = stm32mp_pm_call_bl2_lp_entry(arg);
 	if (ret == TEE_ERROR_BAD_STATE)
 		rc = -1;
 	else if (ret == TEE_SUCCESS)
@@ -268,7 +274,7 @@ DECLARE_KEEP_PAGER(enter_cstop_suspend);
 
 static int plat_suspend(uint32_t arg)
 {
-	unsigned int soc_mode = arg;
+	unsigned int soc_mode = arg & STM32_PM_SOC_MODE_MASK;
 	size_t pos = get_core_pos();
 	int rc = 1;
 
@@ -280,7 +286,7 @@ static int plat_suspend(uint32_t arg)
 	core_state[pos] = CORE_RET;
 
 	if (stm32mp_pm_save_context(soc_mode) == TEE_SUCCESS)
-		rc = enter_cstop_suspend(soc_mode);
+		rc = enter_cstop_suspend(arg);
 
 	stm32mp_pm_restore_context(soc_mode);
 	stm32mp_pm_wipe_context();
@@ -578,6 +584,7 @@ static int stm32_pwr_domain_suspend(unsigned int soc_mode)
 {
 	size_t other_pos = stm32_get_pos_other();
 	int ret = PSCI_RET_INTERNAL_FAILURE;
+	uint32_t arg = (uint32_t)soc_mode;
 	uint32_t exceptions = 0;
 	uint32_t scr = 0;
 	int rc = 1;
@@ -596,7 +603,7 @@ static int stm32_pwr_domain_suspend(unsigned int soc_mode)
 	scr = read_scr();
 	write_scr(scr | SCR_IRQ | SCR_FIQ);
 
-	rc = plat_suspend((uint32_t)soc_mode);
+	rc = plat_suspend(arg);
 	if (rc == -1)
 		ret = PSCI_RET_DENIED;
 	else if (rc == 0)
