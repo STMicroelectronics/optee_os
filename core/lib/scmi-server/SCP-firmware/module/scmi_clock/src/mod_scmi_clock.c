@@ -1466,7 +1466,8 @@ static int scmi_clock_config_get_handler(fwk_id_t service_id,
 
         return_values = (struct scmi_clock_config_get_p2a){
             .status = SCMI_SUCCESS,
-            .attributes = clock_state,
+            .attributes = 0,
+            .config = clock_state,
         };
         break;
 
