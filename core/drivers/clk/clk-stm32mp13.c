@@ -3362,20 +3362,16 @@ static void __maybe_unused stm32_clock_resume(void)
 static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint,
 				 const struct pm_callback_handle *hdl __unused)
 {
-	static int standby_prepared;
-
 	if (op == PM_OP_SUSPEND) {
 		if (PM_HINT_IS_STATE(pm_hint, CONTEXT)) {
 			stm32_clock_suspend();
-			standby_prepared = 1;
 		} else {
 			stm32mp1_clk_save_context_for_stop();
-			standby_prepared = 0;
 		}
 		clear_rcc_reset_status();
 	} else {
 		/* back from standby */
-		if (standby_prepared)
+		if (PM_HINT_IS_STATE(pm_hint, CONTEXT))
 			stm32_clock_resume();
 		else
 			stm32mp1_clk_restore_context_for_stop();
