@@ -840,12 +840,23 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 	for (; cur < end; cur += len) {
 		struct pkcs11_attribute_head *cli_ref = (void *)cur;
 		struct pkcs11_attribute_head cli_head = { };
+		uintptr_t cli_end = 0;
 		void *data_ptr = NULL;
+
+		if ((char *)(cli_ref + 1) > end) {
+			rc = PKCS11_CKR_ARGUMENTS_BAD;
+			goto out;
+		}
 
 		/* Make copy of header so that is aligned properly. */
 		TEE_MemMove(&cli_head, cli_ref, sizeof(cli_head));
 
-		len = sizeof(*cli_ref) + cli_head.size;
+		if (ADD_OVERFLOW(sizeof(*cli_ref), cli_head.size, &len) ||
+		    ADD_OVERFLOW((uintptr_t)cur, len, &cli_end) ||
+		    (char *)cli_end > end) {
+			rc = PKCS11_CKR_ARGUMENTS_BAD;
+			goto out;
+		}
 
 		/* Treat hidden attributes as missing attributes */
 		if (attribute_is_hidden(&cli_head)) {
