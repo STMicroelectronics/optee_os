@@ -900,8 +900,11 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 			attr_type_invalid = 1;
 			break;
 		case PKCS11_CKR_BUFFER_TOO_SMALL:
-			if (data_ptr)
+			if (data_ptr) {
+				cli_head.size =
+					PKCS11_CK_UNAVAILABLE_INFORMATION;
 				buffer_too_small = 1;
+			}
 			break;
 		default:
 			rc = PKCS11_CKR_GENERAL_ERROR;
