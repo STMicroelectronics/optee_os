@@ -800,6 +800,15 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 		goto out;
 	}
 
+	/*
+	 * We will update the template with relevant data, without resizing it.
+	 * Upon completion, it will be copied to client output buffer.
+	 */
+	if (out->memref.size < sizeof(*template) + template->attrs_size) {
+		rc = PKCS11_CKR_ARGUMENTS_BAD;
+		goto out;
+	}
+
 	/* Iterate over attributes and set their values */
 	/*
 	 * 1. If the specified attribute (i.e., the attribute specified by the
@@ -912,6 +921,7 @@ enum pkcs11_rc entry_get_attribute_value(struct pkcs11_client *client,
 		rc = PKCS11_CKR_BUFFER_TOO_SMALL;
 
 	/* Move updated template to out buffer */
+	out->memref.size = sizeof(*template) + template->attrs_size;
 	TEE_MemMove(out->memref.buffer, template, out->memref.size);
 
 	DMSG("PKCS11 session %"PRIu32": get attributes %#"PRIx32,
