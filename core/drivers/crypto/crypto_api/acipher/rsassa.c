@@ -45,9 +45,10 @@ static TEE_Result emsa_pkcs1_v1_5_encode(struct drvcrypt_rsa_ssa *ssa_data,
 	 * Calculate the PS size
 	 *  EM Size (modulus size) - 3 bytes - DigestInfo DER format size
 	 */
-	ps_size = ssa_data->key.n_size - 3;
-	ps_size -= ssa_data->digest_size;
-	ps_size -= 10 + hash_oid->asn1_length;
+	if (SUB_OVERFLOW(ssa_data->key.n_size, 3, &ps_size) ||
+	    SUB_OVERFLOW(ps_size, ssa_data->digest_size, &ps_size) ||
+	    SUB_OVERFLOW(ps_size, 10 + hash_oid->asn1_length, &ps_size))
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	CRYPTO_TRACE("PS size = %zu (n %zu)", ps_size, ssa_data->key.n_size);
 
