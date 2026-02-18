@@ -393,6 +393,7 @@ static void scmi_clock_config_get(struct scmi_msg *msg)
 
 	switch (in_args->flags & SCMI_CLOCK_CONFIG_GET_EXT_TYPE_MASK) {
 	case SCMI_CLOCK_EXTENDED_CONFIG_TYPE_UNUSED:
+		status = SCMI_SUCCESS;
 		break;
 	case SCMI_CLOCK_EXTENDED_CONFIG_TYPE_DUTY_CYCLE:
 		status = get_duty_cycle(msg->channel_id, clock_id,
