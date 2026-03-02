@@ -554,6 +554,12 @@
  */
 #define OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_BOTTOM_HALF	0
 
+/*
+ * Notification that OP-TEE triggers an interrupt event to Linux kernel
+ * for an interrupt consumer.
+ */
+#define OPTEE_SMC_ASYNC_NOTIF_VALUE_DO_IT		U(1)
+
 #define OPTEE_SMC_FUNCID_GET_ASYNC_NOTIF_VALUE	17
 #define OPTEE_SMC_GET_ASYNC_NOTIF_VALUE \
 	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_ASYNC_NOTIF_VALUE)
@@ -597,6 +603,76 @@
 	((ret) & OPTEE_SMC_RETURN_RPC_FUNC_MASK)
 
 #define OPTEE_SMC_RPC_VAL(func)		((func) | OPTEE_SMC_RETURN_RPC_PREFIX)
+
+/*
+ * STM32 extended standard SMC IDs
+ */
+
+/*
+ * Retrieve a value of interrupt notifications pending since the last call
+ * of this function. Interrupt notification (IT_NOTIF) differs from ASYNC_NOTIF
+ * in that ASYNC_NOTIF allows non-secure world to wake or request a secure
+ * threaded execution while IT_NOTIF triggers an interrupt context event in the
+ * non-secure world, that is a event handler from a top half interrupt context.
+ *
+ * OP-TEE keeps a record of all posted values. When an interrupt is
+ * received by the REE, which indicates that there are posted values,
+ * this function should be called until all pended values have been retrieved.
+ * When a value is retrieved it's cleared from the record in secure world.
+ *
+ * It is expected that this function is called from an interrupt handler
+ * in normal world.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_GET_IT_NOTIF_VALUE
+ * a1-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1	IT_NOTIF interrupt identifier value
+ * a2	Bit[0]: OPTEE_SMC_IT_NOTIF_VALUE_VALID if the value in a1 is
+ *		valid, else 0 if no values where pending
+ * a2	Bit[1]: OPTEE_SMC_IT_NOTIF_VALUE_PENDING if another value is
+ *		pending, else 0.
+ *	Bit[31:2]: MBZ
+ * a3-7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_IT_NOTIF_VALID	BIT(0)
+#define OPTEE_SMC_IT_NOTIF_PENDING	BIT(1)
+
+#define OPTEE_SMC_FUNCID_GET_IT_NOTIF_VALUE	U(53)
+#define OPTEE_SMC_GET_IT_NOTIF_VALUE \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_GET_IT_NOTIF_VALUE)
+
+/*
+ * Mask or unmask an interrupt notification event.
+ *
+ * It is expected that this function is called from an interrupt handler
+ * in normal world.
+ *
+ * Call requests usage:
+ * a0	SMC Function ID, OPTEE_SMC_SET_IT_NOTIF_MASK
+ * a1	Interrupt identifier value
+ * a2	1 if interrupt is to be masked, 0 if interrupt is to be masked
+ * a3-6	Not used
+ * a7	Hypervisor Client ID register
+ *
+ * Normal return register usage:
+ * a0	OPTEE_SMC_RETURN_OK
+ * a1-7	Preserved
+ *
+ * Not supported return register usage:
+ * a0	OPTEE_SMC_RETURN_ENOTAVAIL
+ * a1-7	Preserved
+ */
+#define OPTEE_SMC_FUNCID_SET_IT_NOTIF_MASK	U(54)
+#define OPTEE_SMC_SET_IT_NOTIF_MASK \
+	OPTEE_SMC_FAST_CALL_VAL(OPTEE_SMC_FUNCID_SET_IT_NOTIF_MASK)
 
 /*
  * OPTEE_SMC_CALL_WITH_ARG_NSEC_NOIRQ

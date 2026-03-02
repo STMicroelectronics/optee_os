@@ -38,6 +38,11 @@
 
 #define NOTIF_VALUE_DO_BOTTOM_HALF	0
 
+/* NOTIF_VALUE_DO_IT notify that an IT is pending */
+#define NOTIF_VALUE_DO_IT		1
+
+#define NOTIF_IT_VALUE_MAX		U(31)
+
 /*
  * enum notif_event - Notification of an event
  * @NOTIF_EVENT_STARTED:	Delivered in an atomic context to inform
@@ -123,9 +128,15 @@ TEE_Result notif_wait_timeout(uint32_t value, uint32_t timeout_ms);
  */
 #if defined(CFG_CORE_ASYNC_NOTIF)
 void notif_send_async(uint32_t value, uint16_t guest_id);
+void notif_send_it(uint32_t it_value, uint16_t guest_id);
 #else
 static inline void notif_send_async(uint32_t value __unused,
 				    uint16_t guest_id __unused)
+{
+}
+
+static inline void notif_send_it(uint32_t value __unused,
+				 uint16_t guest_id __unused)
 {
 }
 #endif
@@ -156,6 +167,8 @@ static inline void notif_unregister_driver(struct notif_driver *ndrv __unused)
 /* This is called from a fast call */
 #if defined(CFG_CORE_ASYNC_NOTIF)
 uint32_t notif_get_value(bool *value_valid, bool *value_pending);
+uint32_t it_get_value(bool *value_valid, bool *value_pending);
+uint32_t it_set_mask(uint32_t it_value, bool masked);
 #else
 static inline uint32_t notif_get_value(bool *value_valid, bool *value_pending)
 {
@@ -163,8 +176,24 @@ static inline uint32_t notif_get_value(bool *value_valid, bool *value_pending)
 	*value_pending = false;
 	return UINT32_MAX;
 }
+
+static inline uint32_t it_get_value(bool *value_valid, bool *value_pending)
+{
+	*value_valid = false;
+	*value_pending = false;
+	return UINT32_MAX;
+}
+
+static inline uint32_t it_set_mask(uint32_t it_value __unused,
+				   bool masked __unused)
+{
+	return 0;
+}
 #endif
 
+/*
+ * These are called from yielding calls
+ */
 #if defined(CFG_CORE_ASYNC_NOTIF)
 void notif_deliver_atomic_event(enum notif_event ev, uint16_t guest_id);
 void notif_deliver_event(enum notif_event ev);
