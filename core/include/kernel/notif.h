@@ -72,11 +72,15 @@ enum notif_event {
 	NOTIF_EVENT_SHUTDOWN,
 };
 
+/* Forward declaration of opaque non-secure virtual guest instance */
+struct guest_partition;
+
 /*
  * struct notif_driver - Registration of driver notification
  * @atomic_cb:	 A callback called in an atomic context from
  *		 notif_deliver_atomic_event(). Currently only used to
- *		 signal @NOTIF_EVENT_STARTED.
+ *		 signal @NOTIF_EVENT_STARTED. Return true when
+ *		 bottom half tree should be invoked, false otherwise.
  * @yielding_cb: A callback called in a yielding context from
  *		 notif_deliver_event(). Currently only used to signal
  *		 @NOTIF_EVENT_DO_BOTTOM_HALF and @NOTIF_EVENT_STOPPED.
@@ -95,7 +99,7 @@ enum notif_event {
  * is a partition matching the guest or VM that triggered the event.
  */
 struct notif_driver {
-	void (*atomic_cb)(struct notif_driver *ndrv, enum notif_event ev,
+	bool (*atomic_cb)(struct notif_driver *ndrv, enum notif_event ev,
 			  uint16_t guest_id);
 	void (*yielding_cb)(struct notif_driver *ndrv, enum notif_event ev);
 	SLIST_ENTRY(notif_driver) link;
@@ -112,6 +116,9 @@ static inline bool notif_async_is_started(uint16_t guest_id __unused)
 
 TEE_Result notif_alloc_async_value(uint32_t *value);
 void notif_free_async_value(uint32_t value);
+
+/* Notify request for bottom half execution spinlock locked */
+void notif_bottom_half_locked(struct guest_partition *prtn);
 
 /*
  * Wait in normal world for a value to be sent by notif_send()

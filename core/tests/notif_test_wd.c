@@ -55,7 +55,7 @@ static bool test_wd_callback(struct callout *co)
 	return true;
 }
 
-static void wd_ndrv_atomic_cb(struct notif_driver *ndrv __unused,
+static bool wd_ndrv_atomic_cb(struct notif_driver *ndrv __unused,
 			      enum notif_event ev, uint16_t guest_id)
 {
 	if (ev == NOTIF_EVENT_STARTED) {
@@ -71,6 +71,8 @@ static void wd_ndrv_atomic_cb(struct notif_driver *ndrv __unused,
 		}
 		virt_put_guest(prtn);
 	}
+
+	return false;
 }
 DECLARE_KEEP_PAGER(wd_ndrv_atomic_cb);
 

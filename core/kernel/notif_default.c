@@ -278,6 +278,17 @@ out:
 	virt_put_guest(prtn);
 }
 
+void notif_bottom_half_locked(struct guest_partition *prtn)
+{
+	struct notif_vm_bitmap *nvb = get_notif_vm_bitmap(prtn);
+
+	if (nvb) {
+		bit_set(nvb->values, NOTIF_VALUE_DO_BOTTOM_HALF);
+		interrupt_raise_pi(interrupt_get_main_chip(),
+				   CFG_CORE_ASYNC_NOTIF_GIC_INTID);
+	}
+}
+
 void notif_send_async(uint32_t value, uint16_t guest_id)
 {
 	struct guest_partition *prtn = NULL;

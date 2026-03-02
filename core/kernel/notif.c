@@ -86,6 +86,7 @@ void notif_deliver_atomic_event(enum notif_event ev, uint16_t guest_id)
 	struct guest_partition *prtn = virt_get_guest(guest_id);
 	struct notif_data *ndata = get_notif_data(prtn);
 	struct notif_driver *nd = NULL;
+	bool run_bottom_half = false;
 	uint32_t old_itr_status = 0;
 
 	old_itr_status = cpu_spin_lock_xsave(&notif_lock);
@@ -106,8 +107,11 @@ void notif_deliver_atomic_event(enum notif_event ev, uint16_t guest_id)
 	}
 
 	SLIST_FOREACH(nd, &notif_driver_head, link)
-		if (nd->atomic_cb)
-			nd->atomic_cb(nd, ev, guest_id);
+		if (nd->atomic_cb && nd->atomic_cb(nd, ev, guest_id))
+			run_bottom_half = true;
+
+	if (run_bottom_half)
+		notif_bottom_half_locked(prtn);
 
 out:
 	cpu_spin_unlock_xrestore(&notif_lock, old_itr_status);

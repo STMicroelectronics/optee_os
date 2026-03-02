@@ -182,11 +182,13 @@ static void yielding_stm32_dbgmcu_mbx_notif(struct notif_driver *ndrv __unused,
 	}
 }
 
-static void atomic_stm32_dbgmcu_mbx_notif(struct notif_driver *ndrv __unused,
+static bool atomic_stm32_dbgmcu_mbx_notif(struct notif_driver *ndrv __unused,
 					  enum notif_event ev __maybe_unused,
 					  uint16_t guest_id __unused)
 {
 	assert(ev == NOTIF_EVENT_STARTED);
+
+	return true;
 }
 DECLARE_KEEP_PAGER(atomic_stm32_dbgmcu_mbx_notif);
 

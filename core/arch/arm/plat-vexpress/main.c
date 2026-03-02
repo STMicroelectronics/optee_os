@@ -150,7 +150,7 @@ static struct itr_handler console_itr __nex_data = {
 };
 DECLARE_KEEP_PAGER(console_itr);
 
-static void atomic_console_notif(struct notif_driver *ndrv __unused,
+static bool atomic_console_notif(struct notif_driver *ndrv __unused,
 				 enum notif_event ev, uint16_t vm_id)
 {
 	switch (ev) {
@@ -169,6 +169,8 @@ static void atomic_console_notif(struct notif_driver *ndrv __unused,
 	default:
 		EMSG("Unknown event %d", (int)ev);
 	}
+
+	return false;
 }
 DECLARE_KEEP_PAGER(atomic_console_notif);
 
