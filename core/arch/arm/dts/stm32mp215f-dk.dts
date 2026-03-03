@@ -57,10 +57,6 @@
 	pmic2: pmic@33 {
 		compatible = "st,stpmic2l";
 		reg = <0x33>;
-		interrupts-extended = <&exti1 52 IRQ_TYPE_EDGE_FALLING>;
-		wakeup-source;
-		st,pmic-it-id = <IT_PKEY_FA IT_PKEY_RI>;
-		st,notif-it-id = <0 1>;
 		status = "okay";
 
 		regulators {
