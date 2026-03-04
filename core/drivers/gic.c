@@ -1316,7 +1316,7 @@ static TEE_Result gic_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(gic_pm);
+DECLARE_KEEP_PAGER_PM(gic_pm);
 
 static void gic_pm_register(struct gic_data *gd)
 {
