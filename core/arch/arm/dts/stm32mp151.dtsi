@@ -1982,6 +1982,12 @@
 				access-controllers = <&etzpc STM32MP1_ETZPC_I2C6_ID>;
 				status = "disabled";
 			};
+
+			stgen: stgen@5c008000 {
+				compatible = "st,stm32-stgen";
+				reg = <0x5C008000 0x1000>;
+				access-controllers = <&etzpc STM32MP1_ETZPC_STGENC_ID>;
+			};
 		};
 	};
 
