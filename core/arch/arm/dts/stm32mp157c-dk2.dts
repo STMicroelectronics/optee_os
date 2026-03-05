@@ -114,6 +114,11 @@
 	};
 };
 
+&rcc {
+	compatible = "st,stm32mp1-rcc-secure";
+	status = "okay";
+};
+
 &usart2 {
 	pinctrl-names = "default", "sleep", "idle";
 	pinctrl-0 = <&usart2_pins_c>;

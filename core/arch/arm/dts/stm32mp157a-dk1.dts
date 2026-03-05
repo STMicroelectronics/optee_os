@@ -51,3 +51,8 @@
 		<DECPROT(STM32MP1_ETZPC_BKPSRAM_ID, DECPROT_S_RW, DECPROT_LOCK)>,
 		<DECPROT(STM32MP1_ETZPC_IWDG1_ID, DECPROT_S_RW, DECPROT_LOCK)>;
 };
+
+&rcc {
+	compatible = "st,stm32mp1-rcc-secure";
+	status = "okay";
+};

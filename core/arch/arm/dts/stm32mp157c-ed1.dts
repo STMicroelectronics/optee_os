@@ -343,7 +343,8 @@
 
 &iwdg2 {
 	timeout-sec = <32>;
-	status = "disabled";
+	status = "okay";
+	secure-status = "disabled";
 };
 
 &m4_rproc {
@@ -362,7 +363,7 @@
 };
 
 &rcc {
-	compatible = "st,stm32mp1-rcc";
+	compatible = "st,stm32mp1-rcc-secure";
 	status = "okay";
 };
 
