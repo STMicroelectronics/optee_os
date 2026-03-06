@@ -397,6 +397,7 @@
 		bsec: efuse@5c005000 {
 			compatible = "st,stm32mp15-bsec";
 			reg = <0x5c005000 0x400>;
+			clocks = <&rcc BSEC>;
 			#address-cells = <1>;
 			#size-cells = <1>;
 
@@ -967,6 +968,7 @@
 				dmas = <&dmamux1 43 0x400 0x15>,
 				       <&dmamux1 44 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc USART2_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_USART2_ID>;
 				status = "disabled";
 			};
@@ -980,6 +982,7 @@
 				dmas = <&dmamux1 45 0x400 0x15>,
 				       <&dmamux1 46 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc USART3_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_USART3_ID>;
 				status = "disabled";
 			};
@@ -993,6 +996,7 @@
 				dmas = <&dmamux1 63 0x400 0x15>,
 				       <&dmamux1 64 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc UART4_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_UART4_ID>;
 				status = "disabled";
 			};
@@ -1006,6 +1010,7 @@
 				dmas = <&dmamux1 65 0x400 0x15>,
 				       <&dmamux1 66 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc UART5_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_UART5_ID>;
 				status = "disabled";
 			};
@@ -1122,6 +1127,7 @@
 				dmas = <&dmamux1 79 0x400 0x15>,
 				       <&dmamux1 80 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc UART7_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_UART7_ID>;
 				status = "disabled";
 			};
@@ -1135,6 +1141,7 @@
 				dmas = <&dmamux1 81 0x400 0x15>,
 				       <&dmamux1 82 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc UART8_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_UART8_ID>;
 				status = "disabled";
 			};
@@ -1222,6 +1229,7 @@
 				dmas = <&dmamux1 71 0x400 0x15>,
 				       <&dmamux1 72 0x400 0x11>;
 				dma-names = "rx", "tx";
+				resets = <&rcc USART6_R>;
 				access-controllers = <&etzpc STM32MP1_ETZPC_USART6_ID>;
 				status = "disabled";
 			};
