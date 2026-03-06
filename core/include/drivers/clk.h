@@ -18,6 +18,7 @@
 #define CLK_SET_RATE_PARENT	BIT(3) /* propagate rate change up to parent */
 #define CLK_SET_RATE_UNGATE	BIT(4) /* clock needs to run to set rate */
 #define CLK_SET_PARENT_PRE_ENABLE	BIT(5) /* enable new parent if needed */
+#define CLK_IS_CRITICAL		BIT(6) /* critical clock, do not gate, ever */
 
 /**
  * struct clk - Clock structure

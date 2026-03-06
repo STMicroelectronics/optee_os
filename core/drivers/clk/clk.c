@@ -166,6 +166,11 @@ static void clk_disable_no_lock(struct clk *clk)
 	if (!refcount_dec(&clk->enabled_count))
 		return;
 
+	if (clk->flags & CLK_IS_CRITICAL) {
+		EMSG("Attempt to disable critical clock %s", clk->name);
+		return;
+	}
+
 	if (clk->ops->disable)
 		clk->ops->disable(clk);
 
