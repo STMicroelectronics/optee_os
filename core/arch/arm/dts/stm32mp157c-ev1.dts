@@ -65,7 +65,7 @@
 		compatible = "gpio-backlight";
 		gpios = <&gpiod 13 GPIO_ACTIVE_LOW>;
 		default-on;
-		status = "okay";
+		status = "disabled";
 	};
 };
 
@@ -119,7 +119,7 @@
 		reset-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;
 		backlight = <&panel_backlight>;
 		power-supply = <&v3v3>;
-		status = "okay";
+		status = "disabled";
 
 		port {
 			dsi_panel_in: endpoint {
@@ -155,7 +155,7 @@
 	status = "disabled";
 
 	nand-controller@4,0 {
-		status = "okay";
+		status = "disabled";
 
 		nand@0 {
 			reg = <0>;
@@ -183,7 +183,7 @@
 		powerdown-gpios = <&stmfx_pinctrl 18 (GPIO_ACTIVE_HIGH | GPIO_PUSH_PULL)>;
 		reset-gpios = <&stmfx_pinctrl 19 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
 		rotation = <180>;
-		status = "okay";
+		status = "disabled";
 
 		port {
 			ov5640_0: endpoint {
@@ -215,6 +215,16 @@
 			joystick_pins: joystick-pins {
 				pins = "gpio0", "gpio1", "gpio2", "gpio3", "gpio4";
 				bias-pull-down;
+			};
+		};
+	};
+};
+
+&i2c4 {
+	pmic: stpmic@33 {
+		regulators {
+			v1v8: ldo6 {
+				regulator-enable-ramp-delay = <300000>;
 			};
 		};
 	};
@@ -302,10 +312,10 @@
 		pinctrl-0 = <&pwm2_pins_a>;
 		pinctrl-1 = <&pwm2_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
-		status = "okay";
+		status = "disabled";
 	};
 	timer@1 {
-		status = "okay";
+		status = "disabled";
 	};
 };
 
@@ -317,10 +327,10 @@
 		pinctrl-0 = <&pwm8_pins_a>;
 		pinctrl-1 = <&pwm8_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
-		status = "okay";
+		status = "disabled";
 	};
 	timer@7 {
-		status = "okay";
+		status = "disabled";
 	};
 };
 
@@ -332,10 +342,10 @@
 		pinctrl-0 = <&pwm12_pins_a>;
 		pinctrl-1 = <&pwm12_sleep_pins_a>;
 		pinctrl-names = "default", "sleep";
-		status = "okay";
+		status = "disabled";
 	};
 	timer@11 {
-		status = "okay";
+		status = "disabled";
 	};
 };
 
