@@ -94,7 +94,8 @@ struct clk_rate_request {
  *		that should be used to provide the clock rate
  * @save_context: Save clock registers context before entering low-power mode
  * @restore_context: Restore clock registers context after exiting low-power mode
- *
+ * @disable_unused: Disable the clock if it is not used anymore 
+*
  * All clock operations are expected to execute in a interruptible thread
  * context at the exclusion of power management sequence where non secure
  * world is not operating (power off, suspend, resume).
@@ -122,6 +123,7 @@ struct clk_ops {
 				     struct clk_rate_request *req);
 	TEE_Result (*save_context)(struct clk *clk);
 	void (*restore_context)(struct clk *clk);
+	void (*disable_unused)(struct clk *clk);
 };
 
 /**
@@ -324,6 +326,14 @@ TEE_Result clk_save_context(void);
  *
  */
 void clk_restore_context(void);
+
+/**
+ * clk_disable_unused - Disable unused clocks
+ *
+ * This function iterates through all registered clocks and disables those
+ * that are not currently in use.
+ */
+void clk_disable_unused(void);
 
 #ifdef CFG_DRIVERS_CLK
 /**
