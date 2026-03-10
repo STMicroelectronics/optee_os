@@ -2044,6 +2044,7 @@ static const struct clk_ops clk_stm32_composite_duty_cycle_ops = {
 	.enable		= clk_stm32_composite_gate_enable,
 	.disable	= clk_stm32_composite_gate_disable,
 	.is_enabled	= clk_stm32_composite_gate_is_enabled,
+	.disable_unused	= clk_stm32_composite_gate_disable_unused,
 	.round_rate	= clk_stm32_composite_round_rate,
 	.get_duty_cycle	= clk_stm32_composite_get_duty_cycle,
 };
@@ -2132,6 +2133,7 @@ static const struct clk_ops clk_stm32_pll1p_ops = {
 	.enable		= clk_stm32_composite_gate_enable,
 	.disable	= clk_stm32_composite_gate_disable,
 	.is_enabled	= clk_stm32_composite_gate_is_enabled,
+	.disable_unused	= clk_stm32_composite_gate_disable_unused,
 };
 
 static TEE_Result clk_stm32_mpu_determine_rate(struct clk *clk,

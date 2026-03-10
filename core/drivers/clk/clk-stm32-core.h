@@ -116,6 +116,8 @@ void stm32_gate_endisable(uint16_t gate_id, bool enable);
 void stm32_gate_enable(uint16_t gate_id);
 void stm32_gate_disable(uint16_t gate_id);
 bool stm32_gate_is_enabled(uint16_t gate_id);
+void stm32_gate_disable_unused(uint16_t gate_id);
+
 TEE_Result stm32_gate_wait_ready(uint16_t gate_id, bool ready_on);
 TEE_Result stm32_gate_rdy_enable(uint16_t gate_id);
 TEE_Result stm32_gate_rdy_disable(uint16_t gate_id);
@@ -156,6 +158,7 @@ TEE_Result clk_stm32_composite_set_rate(struct clk *clk, unsigned long rate,
 TEE_Result clk_stm32_composite_gate_enable(struct clk *clk);
 void clk_stm32_composite_gate_disable(struct clk *clk);
 bool clk_stm32_composite_gate_is_enabled(struct clk *clk);
+void clk_stm32_composite_gate_disable_unused(struct clk *clk);
 
 TEE_Result clk_stm32_set_parent_by_index(struct clk *clk, size_t pidx);
 

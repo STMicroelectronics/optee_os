@@ -2379,6 +2379,12 @@ static bool clk_stm32_hsediv2_is_enabled(struct clk *clk)
 	return clk_stm32_gate_ops.is_enabled(clk);
 }
 
+static void clk_stm32_hsediv2_disable_unused(struct clk *clk)
+{
+	if (stm32_rcc_has_access_by_id(RCC_RIF_OSCILLATORS))
+		clk_stm32_gate_ops.disable_unused(clk);
+}
+
 static unsigned long clk_stm32_hsediv2_get_rate(struct clk *clk __unused,
 						unsigned long prate)
 {
@@ -2406,6 +2412,7 @@ static const struct clk_ops clk_hsediv2_ops = {
 	.enable = clk_stm32_hsediv2_enable,
 	.disable = clk_stm32_hsediv2_disable,
 	.is_enabled = clk_stm32_hsediv2_is_enabled,
+	.disable_unused = clk_stm32_hsediv2_disable_unused,
 	.get_rate = clk_stm32_hsediv2_get_rate,
 	.restore_context = clk_stm32_hsediv2_pm_restore,
 };
@@ -3040,6 +3047,14 @@ static void clk_stm32_rif_gate_disable(struct clk *clk)
 		stm32_gate_disable(cfg->gate_id);
 }
 
+static void clk_stm32_rif_gate_disable_unused(struct clk *clk)
+{
+	struct clk_stm32_rif_gate_cfg *cfg = clk->priv;
+
+	if (stm32_rcc_has_access_by_id(cfg->sec_id))
+		stm32_gate_disable_unused(cfg->gate_id);
+}
+
 static bool clk_stm32_rif_gate_is_enabled(struct clk *clk)
 {
 	struct clk_stm32_rif_gate_cfg *cfg = clk->priv;
@@ -3062,6 +3077,7 @@ static const struct clk_ops clk_stm32_rif_gate_ops = {
 	.enable		= clk_stm32_rif_gate_enable,
 	.disable	= clk_stm32_rif_gate_disable,
 	.is_enabled	= clk_stm32_rif_gate_is_enabled,
+	.disable_unused = clk_stm32_rif_gate_disable_unused,
 	.restore_context = clk_stm32_rif_gate_pm_restore,
 };
 
@@ -3140,6 +3156,14 @@ static void clk_stm32_rif_composite_gate_disable(struct clk *clk)
 		stm32_gate_disable(cfg->gate_id);
 }
 
+static void clk_stm32_rif_composite_gate_disable_unused(struct clk *clk)
+{
+	struct clk_stm32_rif_composite_cfg *cfg = clk->priv;
+
+	if (stm32_rcc_has_access_by_id(cfg->sec_id))
+		stm32_gate_disable_unused(cfg->gate_id);
+}
+
 static bool clk_stm32_rif_composite_gate_is_enabled(struct clk *clk)
 {
 	struct clk_stm32_rif_composite_cfg *cfg = clk->priv;
@@ -3179,6 +3203,7 @@ static const struct clk_ops clk_stm32_rif_composite_ops = {
 	.enable		= clk_stm32_rif_composite_gate_enable,
 	.disable	= clk_stm32_rif_composite_gate_disable,
 	.is_enabled	= clk_stm32_rif_composite_gate_is_enabled,
+	.disable_unused = clk_stm32_rif_composite_gate_disable_unused,
 	.save_context	= clk_stm32_pm_save_rate,
 	.restore_context = clk_stm32_rif_composite_pm_restore,
 };

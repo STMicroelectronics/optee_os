@@ -126,6 +126,15 @@ bool stm32_gate_is_enabled(uint16_t gate_id)
 	return (io_read32(addr) & BIT(gate->bit_idx)) != 0U;
 }
 
+void stm32_gate_disable_unused(uint16_t gate_id)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uint8_t *gate_cpt = priv->gate_cpt;
+
+	if (gate_cpt[gate_id] == 0)
+		stm32_gate_endisable(gate_id, false);
+}
+
 TEE_Result stm32_gate_wait_ready(uint16_t gate_id, bool ready_on)
 {
 	struct clk_stm32_priv *priv = clk_stm32_get_priv();
@@ -392,10 +401,18 @@ static bool clk_stm32_gate_is_enabled(struct clk *clk)
 	return stm32_gate_is_enabled(cfg->gate_id);
 }
 
+static void clk_stm32_gate_disable_unused(struct clk *clk)
+{
+	struct clk_stm32_gate_cfg *cfg = clk->priv;
+
+	stm32_gate_disable_unused(cfg->gate_id);
+}
+
 const struct clk_ops clk_stm32_gate_ops = {
 	.enable		= clk_stm32_gate_enable,
 	.disable	= clk_stm32_gate_disable,
 	.is_enabled	= clk_stm32_gate_is_enabled,
+	.disable_unused = clk_stm32_gate_disable_unused,
 };
 
 static void clk_stm32_gate_pm_restore(struct clk *clk)
@@ -410,6 +427,7 @@ const struct clk_ops clk_stm32_gate_pm_ops = {
 	.enable		= clk_stm32_gate_enable,
 	.disable	= clk_stm32_gate_disable,
 	.is_enabled	= clk_stm32_gate_is_enabled,
+	.disable_unused = clk_stm32_gate_disable_unused,
 	.restore_context = clk_stm32_gate_pm_restore,
 };
 
@@ -518,6 +536,13 @@ void clk_stm32_composite_gate_disable(struct clk *clk)
 	stm32_gate_disable(cfg->gate_id);
 }
 
+void clk_stm32_composite_gate_disable_unused(struct clk *clk)
+{
+	struct clk_stm32_composite_cfg *cfg = clk->priv;
+
+	stm32_gate_disable_unused(cfg->gate_id);
+}
+
 bool clk_stm32_composite_gate_is_enabled(struct clk *clk)
 {
 	struct clk_stm32_composite_cfg *cfg = clk->priv;
@@ -533,6 +558,7 @@ const struct clk_ops clk_stm32_composite_ops = {
 	.enable		= clk_stm32_composite_gate_enable,
 	.disable	= clk_stm32_composite_gate_disable,
 	.is_enabled	= clk_stm32_composite_gate_is_enabled,
+	.disable_unused = clk_stm32_composite_gate_disable_unused,
 };
 
 TEE_Result clk_stm32_set_parent_by_index(struct clk *clk, size_t pidx)
@@ -679,3 +705,12 @@ void stm32mp_clk_provider_probe_final(const void *fdt, int node,
 	if (res)
 		panic("Couldn't register clock provider");
 }
+
+static TEE_Result clk_stm32_disable_unused(void)
+{
+	if(IS_ENABLED(CFG_STM32_CLK_DISABLE_UNUSED))
+		clk_disable_unused();
+
+	return TEE_SUCCESS;
+}
+release_init_resource(clk_stm32_disable_unused);
