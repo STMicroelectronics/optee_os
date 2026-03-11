@@ -46,7 +46,6 @@ struct clk_stm32_priv {
 	const uint32_t nb_gates;
 	const struct div_cfg *div;
 	const uint32_t nb_div;
-	bool (*is_critical)(struct clk *clk);
 	void *pdata;
 };
 
