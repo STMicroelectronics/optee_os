@@ -2458,7 +2458,7 @@ static STM32_GATE(ck_ddrphyclp, &ck_pll2r, 0, GATE_DDRPHYCLP);
 static STM32_GATE(ck_ddrcapb, &ck_pclk4, 0, GATE_DDRCAPB);
 static STM32_GATE(ck_ddrcapblp, &ck_pclk4, 0, GATE_DDRCAPBLP);
 static STM32_GATE(ck_axidcg, &ck_axi, 0, GATE_AXIDCG);
-static STM32_GATE(ck_ddrphycapb, &ck_pclk4, 0, 0);
+static STM32_GATE(ck_ddrphycapb, &ck_pclk4, 0, GATE_DDRPHYCAPB);
 static STM32_GATE(ck_ddrphycapblp, &ck_pclk4, 0, GATE_DDRPHYCAPBLP);
 static STM32_GATE(ck_syscfg, &ck_pclk3, 0, GATE_SYSCFG);
 static STM32_GATE(ck_ddrperfm, &ck_pclk4, 0, GATE_DDRPERFM);
