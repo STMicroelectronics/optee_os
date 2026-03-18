@@ -60,6 +60,23 @@ struct clk_duty_cycle {
 };
 
 /**
+ * struct clk_rate_request
+ *
+ * @rate:		Requested clock rate. This field will be adjusted by
+ *			clock drivers according to hardware capabilities.
+ * @best_parent_rate:	The best parent rate a parent can provide to fulfill the
+ *			requested constraints.
+ * @best_parent:	The most appropriate parent clock that fulfills the
+ *			requested constraints.
+ *
+ */
+struct clk_rate_request {
+	unsigned long rate;
+	unsigned long best_parent_rate;
+	struct clk *best_parent;
+};
+
+/**
  * struct clk_ops - Clock operations
  *
  * @is_enabled: Get effective state of the clock (on / off)
@@ -73,6 +90,9 @@ struct clk_duty_cycle {
  * @get_rates_steps: Get support clock rates by min/max/step representation
  * @get_duty_cycle: Get duty cytcle of the clock
  * @round_rate: Get the closest supported clock rate to a requested rate
+ * @determine_rate: Given a target rate as input, returns the closest rate
+ *		actually supported by the clock, and optionally the parent clock
+ *		that should be used to provide the clock rate
  *
  * All clock operations are expected to execute in a interruptible thread
  * context at the exclusion of power management sequence where non secure
@@ -97,6 +117,8 @@ struct clk_ops {
 	unsigned long (*round_rate)(struct clk *clk,
 				    unsigned long rate,
 				    unsigned long parent_rate);
+	TEE_Result (*determine_rate)(struct clk *clk,
+				     struct clk_rate_request *req);
 };
 
 /**
@@ -207,6 +229,16 @@ static inline size_t clk_get_num_parents(struct clk *clk)
  * Return the clock parent at index @pidx or NULL if out of bound
  */
 struct clk *clk_get_parent_by_index(struct clk *clk, size_t pidx);
+
+/**
+ * clk_get_parent_idx - Get index of clock parent
+ *
+ * @clk: Clock which contains parent clocks
+ * @parent: Parent clock for which you want to known the index
+ * Return a TEE_Result compliant value and set index of the parent clock
+ */
+TEE_Result clk_get_parent_idx(struct clk *clk, struct clk *parent,
+			      size_t *pidx);
 
 /**
  * clk_set_parent() - Set the current clock parent
