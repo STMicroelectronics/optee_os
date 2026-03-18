@@ -97,9 +97,11 @@ static void provision(struct shadow_otp *shadow_otp, size_t index)
 		break;
 	}
 
+#if TRACE_LEVEL >= TRACE_DEBUG
 	if (stm32_bsec_shadow_read_otp(&otp_val, otp_id))
 		panic();
 	DMSG("Read SHADOW %#"PRIx32, otp_val);
+#endif
 }
 
 static void load_provisioning(void)
