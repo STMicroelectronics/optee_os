@@ -17,4 +17,7 @@
 #define STM32_PM_SHUTDOWN			7
 #define STM32_PM_MAX_SOC_MODE			8
 
+/* Default configuration for PMIC (first level with alternate setting)*/
+#define STM32_PM_DEFAULT			STM32_PM_CSTOP_ALLOW_LP_STOP
+
 #endif /* DT_BINDINGS_STM32MP1_POWER_H */

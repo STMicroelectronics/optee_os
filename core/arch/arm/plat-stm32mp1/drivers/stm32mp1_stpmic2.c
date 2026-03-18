@@ -35,9 +35,19 @@ static TEE_Result pmic_regu_pm(enum pm_op op, uint32_t pm_hint,
 		res = stm32_pmic2_suspend_regulator(regulator, pwrlvl);
 		if (res)
 			return res;
-		return stm32_pmic2_apply_pm_state(regulator, pwrlvl);
+
+		/* No STPMIC2 alternate update for mode < STM32_PM_DEFAULT */
+		if (pwrlvl >= STM32_PM_DEFAULT)
+			return stm32_pmic2_apply_pm_state(regulator, pwrlvl);
 	} else if (op == PM_OP_RESUME) {
-		return stm32_pmic2_resume_regulator(regulator);
+		res = stm32_pmic2_resume_regulator(regulator);
+		if (res)
+			return res;
+		/*
+		 * Restore the default STPMIC2 alternate state
+		 * It is an latency optimisation for OSI
+		 */
+		return stm32_pmic2_apply_pm_state(regulator, STM32_PM_DEFAULT);
 	}
 
 	return TEE_SUCCESS;
