@@ -221,7 +221,7 @@ endif # CFG_STM32MP13
 
 ifeq ($(CFG_STM32MP15),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
-$(call force,CFG_DRIVERS_CLK_FIXED,n)
+$(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_HALT_CORES_SGI,15)
 $(call force,CFG_SCMI_MSG_PERF_DOMAIN,n)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
