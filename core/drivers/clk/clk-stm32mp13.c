@@ -8,6 +8,7 @@
 #include <drivers/clk_dt.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp13_rcc.h>
+#include <drivers/stm32mp1_rcc_util.h>
 #include <io.h>
 #include <kernel/boot.h>
 #include <libfdt.h>

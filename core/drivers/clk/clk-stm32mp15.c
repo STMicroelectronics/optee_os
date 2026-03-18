@@ -8,8 +8,10 @@
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/clk.h>
 #include <drivers/clk_dt.h>
+#include <drivers/stm32_gpio.h>
 #include <drivers/stm32_shared_io.h>
 #include <drivers/stm32mp_dt_bindings.h>
+#include <drivers/stm32mp1_rcc_util.h>
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>

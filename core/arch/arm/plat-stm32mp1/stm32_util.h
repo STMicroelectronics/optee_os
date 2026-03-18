@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <drivers/clk.h>
+#include <drivers/stm32mp1_rcc_util.h>
 #include <kernel/panic.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -36,9 +37,6 @@ bool stm32mp_supports_cpu_opp(uint32_t opp_id);
 /* Backup registers and RAM utils */
 vaddr_t stm32mp_bkpreg(unsigned int idx);
 
-/* Platform util for the RCC drivers */
-vaddr_t stm32_rcc_base(void);
-
 /* Erase ESRAM3 */
 TEE_Result stm32mp_syscfg_erase_sram3(void);
 
@@ -63,14 +61,6 @@ static inline void stm32mp_register_online_cpu(void)
  */
 uint32_t may_spin_lock(unsigned int *lock);
 void may_spin_unlock(unsigned int *lock, uint32_t exceptions);
-
-/* Helper from platform RCC clock driver */
-struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
-
-extern const struct clk_ops stm32mp1_clk_ops;
-
-/* Return rstctrl instance related to RCC reset controller DT binding ID */
-struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
 bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
 

@@ -1874,6 +1874,4 @@
 #define RCC_MP_CIFR_MASK			U(0x110F1F)
 #define RCC_OFFSET_MASK				GENMASK_32(11, 0)
 
-vaddr_t stm32_rcc_base(void);
-
 #endif /*__DRIVERS_STM32MP13_RCC_H__*/
