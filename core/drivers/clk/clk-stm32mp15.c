@@ -37,8 +37,6 @@
 #define MAX_OPP		(2U)
 #endif
 
-#define DT_OPP_COMPAT		"operating-points-v2"
-
 /* PLL settings computation related definitions */
 #define POST_DIVM_MIN	8000000
 #define POST_DIVM_MAX	16000000
@@ -1277,7 +1275,7 @@ static void save_current_opp(void)
  * Gets OPP parameters (frequency in KHz and voltage in mV) from an OPP table
  * subnode. Platform HW support capabilities are also checked.
  */
-static int get_opp_freqvolt_from_dt_subnode(void *fdt, int subnode,
+static int get_opp_freqvolt_from_dt_subnode(const void *fdt, int subnode,
 					    uint32_t *freq_khz,
 					    uint32_t *voltage_mv)
 {
@@ -1337,19 +1335,13 @@ static int get_opp_freqvolt_from_dt_subnode(void *fdt, int subnode,
  * Note that @*count has to be set by caller to the effective size allocated
  * for both tables. Its value is then replaced by the number of filled elements.
  */
-static int get_all_opp_freqvolt_from_dt(uint32_t *count)
+static int get_all_opp_freqvolt_from_dt(const void *fdt, int node,
+					uint32_t *count)
 {
-	void *fdt = NULL;
-	int node = 0;
 	int subnode = 0;
 	uint32_t idx = 0;
 
 	assert(count);
-
-	fdt = get_embedded_dt();
-	node = fdt_node_offset_by_compatible(fdt, -1, DT_OPP_COMPAT);
-	if (node < 0)
-		return node;
 
 	fdt_for_each_subnode(subnode, fdt, node) {
 		uint32_t read_freq = 0;
@@ -1575,7 +1567,8 @@ static uint32_t stm32mp1_clk_get_pll1_current_clksrc(void)
 	}
 }
 
-int stm32mp1_clk_compute_all_pll1_settings(uint32_t buck1_voltage)
+int stm32mp1_clk_compute_all_pll1_settings(const void *fdt, int node,
+					   uint32_t buck1_voltage)
 {
 	unsigned int i = 0;
 	int ret = 0;
@@ -1583,7 +1576,7 @@ int stm32mp1_clk_compute_all_pll1_settings(uint32_t buck1_voltage)
 	uint32_t count = MAX_OPP;
 	uint32_t clksrc = 0;
 
-	ret = get_all_opp_freqvolt_from_dt(&count);
+	ret = get_all_opp_freqvolt_from_dt(fdt, node, &count);
 	switch (ret) {
 	case 0:
 		break;

@@ -31,7 +31,8 @@ void stm32mp1_clk_lp_save_opp_pll1_settings(uint8_t *data, size_t size);
 /*
  * Util for PLL1 settings management based on DT OPP table content.
  */
-int stm32mp1_clk_compute_all_pll1_settings(uint32_t buck1_voltage);
+int stm32mp1_clk_compute_all_pll1_settings(const void *fdt, int node,
+					   uint32_t buck1_voltage);
 TEE_Result stm32mp1_set_opp_khz(uint32_t freq_khz);
 int stm32mp1_round_opp_khz(uint32_t *freq_khz);
 #endif
