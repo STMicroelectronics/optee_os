@@ -326,6 +326,9 @@ static TEE_Result etzpc_pm(enum pm_op op, unsigned int pm_hint __unused,
 	struct stm32_etzpc_platdata *pdata = &etzpc_device->pdata;
 	unsigned int n = 0;
 
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
+		return TEE_SUCCESS;
+
 	if (op == PM_OP_SUSPEND) {
 		for (n = 0; n < ddata->num_per_sec; n++) {
 			pdata->periph_cfg[n] =
