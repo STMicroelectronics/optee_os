@@ -9,6 +9,7 @@
 #include <drivers/stm32mp1_pwr.h>
 #include <drivers/stm32mp1_syscfg.h>
 #include <drivers/stm32mp13_regulator_iod.h>
+#include <dt-bindings/power/stm32mp1-power.h>
 #include <initcall.h>
 #include <io.h>
 #include <kernel/boot.h>
@@ -170,14 +171,19 @@ static TEE_Result iod_set_voltage(struct regulator *regu, int level_uv)
  * To protect the IOs, we disable High Speed Low Voltage mode before
  * entering suspend state and restore the configuration when resuming.
  */
-static TEE_Result iod_pm(enum pm_op op, unsigned int pm_hint __unused,
+static TEE_Result iod_pm(enum pm_op op, unsigned int pm_hint,
 			 const struct pm_callback_handle *hdl)
 {
 	struct regulator *regu = hdl->handle;
 	struct iod_regul *iod = regu->priv;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	unsigned int pwrlvl = PM_HINT_PLATFORM_STATE(pm_hint);
 
 	assert(op == PM_OP_SUSPEND || op == PM_OP_RESUME);
+
+	/* Skip as supply don't change for Stop & LP-Stop modes */
+	if (pwrlvl < STM32_PM_CSTOP_ALLOW_LPLV_STOP)
+		return TEE_SUCCESS;
 
 	if (op == PM_OP_SUSPEND) {
 		FMSG("%s: suspend", regulator_name(regu));
