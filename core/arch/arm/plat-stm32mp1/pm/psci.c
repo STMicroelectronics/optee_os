@@ -545,8 +545,10 @@ static inline size_t stm32_get_pos_other(void) {
 	return get_core_pos() == 1 ? 0 : 1;
 }
 
-static void stm32_cpu_standby(void)
+static int stm32_cpu_standby(void)
 {
+	TEE_Result tee_result __maybe_unused = TEE_ERROR_GENERIC;
+	int ret = PSCI_RET_SUCCESS;
 	size_t pos = get_core_pos();
 	uint32_t exceptions = 0;
 
@@ -564,8 +566,11 @@ static void stm32_cpu_standby(void)
 		wfi();
 	} while (!read_isr());
 #else
-	if (stm32mp_pm_call_bl2_lp_entry(STM32_PM_CPU_STANDBY_FLAG))
-		panic();
+	tee_result = stm32mp_pm_call_bl2_lp_entry(STM32_PM_CPU_STANDBY_FLAG);
+	if (tee_result == TEE_ERROR_BAD_STATE)
+		ret = PSCI_RET_DENIED;
+	else if (tee_result != TEE_SUCCESS)
+		ret = PSCI_RET_INTERNAL_FAILURE;
 #endif
 
 	exceptions = may_spin_lock(&cstop_lock);
@@ -586,6 +591,8 @@ static void stm32_cpu_standby(void)
 
 	while (get_locked(&cstop_enter) != STATE_NONE)
 		wfe();
+
+	return ret;
 }
 DECLARE_KEEP_PAGER(stm32_cpu_standby);
 
@@ -685,8 +692,7 @@ int __weak __psci_cpu_suspend(uint32_t power_state,
 
 	switch (state_id) {
 	case STM32_STATE_ID_CPU_PWRDN:
-		stm32_cpu_standby();
-		ret = PSCI_RET_SUCCESS;
+		ret = stm32_cpu_standby();
 		break;
 	case STM32_STATE_ID_STOP1:
 		ret = stm32_pwr_domain_suspend(STM32_PM_CSTOP_ALLOW_STOP);
