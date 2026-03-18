@@ -15,10 +15,12 @@
 #include <initcall.h>
 #include <io.h>
 #include <keep.h>
+#include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/boot.h>
 #include <kernel/panic.h>
+#include <kernel/pm.h>
 #include <kernel/spinlock.h>
 #include <libfdt.h>
 #include <platform_config.h>
@@ -26,6 +28,9 @@
 #include <stm32_util.h>
 #include <trace.h>
 #include <util.h>
+
+static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint __unused,
+				 const struct pm_callback_handle *hdl __unused);
 
 /* Identifiers for root oscillators */
 enum stm32mp_osc_id {
@@ -733,6 +738,45 @@ static unsigned long stm32mp1_read_pll_freq(enum stm32mp1_pll_id pll_id,
 	return dfout;
 }
 
+static void pll_start(enum stm32mp1_pll_id pll_id)
+{
+	const struct stm32mp1_clk_pll *pll = pll_ref(pll_id);
+	uint32_t pllxcr = stm32_rcc_base() + pll->pllxcr;
+
+	if (io_read32(pllxcr) & RCC_PLLNCR_PLLON)
+		return;
+
+	io_clrsetbits32(pllxcr,	RCC_PLLNCR_DIVPEN | RCC_PLLNCR_DIVQEN |
+			RCC_PLLNCR_DIVREN, RCC_PLLNCR_PLLON);
+}
+
+#define PLLRDY_TIMEOUT_US	(200 * 1000)
+
+static int pll_output(enum stm32mp1_pll_id pll_id, uint32_t output)
+{
+	const struct stm32mp1_clk_pll *pll = pll_ref(pll_id);
+	uint32_t pllxcr = stm32_rcc_base() + pll->pllxcr;
+	uint64_t start = 0;
+
+	start = timeout_init_us(PLLRDY_TIMEOUT_US);
+	/* Wait PLL lock */
+	while (!(io_read32(pllxcr) & RCC_PLLNCR_PLLRDY))
+		if (timeout_elapsed(start))
+			break;
+
+	if (!(io_read32(pllxcr) & RCC_PLLNCR_PLLRDY)) {
+		EMSG("PLL%d start failed @ 0x%"PRIx32": 0x%"PRIx32,
+		     pll_id, pllxcr, io_read32(pllxcr));
+
+		return -1;
+	}
+
+	/* Start the requested output */
+	io_setbits32(pllxcr, output << RCC_PLLNCR_DIVEN_SHIFT);
+
+	return 0;
+}
+
 static unsigned long get_clock_rate(enum stm32mp1_parent_id p)
 {
 	uint32_t reg = 0;
@@ -937,6 +981,14 @@ static unsigned long get_clock_rate(enum stm32mp1_parent_id p)
 	}
 
 	return clock;
+}
+
+static bool __maybe_unused
+__clk_is_enabled(const struct stm32mp1_clk_gate *gate)
+{
+	vaddr_t base = stm32_rcc_base();
+
+	return io_read32(base + gate->offset) & BIT(gate->bit);
 }
 
 static void __clk_enable(const struct stm32mp1_clk_gate *gate)
@@ -1423,6 +1475,9 @@ static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
 
 	enable_static_secure_clocks();
 
+	register_pm_core_service_cb(stm32_clock_pm, NULL,
+				    "stm32mp15-clk-service");
+
 	return TEE_SUCCESS;
 }
 
@@ -1438,6 +1493,394 @@ DEFINE_DT_DRIVER(stm32mp1_clock_dt_driver) = {
 	.match_table = stm32mp1_clock_match_table,
 	.probe = stm32mp1_clock_provider_probe,
 };
+
+#define CLKDIV_TIMEOUT_US	(200 * 1000)
+
+static int stm32mp1_set_clkdiv(unsigned int clkdiv, uintptr_t address)
+{
+	uint64_t timeout_ref = 0;
+
+	io_clrsetbits32(address, RCC_DIVR_DIV_MASK, clkdiv & RCC_DIVR_DIV_MASK);
+
+	timeout_ref = timeout_init_us(CLKDIV_TIMEOUT_US);
+	while (!(io_read32(address) & RCC_DIVR_DIVRDY))
+		if (timeout_elapsed(timeout_ref))
+			break;
+
+	if (!(io_read32(address) & RCC_DIVR_DIVRDY)) {
+		EMSG("CLKDIV 0x%x start failed @ 0x%"PRIxPTR": 0x%"PRIx32,
+		     clkdiv, address, io_read32(address));
+
+		return -1;
+	}
+
+	return 0;
+}
+
+struct soc_stop_context {
+	uint32_t pll3cr;
+	uint32_t pll4cr;
+	uint32_t mssckselr;
+	uint32_t mcudivr;
+};
+
+static struct soc_stop_context soc_stop_ctx;
+
+static void save_pll34_state(void)
+{
+	uintptr_t rcc_base = stm32_rcc_base();
+	struct soc_stop_context *ctx = &soc_stop_ctx;
+
+	ctx->pll3cr = io_read32(rcc_base + RCC_PLL3CR);
+	ctx->pll4cr = io_read32(rcc_base + RCC_PLL4CR);
+}
+
+static void save_mcu_subsys_clocks(void)
+{
+	uintptr_t rcc_base = stm32_rcc_base();
+	struct soc_stop_context *ctx = &soc_stop_ctx;
+
+	ctx->mssckselr = io_read32(rcc_base + RCC_MSSCKSELR);
+	ctx->mcudivr = io_read32(rcc_base + RCC_MCUDIVR) &
+		       RCC_MCUDIV_MASK;
+}
+
+static void restore_pll34_state(void)
+{
+	struct soc_stop_context *ctx = &soc_stop_ctx;
+
+	/* Let PLL4 start while we're starting and waiting for PLL3 */
+	if (ctx->pll4cr & RCC_PLLNCR_PLLON)
+		pll_start(_PLL4);
+
+	if (ctx->pll3cr & RCC_PLLNCR_PLLON) {
+		pll_start(_PLL3);
+		if (pll_output(_PLL3, ctx->pll3cr >> RCC_PLLNCR_DIVEN_SHIFT)) {
+			EMSG("Failed to restore PLL3");
+			panic();
+		}
+	}
+
+	if (ctx->pll4cr & RCC_PLLNCR_PLLON) {
+		if (pll_output(_PLL4, ctx->pll4cr >> RCC_PLLNCR_DIVEN_SHIFT)) {
+			EMSG("Failed to restore PLL4");
+			panic();
+		}
+	}
+}
+
+static void restore_mcu_subsys_clocks(void)
+{
+	uintptr_t rcc_base = stm32_rcc_base();
+	struct soc_stop_context *ctx = &soc_stop_ctx;
+
+	io_write32(rcc_base + RCC_MSSCKSELR, ctx->mssckselr);
+
+	if (stm32mp1_set_clkdiv(ctx->mcudivr, rcc_base + RCC_MCUDIVR)) {
+		EMSG("Failed to restore MCUDIVR");
+		panic();
+	}
+}
+
+/*
+ * Sequence to save/restore the non-secure configuration.
+ * Restoring clocks and muxes need IPs to run on kernel clock
+ * hence on configuration is restored at resume, kernel clock
+ * should be disable: this mandates secure access.
+ *
+ * backup_mux*_cfg for the clock muxes.
+ * backup_clock_sc_cfg for the set/clear clock gating registers
+ * backup_clock_cfg for the regular full write registers
+ */
+
+struct backup_mux_cfg {
+	uint16_t offset;
+	uint8_t value;
+	uint8_t bit_len;
+};
+
+#define MUXCFG(_offset, _bit_len) \
+	{ .offset = (_offset), .bit_len = (_bit_len) }
+
+struct backup_mux_cfg backup_mux0_cfg[] = {
+	MUXCFG(RCC_SDMMC12CKSELR, 3),
+	MUXCFG(RCC_SPI2S23CKSELR, 3),
+	MUXCFG(RCC_SPI45CKSELR, 3),
+	MUXCFG(RCC_I2C12CKSELR, 3),
+	MUXCFG(RCC_I2C35CKSELR, 3),
+	MUXCFG(RCC_LPTIM23CKSELR, 3),
+	MUXCFG(RCC_LPTIM45CKSELR, 3),
+	MUXCFG(RCC_UART24CKSELR, 3),
+	MUXCFG(RCC_UART35CKSELR, 3),
+	MUXCFG(RCC_UART78CKSELR, 3),
+	MUXCFG(RCC_SAI1CKSELR, 3),
+	MUXCFG(RCC_ETHCKSELR, 2),
+	MUXCFG(RCC_I2C46CKSELR, 3),
+	MUXCFG(RCC_RNG2CKSELR, 2),
+	MUXCFG(RCC_SDMMC3CKSELR, 3),
+	MUXCFG(RCC_FMCCKSELR, 2),
+	MUXCFG(RCC_QSPICKSELR, 2),
+	MUXCFG(RCC_USBCKSELR, 2),
+	MUXCFG(RCC_SPDIFCKSELR, 2),
+	MUXCFG(RCC_SPI2S1CKSELR, 3),
+	MUXCFG(RCC_CECCKSELR, 2),
+	MUXCFG(RCC_LPTIM1CKSELR, 3),
+	MUXCFG(RCC_UART6CKSELR, 3),
+	MUXCFG(RCC_FDCANCKSELR, 2),
+	MUXCFG(RCC_SAI2CKSELR, 3),
+	MUXCFG(RCC_SAI3CKSELR,  3),
+	MUXCFG(RCC_SAI4CKSELR, 3),
+	MUXCFG(RCC_ADCCKSELR, 2),
+	MUXCFG(RCC_DSICKSELR, 1),
+	MUXCFG(RCC_CPERCKSELR, 2),
+	MUXCFG(RCC_RNG1CKSELR, 2),
+	MUXCFG(RCC_STGENCKSELR, 2),
+	MUXCFG(RCC_UART1CKSELR, 3),
+	MUXCFG(RCC_SPI6CKSELR, 3),
+};
+
+struct backup_mux_cfg backup_mux4_cfg[] = {
+	MUXCFG(RCC_USBCKSELR, 1),
+};
+
+static void backup_mux_cfg(void)
+{
+	struct backup_mux_cfg *cfg = backup_mux0_cfg;
+	size_t count = ARRAY_SIZE(backup_mux0_cfg);
+	size_t i = 0;
+	uintptr_t base = stm32_rcc_base();
+
+	for (i = 0; i < count; i++)
+		cfg[i].value = io_read32(base + cfg[i].offset) &
+				GENMASK_32(cfg[i].bit_len - 1, 0);
+
+	cfg = backup_mux4_cfg;
+	count = ARRAY_SIZE(backup_mux4_cfg);
+
+	for (i = 0; i < count; i++)
+		cfg[i].value = io_read32(base + cfg[i].offset) &
+				GENMASK_32(4 + cfg[i].bit_len - 1, 4);
+}
+
+static void restore_mux_cfg(void)
+{
+	struct backup_mux_cfg *cfg = backup_mux0_cfg;
+	size_t count = ARRAY_SIZE(backup_mux0_cfg);
+	size_t i = 0;
+	uintptr_t base = stm32_rcc_base();
+
+	for (i = 0; i < count; i++)
+		io_clrsetbits32(base + cfg[i].offset,
+				GENMASK_32(cfg[i].bit_len - 1, 0),
+				cfg[i].value);
+
+	cfg = backup_mux4_cfg;
+	count = ARRAY_SIZE(backup_mux4_cfg);
+
+	for (i = 0; i < count; i++)
+		io_clrsetbits32(base + cfg[i].offset,
+				GENMASK_32(4 + cfg[i].bit_len - 1, 4),
+				cfg[i].value);
+}
+
+/* Structure is used for set/clear registers and for regular registers */
+struct backup_clock_cfg {
+	uint32_t offset;
+	uint32_t value;
+};
+
+static struct backup_clock_cfg backup_clock_sc_cfg[] = {
+	{ .offset = RCC_MP_APB1ENSETR },
+	{ .offset = RCC_MP_APB2ENSETR },
+	{ .offset = RCC_MP_APB3ENSETR },
+	{ .offset = RCC_MP_APB4ENSETR },
+	{ .offset = RCC_MP_APB5ENSETR },
+	{ .offset = RCC_MP_AHB2ENSETR },
+	{ .offset = RCC_MP_AHB3ENSETR },
+	{ .offset = RCC_MP_AHB4ENSETR },
+	{ .offset = RCC_MP_AHB5ENSETR },
+	{ .offset = RCC_MP_AHB6ENSETR },
+	{ .offset = RCC_MP_MLAHBENSETR },
+};
+
+static struct backup_clock_cfg backup_clock_cfg[] = {
+	{ .offset = RCC_TZCR},
+	{ .offset = RCC_MCO1CFGR },
+	{ .offset = RCC_MCO2CFGR },
+	{ .offset = RCC_PLL3CR },
+	{ .offset = RCC_PLL4CR },
+	{ .offset = RCC_PLL4CFGR2 },
+	{ .offset = RCC_MCUDIVR },
+	{ .offset = RCC_MSSCKSELR },
+};
+
+static void backup_sc_cfg(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_sc_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_sc_cfg);
+	size_t i = 0;
+	uintptr_t base = stm32_rcc_base();
+
+	for (i = 0; i < count; i++)
+		cfg[i].value = io_read32(base + cfg[i].offset);
+}
+
+static void restore_sc_cfg(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_sc_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_sc_cfg);
+	size_t i = 0;
+	uintptr_t base = stm32_rcc_base();
+
+	for (i = 0; i < count; i++) {
+		io_write32(base + cfg[i].offset, cfg[i].value);
+		io_write32(base + cfg[i].offset + RCC_MP_ENCLRR_OFFSET,
+			   ~cfg[i].value);
+	}
+}
+
+static void backup_regular_cfg(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_cfg);
+	size_t i = 0;
+	uintptr_t base = stm32_rcc_base();
+
+	for (i = 0; i < count; i++)
+		cfg[i].value = io_read32(base + cfg[i].offset);
+}
+
+static void restore_regular_cfg(void)
+{
+	struct backup_clock_cfg *cfg = backup_clock_cfg;
+	size_t count = ARRAY_SIZE(backup_clock_cfg);
+	size_t i = 0;
+	uintptr_t base = stm32_rcc_base();
+
+	for (i = 0; i < count; i++)
+		io_write32(base + cfg[i].offset, cfg[i].value);
+}
+
+static void disable_kernel_clocks(void)
+{
+	const uint32_t ker_mask = RCC_OCENR_HSIKERON |
+				  RCC_OCENR_CSIKERON |
+				  RCC_OCENR_HSEKERON;
+
+	/* Disable all ck_xxx_ker clocks */
+	io_write32(stm32_rcc_base() + RCC_OCENCLRR, ker_mask);
+}
+
+static void enable_kernel_clocks(void)
+{
+	uintptr_t rcc_base = stm32_rcc_base();
+	uint32_t reg = 0;
+	const uint32_t ker_mask = RCC_OCENR_HSIKERON |
+				  RCC_OCENR_CSIKERON |
+				  RCC_OCENR_HSEKERON;
+
+	/* Enable ck_xxx_ker clocks if ck_xxx was on */
+	reg = io_read32(rcc_base + RCC_OCENSETR) << 1;
+	io_write32(rcc_base + RCC_OCENSETR, reg & ker_mask);
+}
+
+static void clear_rcc_reset_status(void)
+{
+	/* Clear reset status fields */
+	io_write32(stm32_rcc_base() + RCC_MP_RSTSCLRR, 0);
+}
+
+void stm32mp1_clk_save_context_for_stop(void)
+{
+	enable_kernel_clocks();
+	save_mcu_subsys_clocks();
+	save_pll34_state();
+}
+
+void stm32mp1_clk_restore_context_for_stop(void)
+{
+	restore_pll34_state();
+	/* Restore MCU clock source after PLL3 is ready */
+	restore_mcu_subsys_clocks();
+	disable_kernel_clocks();
+}
+
+static bool backup_clock_nsec[NB_GATES];
+
+static void sync_non_secure_clk_state(void)
+{
+	unsigned int idx = 0;
+
+	for (idx = 0; idx < NB_GATES; idx++) {
+		struct stm32mp1_clk_gate const *gate = gate_ref(idx);
+		struct clk *clk = NULL;
+
+		clk = clock_id_to_clk(gate->clock_id);
+		assert(clk);
+
+		if (__clk_is_enabled(gate) && !clk_is_enabled(clk))
+			backup_clock_nsec[idx] = true;
+		else
+			backup_clock_nsec[idx] = false;
+	}
+}
+
+static void stm32_clock_suspend(void)
+{
+	sync_non_secure_clk_state();
+	backup_regular_cfg();
+	backup_sc_cfg();
+	backup_mux_cfg();
+	save_pll34_state();
+
+	enable_kernel_clocks();
+	clear_rcc_reset_status();
+}
+
+static void stm32_clock_resume(void)
+{
+	unsigned int idx = 0;
+
+	restore_pll34_state();
+	restore_mux_cfg();
+	restore_sc_cfg();
+	restore_regular_cfg();
+
+	/* Sync secure and shared clocks physical state on functional state */
+	for (idx = 0; idx < NB_GATES; idx++) {
+		struct stm32mp1_clk_gate const *gate = gate_ref(idx);
+		struct clk *clk = NULL;
+
+		if (backup_clock_nsec[idx])
+			continue;
+
+		clk = clock_id_to_clk(gate->clock_id);
+		assert(clk);
+
+		if (clk_is_enabled(clk)) {
+			DMSG("Force clock %d enable", gate->clock_id);
+			__clk_enable(gate);
+		} else {
+			DMSG("Force clock %d disable", gate->clock_id);
+			__clk_disable(gate);
+		}
+	}
+
+	disable_kernel_clocks();
+}
+
+static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint __unused,
+				 const struct pm_callback_handle *hdl __unused)
+{
+	if (op == PM_OP_SUSPEND) {
+		stm32_clock_suspend();
+	} else {
+		stm32_clock_resume();
+	}
+
+	return TEE_SUCCESS;
+}
+DECLARE_KEEP_PAGER(stm32_clock_pm);
 
 void stm32_reset_system(void)
 {

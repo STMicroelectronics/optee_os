@@ -24,4 +24,8 @@ extern const struct clk_ops stm32mp1_clk_ops;
 struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 #endif
 
+/* PM sequences specific to SoC STOP mode support */
+void stm32mp1_clk_save_context_for_stop(void);
+void stm32mp1_clk_restore_context_for_stop(void);
+
 #endif /*__DRIVERS_STM32MP1_RCC_UTIL_H__*/
