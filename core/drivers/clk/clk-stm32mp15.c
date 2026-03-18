@@ -1880,7 +1880,7 @@ static TEE_Result stm32_clock_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(stm32_clock_pm);
+DECLARE_KEEP_PAGER_PM(stm32_clock_pm);
 
 void stm32_reset_system(void)
 {
