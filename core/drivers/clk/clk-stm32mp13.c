@@ -1629,8 +1629,9 @@ static int stm32_clk_parse_fdt_opp(const void *fdt, int node,
 						       "st,clkdiv",
 						       UINT32_MAX);
 
+		/* PLL is also optional */
 		ret = clk_stm32_parse_pll_fdt(fdt, subnode, &opp_cfg->pll_cfg);
-		if (ret)
+		if (ret && (ret != -FDT_ERR_NOTFOUND))
 			return ret;
 
 		opp_cfg++;
