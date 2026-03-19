@@ -434,6 +434,8 @@ CFG_WERROR ?= y
 
 # Default enable software fallback on crypto drivers
 CFG_STM32_SAES_SW_FALLBACK ?= y
+CFG_DRIVERS_CLK_PRINT_TREE ?= $(CFG_WITH_STATS)
+CFG_DRIVERS_REGULATOR_PRINT_TREE ?= $(CFG_WITH_STATS)
 
 # Enable OTP update with BSEC driver
 CFG_STM32_BSEC_WRITE ?= y
