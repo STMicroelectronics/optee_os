@@ -4180,12 +4180,22 @@ static TEE_Result stm32mp25_clk_probe(const void *fdt, int node,
 	int rc = 0;
 	struct clk_stm32_priv *priv = &stm32mp25_clock_data;
 	struct stm32_clk_platdata *pdata = &stm32mp25_clock_pdata;
+	int subnode = 0;
 
 	fdt_rc = stm32_clk_parse_fdt(fdt, node, pdata);
 	if (fdt_rc) {
 		EMSG("Failed to parse clock node %s: %d",
 		     fdt_get_name(fdt, node, NULL), fdt_rc);
 		return TEE_ERROR_GENERIC;
+	}
+
+	fdt_for_each_subnode(subnode, fdt, node) {
+		res = dt_driver_maybe_add_probe_node(fdt, subnode);
+		if (res) {
+			EMSG("Failed on node %s with %#"PRIx32,
+			     fdt_get_name(fdt, subnode, NULL), res);
+			goto err;
+		}
 	}
 
 	rc = clk_stm32_init(priv, stm32_rcc_base());
