@@ -196,7 +196,6 @@ struct stm32_clk_platdata {
 	uint32_t nflexgen;
 	uint32_t *flexgen;
 	uint32_t c1msrd;
-	bool safe_rst;
 };
 
 /*
@@ -1247,9 +1246,6 @@ static int stm32_clk_parse_fdt(const void *fdt, int node,
 		return err;
 
 	pdata->c1msrd = fdt_read_uint32_default(fdt, node, "st,c1msrd", 0);
-
-	if (fdt_getprop(fdt, node, "st,safe_rst", NULL))
-		pdata->safe_rst = true;
 
 	pdata->rcc_base = stm32_rcc_base();
 
@@ -3411,14 +3407,6 @@ static void clk_stm32_init_oscillators(const void *fdt, int node)
 	ck_msi_ker.parents[0] = ck_msi.parents[0];
 }
 
-static TEE_Result clk_stm32_apply_rcc_config(struct stm32_clk_platdata *pdata)
-{
-	if (pdata->safe_rst)
-		stm32mp25_syscfg_set_safe_reset(true);
-
-	return TEE_SUCCESS;
-}
-
 static struct stm32_pll_dt_cfg mp21_pll[PLL_NB];
 static struct stm32_clk_opp_dt_cfg mp21_clk_opp;
 static struct stm32_osci_dt_cfg mp21_osci[NB_OSCILLATOR];
@@ -3728,9 +3716,7 @@ static TEE_Result stm32mp21_clk_probe(const void *fdt, int node,
 
 	clk_stm32_init_oscillators(fdt, node);
 
-	res = clk_stm32_apply_rcc_config(pdata);
-	if (res)
-		panic("Error when applying RCC config");
+	stm32mp25_syscfg_set_safe_reset(true);
 
 	stm32mp_clk_provider_probe_final(fdt, node, priv);
 
