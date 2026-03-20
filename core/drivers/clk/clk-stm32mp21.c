@@ -13,14 +13,17 @@
 #include <initcall.h>
 #include <io.h>
 #include <kernel/dt.h>
+#include <kernel/mutex.h>
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stm32_sysconf.h>
 #include <stm32_util.h>
+#include <string.h>
 #include <trace.h>
 #include <util.h>
 
@@ -2423,6 +2426,76 @@ static unsigned long clk_stm32_flexgen_get_round_rate(unsigned long rate,
 	return (prate / (*prediv + 1)) / (*findiv + 1);
 }
 
+/*
+ * To save a bit of memory, compute flexgen clock rates array once when
+ * the flexgen clock parent clock rate is the same. If not, recompute
+ * the array. Flexgen supports up to 4 x 64 divisor combinations:
+ * 4 prediv values and 64 findiv values (from 1 to FLEXGEN_FINDIV_MAX).
+ */
+static const unsigned int flexgen_prediv[] = { 1, 2, 4, 1024 };
+static unsigned long flexgen_rates_array[FLEXGEN_FINDIV_MAX *
+					 ARRAY_SIZE(flexgen_prediv)];
+static unsigned long array_parent_rate;
+
+static void load_flexgen_rates_array(unsigned long parent_rate)
+{
+	unsigned long *rate = flexgen_rates_array;
+	uint64_t freq = 0;
+	size_t findiv = 0;
+	size_t n = 0;
+
+	assert(parent_rate);
+	if (parent_rate == array_parent_rate)
+		return;
+
+	array_parent_rate = parent_rate;
+
+	for (n = 0; n < ARRAY_SIZE(flexgen_prediv); n++) {
+		for (findiv = 1; findiv <= FLEXGEN_FINDIV_MAX; findiv++) {
+			freq = parent_rate / flexgen_prediv[n];
+			*rate = freq / findiv;
+			rate++;
+		}
+	}
+
+	qsort_ul(flexgen_rates_array, ARRAY_SIZE(flexgen_rates_array));
+}
+
+static TEE_Result clk_stm32_flexgen_rates_array(struct clk *clk,
+						size_t start_index,
+						unsigned long *rates,
+						size_t *nb_elts)
+{
+	static struct mutex mu = MUTEX_INITIALIZER;
+	uint64_t prate = clk_get_rate(clk->parent);
+
+	if (!prate)
+		return TEE_ERROR_GENERIC;
+
+	if (start_index >= ARRAY_SIZE(flexgen_rates_array) || !nb_elts)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!rates || !*nb_elts) {
+		*nb_elts = ARRAY_SIZE(flexgen_rates_array) - start_index;
+
+		return TEE_SUCCESS;
+	}
+
+	mutex_lock(&mu);
+
+	load_flexgen_rates_array(prate);
+
+	if (start_index + *nb_elts > ARRAY_SIZE(flexgen_rates_array))
+		*nb_elts = ARRAY_SIZE(flexgen_rates_array) - start_index;
+
+	memcpy(rates, flexgen_rates_array + start_index,
+	       *nb_elts * sizeof(*rates));
+
+	mutex_unlock(&mu);
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result clk_stm32_flexgen_set_rate(struct clk *clk,
 					     unsigned long rate,
 					     unsigned long parent_rate)
@@ -2513,6 +2586,7 @@ static void clk_stm32_flexgen_disable(struct clk *clk)
 static const struct clk_ops clk_stm32_flexgen_ops = {
 	.get_rate = clk_stm32_flexgen_get_rate,
 	.set_rate = clk_stm32_flexgen_set_rate,
+	.get_rates_array = clk_stm32_flexgen_rates_array,
 	.get_parent = clk_stm32_flexgen_get_parent,
 	.set_parent = clk_stm32_flexgen_set_parent,
 	.enable = clk_stm32_flexgen_enable,
