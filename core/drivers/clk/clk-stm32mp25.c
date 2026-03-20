@@ -178,7 +178,6 @@ struct stm32_osci_dt_cfg {
 
 struct stm32_clk_opp_cfg {
 	uint32_t frq;
-	uint32_t src;
 	struct stm32_pll_dt_cfg pll_cfg;
 };
 
@@ -1308,9 +1307,6 @@ static int stm32_clk_parse_fdt_opp(const void *fdt, int node,
 
 		if (fdt_read_uint32(fdt, subnode, "hz", &opp_cfg->frq))
 			panic("hz property is mandatory");
-
-		if (fdt_read_uint32(fdt, subnode, "st,clksrc", &opp_cfg->src))
-			panic("st,clksrc property is mandatory");
 
 		ret = clk_stm32_parse_pll_fdt(fdt, subnode, &opp_cfg->pll_cfg);
 		if (ret < 0)
