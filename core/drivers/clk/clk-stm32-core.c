@@ -318,7 +318,7 @@ TEE_Result stm32_div_set_value(uint32_t div_id, uint32_t value)
 	return stm32_gate_wait_ready((uint16_t)divider->ready, true);
 }
 
-static unsigned long stm32_div_get_rate(int div_id, unsigned long prate)
+unsigned long stm32_div_get_rate(int div_id, unsigned long prate)
 {
 	struct clk_stm32_priv *priv = clk_stm32_get_priv();
 	const struct div_cfg *divider = &priv->div[div_id];

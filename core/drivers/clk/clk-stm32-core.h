@@ -130,6 +130,7 @@ void stm32_gate_set_init_state(uint16_t gate_id, bool enable);
 size_t stm32_mux_get_parent(uint32_t mux_id);
 TEE_Result stm32_mux_set_parent(uint16_t pid, uint8_t sel);
 
+unsigned long stm32_div_get_rate(int div_id, unsigned long prate);
 TEE_Result stm32_div_set_rate(int div_id, unsigned long rate,
 			      unsigned long prate);
 
