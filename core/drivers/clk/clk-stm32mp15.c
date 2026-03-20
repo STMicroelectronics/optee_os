@@ -3421,6 +3421,7 @@ static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
 	struct clk_stm32_priv *priv = &stm32mp15_clock_data;
 	struct stm32_clk_platdata *pdata = &stm32mp15_clock_pdata;
 	int rc = 0;
+	int subnode = 0;
 
 	if (compat_data == &non_secure_rcc)
 		disable_rcc_tzen();
@@ -3437,6 +3438,15 @@ static TEE_Result stm32mp1_clock_provider_probe(const void *fdt, int offs,
 	if (rc) {
 		EMSG("Failed to parse clock node: %d", rc);
 		return TEE_ERROR_GENERIC;
+	}
+
+	fdt_for_each_subnode(subnode, fdt, offs) {
+		res = dt_driver_maybe_add_probe_node(fdt, subnode);
+		if (res) {
+			EMSG("Failed on node %s with %#"PRIx32,
+			     fdt_get_name(fdt, subnode, NULL), res);
+			return res;
+		}
 	}
 
 	res = clk_stm32_init(priv, stm32_rcc_base());
