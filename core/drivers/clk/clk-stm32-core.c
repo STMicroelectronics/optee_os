@@ -62,7 +62,7 @@ TEE_Result stm32_mux_set_parent(uint16_t mux_id, uint8_t sel)
 }
 
 /* STM32 GATE API */
-static void stm32_gate_endisable(uint16_t gate_id, bool enable)
+void stm32_gate_endisable(uint16_t gate_id, bool enable)
 {
 	struct clk_stm32_priv *priv = clk_stm32_get_priv();
 	const struct gate_cfg *gate = &priv->gates[gate_id];
@@ -396,6 +396,21 @@ const struct clk_ops clk_stm32_gate_ops = {
 	.enable		= clk_stm32_gate_enable,
 	.disable	= clk_stm32_gate_disable,
 	.is_enabled	= clk_stm32_gate_is_enabled,
+};
+
+static void clk_stm32_gate_pm_restore(struct clk *clk)
+{
+	struct clk_stm32_gate_cfg *cfg = clk->priv;
+
+	if (clk_is_enabled(clk))
+		stm32_gate_endisable(cfg->gate_id, true);
+}
+
+const struct clk_ops clk_stm32_gate_pm_ops = {
+	.enable		= clk_stm32_gate_enable,
+	.disable	= clk_stm32_gate_disable,
+	.is_enabled	= clk_stm32_gate_is_enabled,
+	.restore_context = clk_stm32_gate_pm_restore,
 };
 
 static TEE_Result clk_stm32_gate_ready_enable(struct clk *clk)

@@ -2408,10 +2408,20 @@ static bool clk_stm32_osc_is_enabled(struct clk *clk)
 	return clk_stm32_gate_ready_ops.is_enabled(clk);
 }
 
+static void __maybe_unused clk_stm32_osc_pm_restore(struct clk *clk)
+{
+	if (!stm32_rcc_has_access_by_id(RCC_RIF_OSCILLATORS))
+		return;
+
+	if (clk_is_enabled(clk))
+		clk_stm32_osc_enable(clk);
+}
+
 static const struct clk_ops clk_stm32_osc_ops = {
 	.enable = clk_stm32_osc_enable,
 	.disable = clk_stm32_osc_disable,
 	.is_enabled = clk_stm32_osc_is_enabled,
+	.restore_context = clk_stm32_osc_pm_restore,
 };
 
 static unsigned long clk_stm32_msi_get_rate(struct clk *clk __unused,
@@ -2438,12 +2448,37 @@ static TEE_Result clk_stm32_msi_set_rate(struct clk *clk __unused,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result __maybe_unused clk_stm32_pm_save_rate(struct clk *clk)
+{
+	/*
+	 * Update the frequency in the clock framework in case this clock is
+	 * registered before its parent.
+	 */
+
+	clk->rate = clk_get_rate(clk);
+
+	return TEE_SUCCESS;
+}
+
+static void __maybe_unused clk_stm32_osc_msi_pm_restore(struct clk *clk)
+{
+	if (!stm32_rcc_has_access_by_id(RCC_RIF_OSCILLATORS))
+		return;
+
+	clk_stm32_msi_set_rate(clk, clk->rate, clk->parent->rate);
+
+	if (clk_is_enabled(clk))
+		clk_stm32_osc_enable(clk);
+}
+
 static const struct clk_ops clk_stm32_oscillator_msi_ops = {
 	.enable = clk_stm32_osc_enable,
 	.disable = clk_stm32_osc_disable,
 	.is_enabled = clk_stm32_osc_is_enabled,
 	.get_rate = clk_stm32_msi_get_rate,
 	.set_rate = clk_stm32_msi_set_rate,
+	.save_context = clk_stm32_pm_save_rate,
+	.restore_context = clk_stm32_osc_msi_pm_restore,
 };
 
 /* Clock with no ops, only used as parent for flexgen selection */
@@ -2485,9 +2520,20 @@ static TEE_Result clk_stm32_hse_div_set_rate(struct clk *clk,
 	return TEE_SUCCESS;
 }
 
+static void __maybe_unused clk_stm32_hse_div_pm_restore(struct clk *clk)
+{
+	if (!stm32_rcc_has_access_by_id(RCC_RIF_OSCILLATORS))
+		return;
+
+	if (clk_stm32_hse_div_set_rate(clk, clk->rate, clk->parent->rate))
+		panic();
+}
+
 static const struct clk_ops clk_stm32_hse_div_ops = {
 	.get_rate = clk_stm32_divider_get_rate,
 	.set_rate = clk_stm32_hse_div_set_rate,
+	.save_context = clk_stm32_pm_save_rate,
+	.restore_context = clk_stm32_hse_div_pm_restore,
 };
 
 static TEE_Result clk_stm32_hsediv2_enable(struct clk *clk)
@@ -2521,11 +2567,23 @@ static unsigned long clk_stm32_hsediv2_get_rate(struct clk *clk __unused,
 	return prate / 2;
 }
 
+static void __maybe_unused clk_stm32_hsediv2_pm_restore(struct clk *clk)
+{
+	struct clk_stm32_gate_cfg *cfg = clk->priv;
+
+	if (!stm32_rcc_has_access_by_id(RCC_RIF_OSCILLATORS))
+		return;
+
+	if (clk_is_enabled(clk))
+		stm32_gate_endisable(cfg->gate_id, true);
+}
+
 static const struct clk_ops clk_hsediv2_ops = {
 	.enable = clk_stm32_hsediv2_enable,
 	.disable = clk_stm32_hsediv2_disable,
 	.is_enabled = clk_stm32_hsediv2_is_enabled,
 	.get_rate = clk_stm32_hsediv2_get_rate,
+	.restore_context = clk_stm32_hsediv2_pm_restore,
 };
 
 struct clk_stm32_pll_cfg {
@@ -2714,12 +2772,22 @@ static bool clk_stm32_pll_is_enabled(struct clk *clk)
 	return stm32_gate_is_enabled(cfg->gate_id);
 }
 
+static void __maybe_unused clk_stm32_pll_pm_restore(struct clk *clk)
+{
+	if (!stm32_rcc_has_access_by_id(RCC_RIF_PLL4_TO_8))
+		return;
+
+	if (clk_is_enabled(clk) && clk_stm32_pll_enable(clk))
+		panic();
+}
+
 static const struct clk_ops clk_stm32_pll_ops = {
 	.get_parent = clk_stm32_pll_get_parent,
 	.get_rate = clk_stm32_pll_get_rate,
 	.enable = clk_stm32_pll_enable,
 	.disable = clk_stm32_pll_disable,
 	.is_enabled = clk_stm32_pll_is_enabled,
+	.restore_context = clk_stm32_pll_pm_restore,
 };
 
 static TEE_Result clk_stm32_pll3_set_rate(struct clk *clk __unused,
@@ -3095,6 +3163,24 @@ static bool clk_stm32_flexgen_is_enabled(struct clk *clk)
 	       RCC_FINDIV0CFGR_FINDIV0EN;
 }
 
+
+static void __maybe_unused clk_stm32_flexgen_pm_restore(struct clk *clk)
+{
+	TEE_Result ret = TEE_ERROR_GENERIC;
+	size_t pidx = 0;
+
+	ret = clk_get_parent_idx(clk, clk->parent, &pidx);
+	if (ret)
+		panic();
+
+	clk_stm32_flexgen_set_parent(clk, pidx);
+
+	clk_stm32_flexgen_set_rate(clk, clk->rate, clk->parent->rate);
+
+	if (clk_is_enabled(clk))
+		clk_stm32_flexgen_enable(clk);
+}
+
 static const struct clk_ops clk_stm32_flexgen_ops = {
 	.get_rate = clk_stm32_flexgen_get_rate,
 	.set_rate = clk_stm32_flexgen_set_rate,
@@ -3104,6 +3190,8 @@ static const struct clk_ops clk_stm32_flexgen_ops = {
 	.enable = clk_stm32_flexgen_enable,
 	.disable = clk_stm32_flexgen_disable,
 	.is_enabled = clk_stm32_flexgen_is_enabled,
+	.save_context = clk_stm32_pm_save_rate,
+	.restore_context = clk_stm32_flexgen_pm_restore,
 };
 
 static size_t clk_cpu1_get_parent(struct clk *clk __unused)
@@ -3216,11 +3304,22 @@ static bool clk_stm32_rif_gate_is_enabled(struct clk *clk)
 	return stm32_gate_is_enabled(cfg->gate_id);
 }
 
+static void __maybe_unused clk_stm32_rif_gate_pm_restore(struct clk *clk)
+{
+	struct clk_stm32_rif_gate_cfg *cfg = clk->priv;
+
+	if (!stm32_rcc_has_access_by_id(cfg->sec_id))
+		return;
+
+	if (clk_is_enabled(clk))
+		stm32_gate_endisable(cfg->gate_id, true);
+}
 
 static const struct clk_ops clk_stm32_rif_gate_ops = {
 	.enable		= clk_stm32_rif_gate_enable,
 	.disable	= clk_stm32_rif_gate_disable,
 	.is_enabled	= clk_stm32_rif_gate_is_enabled,
+	.restore_context = clk_stm32_rif_gate_pm_restore,
 };
 
 struct clk_stm32_rif_composite_cfg {
@@ -3305,6 +3404,30 @@ static bool clk_stm32_rif_composite_gate_is_enabled(struct clk *clk)
 	return stm32_gate_is_enabled(cfg->gate_id);
 }
 
+static void __maybe_unused clk_stm32_rif_composite_pm_restore(struct clk *clk)
+{
+	struct clk_stm32_rif_composite_cfg *cfg = clk->priv;
+
+	if (!stm32_rcc_has_access_by_id(cfg->sec_id))
+		return;
+
+	if (cfg->mux_id != NO_MUX) {
+		size_t pidx = 0;
+
+		if (clk_get_parent_idx(clk, clk->parent, &pidx))
+			panic();
+
+		stm32_mux_set_parent(cfg->mux_id, pidx);
+	}
+
+	if (cfg->div_id != NO_DIV)
+		stm32_div_set_rate(cfg->div_id, clk->rate, clk->parent->rate);
+
+	if (cfg->gate_id != NO_GATE)
+		if (clk_is_enabled(clk))
+			stm32_gate_endisable(cfg->gate_id, true);
+}
+
 static const struct clk_ops clk_stm32_rif_composite_ops = {
 	.get_parent	= clk_stm32_rif_composite_get_parent,
 	.set_parent	= clk_stm32_rif_composite_set_parent,
@@ -3313,6 +3436,8 @@ static const struct clk_ops clk_stm32_rif_composite_ops = {
 	.enable		= clk_stm32_rif_composite_gate_enable,
 	.disable	= clk_stm32_rif_composite_gate_disable,
 	.is_enabled	= clk_stm32_rif_composite_gate_is_enabled,
+	.save_context	= clk_stm32_pm_save_rate,
+	.restore_context = clk_stm32_rif_composite_pm_restore,
 };
 
 static const struct clk_ops ck_timer_ops = {
@@ -3812,7 +3937,7 @@ static STM32_GATE(ck_icn_p_ltdc, &ck_icn_apb4, 0, GATE_LTDC);
 static STM32_GATE(ck_icn_p_csi, &ck_icn_apb4, 0, GATE_CSI);
 static STM32_GATE(ck_icn_p_dcmipp, &ck_icn_apb4, 0, GATE_DCMIPP);
 static STM32_GATE(ck_icn_p_lvds, &ck_icn_apb4, 0, GATE_LVDS);
-static STM32_GATE(ck_icn_p_gicv2m, &ck_icn_apb4, 0, GATE_GICV2M);
+static STM32_GATE_PM(ck_icn_p_gicv2m, &ck_icn_apb4, 0, GATE_GICV2M);
 static STM32_GATE(ck_icn_p_usbtc, &ck_icn_apb4, 0, GATE_USBTC);
 static STM32_GATE(ck_icn_p_usb3pciephy, &ck_icn_apb4, 0, GATE_USB3PCIEPHY);
 static STM32_GATE(ck_icn_p_stgen, &ck_icn_apb4, 0, GATE_STGEN);
@@ -4559,6 +4684,11 @@ end:
 	return TEE_SUCCESS;
 }
 
+static TEE_Result stm32_rcc_rif_pm_resume(void)
+{
+	return apply_rcc_rif_config(true);
+}
+
 static TEE_Result stm32_rcc_rif_pm_suspend(void)
 {
 	struct stm32_clk_platdata *pdata = &stm32mp25_clock_pdata;
@@ -4599,7 +4729,7 @@ static TEE_Result stm32_rcc_rif_pm(enum pm_op op, unsigned int pm_hint,
 
 	if (op == PM_OP_RESUME) {
 		if (is_tdcid)
-			res = apply_rcc_rif_config(true);
+			res = stm32_rcc_rif_pm_resume();
 		else
 			res = handle_available_semaphores();
 	} else {
@@ -4632,6 +4762,55 @@ static TEE_Result rcc_rif_config(void)
 }
 
 driver_init_late(rcc_rif_config);
+
+static TEE_Result stm32_rcc_pm_resume(void)
+{
+	/* Restore clock tree */
+	stm32mp2_init_clock_tree(&stm32mp25_clock_data, &stm32mp25_clock_pdata);
+
+	/* Restore all clocks (gating / rating / parent) */
+	clk_restore_context();
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_rcc_pm_suspend(void)
+{
+	__maybe_unused struct stm32_clk_platdata *pdata = NULL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	res = clk_save_context();
+	if (res != TEE_SUCCESS)
+		return res;
+
+#ifndef CFG_STM32_CM33TDCID
+	pdata = &stm32mp25_clock_pdata;
+
+	/* Set c1msrd for bootrom use. It's reset by HW during standby */
+	if (pdata->c1msrd != UINT32_MAX)
+		io_write32(pdata->rcc_base + RCC_C1MSRDCR, pdata->c1msrd &
+			   RCC_C1MSRDCR_C1MSRD_MASK);
+#endif
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
+stm32_rcc_pm(enum pm_op op, unsigned int pm_hint,
+	     const struct pm_callback_handle *pm_handle __unused)
+{
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
+		return TEE_SUCCESS;
+
+	if (op == PM_OP_RESUME)
+		res = stm32_rcc_pm_resume();
+	else
+		res = stm32_rcc_pm_suspend();
+
+	return res;
+}
 
 static TEE_Result stm32mp25_clk_probe(const void *fdt, int node,
 				      const void *compat_data __unused)
@@ -4678,6 +4857,8 @@ static TEE_Result stm32mp25_clk_probe(const void *fdt, int node,
 
 	if (IS_ENABLED(CFG_STM32_CLK_DEBUG))
 		clk_print_tree();
+
+	register_pm_core_service_cb(stm32_rcc_pm, NULL, "stm32-rcc");
 
 	return TEE_SUCCESS;
 err:

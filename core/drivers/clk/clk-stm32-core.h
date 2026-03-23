@@ -113,6 +113,7 @@ struct clk_stm32_gate_ready_cfg {
 #define NO_DIV		INT32_MAX
 #define NO_GATE		INT32_MAX
 
+void stm32_gate_endisable(uint16_t gate_id, bool enable);
 void stm32_gate_enable(uint16_t gate_id);
 void stm32_gate_disable(uint16_t gate_id);
 bool stm32_gate_is_enabled(uint16_t gate_id);
@@ -166,6 +167,8 @@ extern const struct clk_ops clk_stm32_gate_ready_ops;
 extern const struct clk_ops clk_stm32_divider_ops;
 extern const struct clk_ops clk_stm32_mux_ops;
 extern const struct clk_ops clk_stm32_composite_ops;
+
+extern const struct clk_ops clk_stm32_gate_pm_ops;
 
 #define PARENT(x...) { x }
 
@@ -254,6 +257,18 @@ extern const struct clk_ops clk_stm32_composite_ops;
 		.flags = (_flags),\
 		.num_parents = (_nb_parents),\
 		.parents = _parents,\
+	}
+
+#define STM32_GATE_PM(_name, _parent, _flags, _gate_id)\
+	struct clk _name = {\
+		.ops = &clk_stm32_gate_pm_ops,\
+		.priv = &(struct clk_stm32_gate_cfg) {\
+			.gate_id = _gate_id,\
+		},\
+		.name = #_name,\
+		.flags = (_flags),\
+		.num_parents = 1,\
+		.parents = { (_parent) },\
 	}
 
 struct clk_stm32_priv *clk_stm32_get_priv(void);
