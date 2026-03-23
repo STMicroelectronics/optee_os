@@ -2342,9 +2342,17 @@ static void clk_stm32_oscillator_disable(struct clk *clk)
 		EMSG("Disable ready timeout on %s clock", clk_get_name(clk));
 }
 
+static bool clk_stm32_oscillator_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_gate_cfg *cfg = clk->priv;
+
+	return stm32_gate_is_enabled(cfg->gate_id);
+}
+
 static const struct clk_ops clk_stm32_oscillator_ops = {
 	.enable		= clk_stm32_oscillator_enable,
 	.disable	= clk_stm32_oscillator_disable,
+	.is_enabled	= clk_stm32_oscillator_is_enabled,
 };
 
 /*
