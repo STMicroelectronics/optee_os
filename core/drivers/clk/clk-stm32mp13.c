@@ -17,6 +17,7 @@
 #include <libfdt.h>
 #include <mm/core_memprot.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "clk-stm32-core.h"
 
@@ -1979,11 +1980,67 @@ static unsigned long clk_stm32_composite_round_rate(struct clk *clk,
 	return UDIV_ROUND_NEAREST((uint64_t)prate, div);
 }
 
+static TEE_Result clk_stm32_composite_rates_array(struct clk *clk,
+						  size_t start_index,
+						  unsigned long *rates,
+						  size_t *nb_elts)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct clk_stm32_composite_cfg *cfg = NULL;
+	const struct div_cfg *divider = NULL;
+	uint64_t parent_rate = 0;
+	size_t rates_count = 1;
+	size_t n = 0;
+
+	assert(clk && clk->priv && nb_elts && (!*nb_elts || rates));
+
+	cfg = clk->priv;
+
+	if (cfg->div_id == NO_DIV) {
+		rates_count = 1;
+	} else {
+		divider = priv->div + cfg->div_id;
+		rates_count = MASK_WIDTH_SHIFT(divider->width, 0) + 1;
+	}
+
+	if (start_index >= rates_count)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	if (!rates || !*nb_elts) {
+		*nb_elts = rates_count;
+
+		return TEE_SUCCESS;
+	}
+
+	if (start_index + *nb_elts > rates_count)
+		*nb_elts = rates_count - start_index;
+
+	if (cfg->div_id == NO_DIV) {
+		rates[0] = clk_get_rate(clk);
+	} else {
+		unsigned int div = 0;
+
+		parent_rate = clk_get_rate(clk->parent);
+		if (!parent_rate) {
+			EMSG("Invalid rate for clock %s, parent of clock %s",
+			     clk_get_name(clk->parent), clk_get_name(clk));
+			return TEE_ERROR_GENERIC;
+		}
+
+		for (div = rates_count - *nb_elts - start_index + 1, n = 0;
+		     n < *nb_elts; div--, n++)
+			rates[n] = UDIV_ROUND_NEAREST(parent_rate, div);
+	}
+
+	return TEE_SUCCESS;
+}
+
 static const struct clk_ops clk_stm32_composite_duty_cycle_ops = {
 	.get_parent	= clk_stm32_composite_get_parent,
 	.set_parent	= clk_stm32_composite_set_parent,
 	.get_rate	= clk_stm32_composite_get_rate,
 	.set_rate	= clk_stm32_composite_set_rate,
+	.get_rates_array = clk_stm32_composite_rates_array,
 	.enable		= clk_stm32_composite_gate_enable,
 	.disable	= clk_stm32_composite_gate_disable,
 	.is_enabled	= clk_stm32_composite_gate_is_enabled,
