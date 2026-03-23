@@ -186,6 +186,7 @@ struct stm32_clk_opp_cfg {
 
 struct stm32_clk_opp_dt_cfg {
 	struct stm32_clk_opp_cfg cpu1_opp[MAX_OPP];
+	struct stm32_clk_opp_cfg gpu_opp[MAX_OPP];
 };
 
 struct stm32_clk_platdata {
@@ -194,6 +195,7 @@ struct stm32_clk_platdata {
 	struct stm32_osci_dt_cfg *osci;
 	uint32_t npll;
 	struct stm32_pll_dt_cfg *pll;
+	struct stm32_pll_dt_cfg *pll3_current_opp;
 	struct stm32_clk_opp_dt_cfg *opp;
 	struct rif_conf_data conf_data;
 	unsigned int nb_res;
@@ -1334,6 +1336,7 @@ static int stm32_clk_parse_fdt_all_opp(const void *fdt, int node,
 				       struct stm32_clk_platdata *pdata)
 {
 	struct stm32_clk_opp_dt_cfg *opp = pdata->opp;
+	int ret = 0;
 
 	node = fdt_subnode_offset(fdt, node, "st,clk_opp");
 	if (node == -FDT_ERR_NOTFOUND)
@@ -1342,7 +1345,15 @@ static int stm32_clk_parse_fdt_all_opp(const void *fdt, int node,
 	if (node < 0)
 		return node;
 
-	return stm32_clk_parse_fdt_opp(fdt, node, "st,ck_cpu1", opp->cpu1_opp);
+	ret = stm32_clk_parse_fdt_opp(fdt, node, "st,ck_cpu1", opp->cpu1_opp);
+	if (ret < 0)
+		return ret;
+
+	ret = stm32_clk_parse_fdt_opp(fdt, node, "st,ck_gpu", opp->gpu_opp);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 static int stm32_clk_parse_fdt(const void *fdt, int node,
@@ -2469,31 +2480,64 @@ static const struct clk_ops clk_stm32_pll_ops = {
 	.disable = clk_stm32_pll_disable,
 };
 
+static TEE_Result clk_stm32_pll3_set_rate(struct clk *clk __unused,
+					  unsigned long rate,
+					  unsigned long parent_rate __unused)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
+	struct stm32_clk_opp_cfg *opp = NULL;
+
+	opp = clk_stm32_get_opp_config(pdata->opp->gpu_opp, rate);
+	if (!opp) {
+		EMSG("OPP for %ld rate not found", rate);
+		return TEE_ERROR_ITEM_NOT_FOUND;
+	}
+
+	pdata->pll3_current_opp = &opp->pll_cfg;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result clk_stm32_pll3_enable(struct clk *clk)
 {
 	struct clk_stm32_pll_cfg *cfg = clk->priv;
 	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	struct stm32_clk_platdata *pdata = priv->pdata;
 	struct stm32_pll_dt_cfg *pll_conf = clk_stm32_pll_get_pdata(PLL3_ID);
+	TEE_Result res = TEE_SUCCESS;
 	struct clk *parent = NULL;
 	size_t pidx = 0;
+
+	if (pdata->pll3_current_opp)
+		pll_conf = pdata->pll3_current_opp;
 
 	/* ck_icn_p_gpu activate */
 	stm32_gate_enable(GATE_GPU);
 
 	clk_stm32_pll_init(priv, PLL3_ID, pll_conf);
 
-	if (stm32_gate_rdy_enable(cfg->gate_id)) {
+	res = stm32_gate_rdy_enable(cfg->gate_id);
+	if (res) {
 		EMSG("%s timeout", clk_get_name(clk));
-		return TEE_ERROR_TIMEOUT;
+		goto out;
 	}
 
 	/* Update parent */
 	pidx = clk_stm32_pll_get_parent(clk);
 	parent = clk_get_parent_by_index(clk, pidx);
 
-	clk->parent = parent;
+	res = clk_reparent(clk, parent);
+	if (res) {
+		EMSG("fail to reparent PLL3");
+		clk_stm32_pll_disable(clk);
+	}
 
-	return TEE_SUCCESS;
+out:
+	if (res)
+		stm32_gate_disable(GATE_GPU);
+
+	return res;
 }
 
 static void clk_stm32_pll3_disable(struct clk *clk)
@@ -2507,6 +2551,7 @@ static const struct clk_ops clk_stm32_pll3_ops = {
 	.get_rate = clk_stm32_pll_get_rate,
 	.enable = clk_stm32_pll3_enable,
 	.disable = clk_stm32_pll3_disable,
+	.set_rate = clk_stm32_pll3_set_rate,
 };
 
 struct clk_stm32_flexgen_cfg {
@@ -3527,7 +3572,7 @@ static STM32_GATE(ck_ker_eth1ptp, &ck_flexgen_56, 0, GATE_ETH1);
 static STM32_GATE(ck_ker_eth2ptp, &ck_flexgen_56, 0, GATE_ETH2);
 static STM32_GATE(ck_ker_usb2phy2, &ck_flexgen_58, 0, GATE_USB3DR);
 static STM32_GATE(ck_icn_m_gpu, &ck_flexgen_59, 0, GATE_GPU);
-static STM32_GATE(ck_ker_gpu, &ck_pll3, 0, GATE_GPU);
+static STM32_GATE(ck_ker_gpu, &ck_pll3, CLK_SET_RATE_PARENT, GATE_GPU);
 static STM32_GATE(ck_ker_ethswref, &ck_flexgen_60, 0, GATE_ETHSWREF);
 
 static STM32_GATE(ck_ker_eth1stp, &ck_icn_ls_mcu, 0, GATE_ETH1STP);
