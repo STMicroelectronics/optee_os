@@ -2403,9 +2403,15 @@ static void clk_stm32_osc_disable(struct clk *clk)
 		clk_stm32_gate_ready_ops.disable(clk);
 }
 
+static bool clk_stm32_osc_is_enabled(struct clk *clk)
+{
+	return clk_stm32_gate_ready_ops.is_enabled(clk);
+}
+
 static const struct clk_ops clk_stm32_osc_ops = {
 	.enable = clk_stm32_osc_enable,
 	.disable = clk_stm32_osc_disable,
+	.is_enabled = clk_stm32_osc_is_enabled,
 };
 
 static unsigned long clk_stm32_msi_get_rate(struct clk *clk __unused,
@@ -2435,6 +2441,7 @@ static TEE_Result clk_stm32_msi_set_rate(struct clk *clk __unused,
 static const struct clk_ops clk_stm32_oscillator_msi_ops = {
 	.enable = clk_stm32_osc_enable,
 	.disable = clk_stm32_osc_disable,
+	.is_enabled = clk_stm32_osc_is_enabled,
 	.get_rate = clk_stm32_msi_get_rate,
 	.set_rate = clk_stm32_msi_set_rate,
 };
@@ -2457,9 +2464,15 @@ static void clk_stm32_osc_ker_disable(struct clk *clk)
 		clk_stm32_gate_ops.disable(clk);
 }
 
+static bool clk_stm32_osc_ker_is_enabled(struct clk *clk)
+{
+	return clk_stm32_gate_ops.is_enabled(clk);
+}
+
 static const struct clk_ops clk_stm32_osc_ker_ops = {
 	.enable = clk_stm32_osc_ker_enable,
 	.disable = clk_stm32_osc_ker_disable,
+	.is_enabled = clk_stm32_osc_ker_is_enabled,
 };
 
 static TEE_Result clk_stm32_hse_div_set_rate(struct clk *clk,
@@ -2491,6 +2504,11 @@ static void clk_stm32_hsediv2_disable(struct clk *clk)
 		clk_stm32_gate_ops.disable(clk);
 }
 
+static bool clk_stm32_hsediv2_is_enabled(struct clk *clk)
+{
+	return clk_stm32_gate_ops.is_enabled(clk);
+}
+
 static unsigned long clk_stm32_hsediv2_get_rate(struct clk *clk __unused,
 						unsigned long prate)
 {
@@ -2506,6 +2524,7 @@ static unsigned long clk_stm32_hsediv2_get_rate(struct clk *clk __unused,
 static const struct clk_ops clk_hsediv2_ops = {
 	.enable = clk_stm32_hsediv2_enable,
 	.disable = clk_stm32_hsediv2_disable,
+	.is_enabled = clk_stm32_hsediv2_is_enabled,
 	.get_rate = clk_stm32_hsediv2_get_rate,
 };
 
@@ -2688,11 +2707,19 @@ static void clk_stm32_pll_disable(struct clk *clk)
 	}
 }
 
+static bool clk_stm32_pll_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_pll_cfg *cfg = clk->priv;
+
+	return stm32_gate_is_enabled(cfg->gate_id);
+}
+
 static const struct clk_ops clk_stm32_pll_ops = {
 	.get_parent = clk_stm32_pll_get_parent,
 	.get_rate = clk_stm32_pll_get_rate,
 	.enable = clk_stm32_pll_enable,
 	.disable = clk_stm32_pll_disable,
+	.is_enabled = clk_stm32_pll_is_enabled,
 };
 
 static TEE_Result clk_stm32_pll3_set_rate(struct clk *clk __unused,
@@ -2766,6 +2793,7 @@ static const struct clk_ops clk_stm32_pll3_ops = {
 	.get_rate = clk_stm32_pll_get_rate,
 	.enable = clk_stm32_pll3_enable,
 	.disable = clk_stm32_pll3_disable,
+	.is_enabled = clk_stm32_pll_is_enabled,
 	.set_rate = clk_stm32_pll3_set_rate,
 };
 
@@ -3057,6 +3085,16 @@ static void clk_stm32_flexgen_disable(struct clk *clk)
 			     RCC_FINDIV0CFGR_FINDIV0EN);
 }
 
+static bool clk_stm32_flexgen_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_flexgen_cfg *cfg = clk->priv;
+	uintptr_t rcc_base = clk_stm32_get_rcc_base();
+	uint8_t channel = cfg->flex_id;
+
+	return io_read32(rcc_base + RCC_FINDIV0CFGR + (0x4 * channel)) &
+	       RCC_FINDIV0CFGR_FINDIV0EN;
+}
+
 static const struct clk_ops clk_stm32_flexgen_ops = {
 	.get_rate = clk_stm32_flexgen_get_rate,
 	.set_rate = clk_stm32_flexgen_set_rate,
@@ -3065,6 +3103,7 @@ static const struct clk_ops clk_stm32_flexgen_ops = {
 	.set_parent = clk_stm32_flexgen_set_parent,
 	.enable = clk_stm32_flexgen_enable,
 	.disable = clk_stm32_flexgen_disable,
+	.is_enabled = clk_stm32_flexgen_is_enabled,
 };
 
 static size_t clk_cpu1_get_parent(struct clk *clk __unused)
@@ -3170,10 +3209,18 @@ static void clk_stm32_rif_gate_disable(struct clk *clk)
 		stm32_gate_disable(cfg->gate_id);
 }
 
+static bool clk_stm32_rif_gate_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_rif_gate_cfg *cfg = clk->priv;
+
+	return stm32_gate_is_enabled(cfg->gate_id);
+}
+
 
 static const struct clk_ops clk_stm32_rif_gate_ops = {
 	.enable		= clk_stm32_rif_gate_enable,
 	.disable	= clk_stm32_rif_gate_disable,
+	.is_enabled	= clk_stm32_rif_gate_is_enabled,
 };
 
 struct clk_stm32_rif_composite_cfg {
@@ -3251,6 +3298,13 @@ static void clk_stm32_rif_composite_gate_disable(struct clk *clk)
 		stm32_gate_disable(cfg->gate_id);
 }
 
+static bool clk_stm32_rif_composite_gate_is_enabled(struct clk *clk)
+{
+	struct clk_stm32_rif_composite_cfg *cfg = clk->priv;
+
+	return stm32_gate_is_enabled(cfg->gate_id);
+}
+
 static const struct clk_ops clk_stm32_rif_composite_ops = {
 	.get_parent	= clk_stm32_rif_composite_get_parent,
 	.set_parent	= clk_stm32_rif_composite_set_parent,
@@ -3258,6 +3312,7 @@ static const struct clk_ops clk_stm32_rif_composite_ops = {
 	.set_rate	= clk_stm32_rif_composite_set_rate,
 	.enable		= clk_stm32_rif_composite_gate_enable,
 	.disable	= clk_stm32_rif_composite_gate_disable,
+	.is_enabled	= clk_stm32_rif_composite_gate_is_enabled,
 };
 
 static const struct clk_ops ck_timer_ops = {
