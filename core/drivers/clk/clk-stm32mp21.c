@@ -199,7 +199,9 @@ struct stm32_clk_platdata {
 	uint32_t *kernelclk;
 	uint32_t nflexgen;
 	uint32_t *flexgen;
+#ifndef CFG_STM32_CM33TDCID
 	uint32_t c1msrd;
+#endif
 };
 
 /*
@@ -1249,7 +1251,9 @@ static int stm32_clk_parse_fdt(const void *fdt, int node,
 	if (err)
 		return err;
 
+#ifndef CFG_STM32_CM33TDCID
 	pdata->c1msrd = fdt_read_uint32_default(fdt, node, "st,c1msrd", 0);
+#endif
 
 	pdata->rcc_base = stm32_rcc_base();
 
@@ -1551,6 +1555,9 @@ static void stm32mp2_clk_xbar_on_hsi(struct clk_stm32_priv *priv)
 {
 	uintptr_t xbar0cfgr = priv->base + RCC_XBAR0CFGR;
 	uint32_t i = 0;
+
+	if (IS_ENABLED(CFG_STM32_CM33TDCID))
+		return;
 
 	for (i = 0; i < XBAR_ROOT_CHANNEL_NB; i++)
 		io_clrsetbits32(xbar0cfgr + (0x4 * i),
@@ -4495,7 +4502,8 @@ static TEE_Result stm32mp21_clk_probe(const void *fdt, int node,
 
 	clk_stm32_init_oscillators(fdt, node);
 
-	stm32mp25_syscfg_set_safe_reset(true);
+	if (!IS_ENABLED(CFG_STM32_CM33TDCID))
+		stm32mp25_syscfg_set_safe_reset(true);
 
 	stm32mp_clk_provider_probe_final(fdt, node, priv);
 
