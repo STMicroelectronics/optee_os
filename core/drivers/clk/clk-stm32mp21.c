@@ -2915,6 +2915,16 @@ static bool clk_stm32_flexgen_is_enabled(struct clk *clk)
 	       RCC_FINDIV0CFGR_FINDIV0EN;
 }
 
+static unsigned long clk_stm32_flexgen_round_rate(struct clk *clk __unused,
+						  unsigned long rate,
+						  unsigned long prate)
+{
+	unsigned int prediv = 0;
+	unsigned int findiv = 0;
+
+	return clk_stm32_flexgen_get_round_rate(rate, prate, &prediv, &findiv);
+}
+
 static void __maybe_unused clk_stm32_flexgen_pm_restore(struct clk *clk)
 {
 	TEE_Result ret = TEE_ERROR_GENERIC;
@@ -2941,6 +2951,7 @@ static const struct clk_ops clk_stm32_flexgen_ops = {
 	.enable = clk_stm32_flexgen_enable,
 	.disable = clk_stm32_flexgen_disable,
 	.is_enabled = clk_stm32_flexgen_is_enabled,
+	.round_rate = clk_stm32_flexgen_round_rate,
 	.save_context = clk_stm32_pm_save_rate,
 	.restore_context = clk_stm32_flexgen_pm_restore,
 };
