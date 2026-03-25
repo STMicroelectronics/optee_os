@@ -157,6 +157,9 @@ static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
 	if (!lp_name)
 		return;
 
+	if (!stpmic1_regu_has_lp_cfg(regu_name))
+		return;
+
 	state = &regu_lp_state[lp_state - STM32_PM_DEFAULT];
 	state->cfg_count++;
 	state->cfg = realloc(state->cfg,
@@ -168,18 +171,17 @@ static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
 
 	memset(regu_cfg, 0, sizeof(*regu_cfg));
 
-	if (stpmic1_regu_has_lp_cfg(regu_name)) {
-		if (stpmic1_lp_cfg(regu_name, &regu_cfg->cfg)) {
-			DMSG("Cannot setup low power for regu %s", regu_name);
-			panic();
-		}
-		/*
-		 * Always copy active configuration (Control register)
-		 * to PWRCTRL Control register, even if regu_state_node
-		 * does not exist.
-		 */
-		regu_cfg->flags |= REGU_LP_FLAG_LOAD_PWRCTRL;
+	if (stpmic1_lp_cfg(regu_name, &regu_cfg->cfg)) {
+		EMSG("Cannot setup low power for regu %s", regu_name);
+		panic();
 	}
+
+	/*
+	 * Always copy active configuration (Control register)
+	 * to PWRCTRL Control register, even if regu_state_node
+	 * does not exist.
+	 */
+	regu_cfg->flags |= REGU_LP_FLAG_LOAD_PWRCTRL;
 
 	/* Parse regulator stte node if any */
 	regu_state_node = fdt_subnode_offset(fdt, regu_node, lp_name);
