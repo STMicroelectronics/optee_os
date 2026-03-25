@@ -1086,8 +1086,9 @@ stm32_clk_oscillators_wait_lse_ready(struct clk_stm32_priv *priv __unused,
 	int ret = 0;
 
 	if (stm32_rcc_has_access_by_id(RCC_RIF_OSCILLATORS)) {
-		if (osci->freq)
-			ret = stm32_gate_wait_ready(osc_data->gate_id, true);
+		if (osci->freq &&
+		    stm32_gate_wait_ready(osc_data->gate_id, true))
+			ret = -1;
 	}
 
 	return ret;
@@ -1886,8 +1887,8 @@ static int clk_stm32_pll_set_mux(struct clk_stm32_priv *priv __unused,
 
 	if (stm32_mux_set_parent(mux, sel))
 		return -1;
-	else
-		return 0;
+
+	return 0;
 }
 
 static int clk_stm32_pll_check_mux(struct clk_stm32_priv *priv __unused,
