@@ -1743,8 +1743,8 @@ static int clk_stm32_pll_set_mux(struct clk_stm32_priv *priv __unused,
 
 	if (stm32_mux_set_parent(mux, sel))
 		return -1;
-	else
-		return 0;
+
+	return 0;
 }
 
 static int clk_stm32_pll_check_mux(struct clk_stm32_priv *priv __unused,
