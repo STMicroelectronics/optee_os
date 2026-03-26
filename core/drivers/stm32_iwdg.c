@@ -539,7 +539,7 @@ static TEE_Result stm32_iwdg_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(stm32_iwdg_pm);
+DECLARE_KEEP_PAGER_PM(stm32_iwdg_pm);
 
 static TEE_Result stm32_iwdg_probe(const void *fdt, int node,
 				   const void *compat_data __unused)
