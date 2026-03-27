@@ -387,6 +387,17 @@
 			};
 		};
 
+		vrefbuf: vrefbuf@44060000 {
+			compatible = "st,stm32mp25-vrefbuf";
+			reg = <0x44060000 0x8>;
+			regulator-name = "vrefbuf";
+			regulator-min-microvolt = <1210000>;
+			regulator-max-microvolt = <1500000>;
+			clocks = <&rcc CK_BUS_VREF>;
+			vdda-supply = <&vdda18adc>;
+			status = "disabled";
+		};
+
 		serc: serc@44080000 {
 			compatible = "st,stm32mp25-serc";
 			reg = <0x44080000 0x1000>;
