@@ -307,7 +307,7 @@ static TEE_Result stm32_vrefbuf_pm(enum pm_op op, unsigned int pm_hint __unused,
 
 	return TEE_SUCCESS;
 }
-DECLARE_KEEP_PAGER(stm32_vrefbuf_pm);
+DECLARE_KEEP_PAGER_PM(stm32_vrefbuf_pm);
 
 static TEE_Result stm32_vrefbuf_init(struct regulator *regulator,
 				     const void *fdt __unused,
