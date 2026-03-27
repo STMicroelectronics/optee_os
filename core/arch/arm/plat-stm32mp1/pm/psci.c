@@ -606,6 +606,9 @@ static int stm32_pwr_domain_suspend(unsigned int soc_mode)
 	uint32_t scr = 0;
 	int rc = 1;
 
+	if (!stm32mp1_lp_soc_mode_is_supported(soc_mode))
+		return PSCI_RET_INVALID_PARAMETERS;
+
 	exceptions = may_spin_lock(&cstop_lock);
 
 	/* If we are already handling a low power request */

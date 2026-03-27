@@ -286,7 +286,7 @@ static void save_supported_mode(void *fdt, int pwr_node)
 }
 #endif
 
-static bool is_supported_mode(uint32_t soc_mode)
+bool stm32mp1_lp_soc_mode_is_supported(uint32_t soc_mode)
 {
 	assert(soc_mode < ARRAY_SIZE(stm32mp1_supported_soc_modes));
 	return stm32mp1_supported_soc_modes[soc_mode] == 1;
@@ -307,26 +307,26 @@ uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode)
 	/* if PD_CORE_RET is in use don't allow deeper than Standby */
 	if (mode == STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR &&
 	    (!get_pm_domain_state(STM32MP1_PD_CORE_RET) ||
-	     !is_supported_mode(mode)))
+	     !stm32mp1_lp_soc_mode_is_supported(mode)))
 		mode = STM32_PM_CSTANDBY_ALLOW_LPLV_STOP2;
 
 	/* if PD_CORE is in use don't allow deeper than LPLV-Stop */
 	if (mode == STM32_PM_CSTANDBY_ALLOW_LPLV_STOP2 &&
 	    (!get_pm_domain_state(STM32MP1_PD_CORE) ||
-	     !is_supported_mode(mode)))
+	     !stm32mp1_lp_soc_mode_is_supported(mode)))
 		mode = STM32_PM_CSTOP_ALLOW_LPLV_STOP;
 
 	if (mode == STM32_PM_CSTOP_ALLOW_LPLV_STOP &&
 	    (!get_pm_domain_state(STM32MP1_PD_CORE) ||
-	     !is_supported_mode(mode)))
+	     !stm32mp1_lp_soc_mode_is_supported(mode)))
 		mode = STM32_PM_CSTOP_ALLOW_LP_STOP;
 
 	if (mode == STM32_PM_CSTOP_ALLOW_LP_STOP &&
-	    !is_supported_mode(mode))
+	    !stm32mp1_lp_soc_mode_is_supported(mode))
 		mode = STM32_PM_CSTOP_ALLOW_STOP;
 
 	if (mode == STM32_PM_CSTOP_ALLOW_STOP &&
-	    !is_supported_mode(mode))
+	    !stm32mp1_lp_soc_mode_is_supported(mode))
 		mode = STM32_PM_CSLEEP_RUN;
 
 	return mode;

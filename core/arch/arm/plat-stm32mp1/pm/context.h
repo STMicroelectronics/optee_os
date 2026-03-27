@@ -94,6 +94,7 @@ TEE_Result stm32mp_pm_call_bl2_lp_entry(unsigned int soc_mode);
 int stm32mp1_set_pm_domain_state(enum stm32mp1_pm_domain domain, bool status);
 #endif
 
+bool stm32mp1_lp_soc_mode_is_supported(uint32_t soc_mode);
 uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode);
 int stm32mp1_set_lp_deepest_soc_mode(uint32_t psci_mode, uint32_t soc_mode);
 
