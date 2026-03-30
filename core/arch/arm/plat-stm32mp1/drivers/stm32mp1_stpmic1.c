@@ -122,7 +122,6 @@ struct regu_lp_config {
 	struct stpmic1_lp_cfg cfg;
 };
 
-#define REGU_LP_FLAG_LOAD_PWRCTRL	BIT(0)
 #define REGU_LP_FLAG_ON_IN_SUSPEND	BIT(1)
 #define REGU_LP_FLAG_OFF_IN_SUSPEND	BIT(2)
 #define REGU_LP_FLAG_SET_VOLTAGE	BIT(3)
@@ -177,13 +176,11 @@ static void dt_get_regu_low_power_config(const void *fdt, const char *regu_name,
 	}
 
 	/*
-	 * Always copy active configuration (Control register)
-	 * to PWRCTRL Control register, even if regu_state_node
-	 * does not exist.
+	 * For modification on active configuration (Control register) is also
+	 * done in ALTERNATE register, only need to manage forced values
 	 */
-	regu_cfg->flags |= REGU_LP_FLAG_LOAD_PWRCTRL;
 
-	/* Parse regulator stte node if any */
+	/* Parse regulator sub-node if any */
 	regu_state_node = fdt_subnode_offset(fdt, regu_node, lp_name);
 	if (regu_state_node <= 0)
 		return;
@@ -237,9 +234,11 @@ static void stm32mp_pmic_apply_lp_config(unsigned int lp_state_id)
 	for (i = 0; i < state->cfg_count; i++) {
 		struct stpmic1_lp_cfg *cfg = &state->cfg[i].cfg;
 
-		if ((state->cfg[i].flags & REGU_LP_FLAG_LOAD_PWRCTRL) &&
-		    stpmic1_lp_load_unpg(cfg))
-			panic();
+		/*
+		 * Init the values in cfg used by stpmic1_lp_write_unpg()
+		 * or stpmic1_lp_load_unpg()
+		 */
+		stpmic1_lp_get_unpg(cfg);
 
 		if ((state->cfg[i].flags & REGU_LP_FLAG_ON_IN_SUSPEND) &&
 		    stpmic1_lp_on_off_unpg(cfg, 1))
@@ -256,6 +255,17 @@ static void stm32mp_pmic_apply_lp_config(unsigned int lp_state_id)
 		if ((state->cfg[i].flags & REGU_LP_FLAG_MODE_STANDBY) &&
 		    stpmic1_lp_mode_unpg(cfg, 1))
 			panic();
+
+		/* Write updated value in ALTERNATE control register */
+		if (pmic_is_secure()) {
+			/* Use cached values to update ALTERNATE if needed */
+			if (stpmic1_lp_write_unpg(cfg))
+				panic();
+		} else {
+			/* Read MAIN register and write in ALTERNATE */
+			if (stpmic1_lp_load_unpg(cfg))
+				panic();
+		}
 	}
 	stm32mp_put_pmic();
 
@@ -730,6 +740,8 @@ static void init_pmic_secure_state(void)
 static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 {
 	unsigned long pmic_version = 0;
+	struct regu_lp_state *state;
+	size_t i = 0;
 
 	init_pmic_state(fdt, pmic_node);
 
@@ -746,6 +758,21 @@ static TEE_Result initialize_pmic(const void *fdt, int pmic_node)
 	stm32mp_put_pmic();
 
 	parse_regulator_fdt_nodes(fdt, pmic_node);
+
+	if (pmic_is_secure()) {
+		/*
+		 * Copy the power control from MAIN to ALTERNATE.
+		 * In ST PMIC1 driver, a modification on active configuration
+		 * (Control register) is also done in ALTERNATE register and
+		 * these registers values are cached.
+		 */
+		state = &regu_lp_state[0];
+		for (i = 0; i < state->cfg_count; i++) {
+			stpmic1_lp_get_unpg(&state->cfg[i].cfg);
+			if (stpmic1_lp_load_unpg(&state->cfg[i].cfg))
+				panic();
+		}
+	}
 
 	return TEE_SUCCESS;
 }

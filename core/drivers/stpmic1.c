@@ -658,21 +658,32 @@ int stpmic1_switch_off(void)
 				       SOFTWARE_SWITCH_OFF_ENABLED);
 }
 
-int stpmic1_regulator_enable(const char *name)
+static int stpmic1_regulator_set_enable(const char *name, bool enable)
 {
 	const struct regul_struct *regul = get_regulator_data(name);
+	uint8_t bit_mask = BIT(regul->enable_pos);
+	uint8_t bit_enable = enable ? bit_mask : 0;
+	int status = 0;
+
+	if (regul->low_power_reg) {
+		status = stpmic1_register_update(regul->low_power_reg,
+						 bit_enable, bit_mask);
+		if (status)
+			return status;
+	}
 
 	return stpmic1_register_update(regul->control_reg,
-				       BIT(regul->enable_pos),
-				       BIT(regul->enable_pos));
+				       bit_enable, bit_mask);
+}
+
+int stpmic1_regulator_enable(const char *name)
+{
+	return stpmic1_regulator_set_enable(name, true);
 }
 
 int stpmic1_regulator_disable(const char *name)
 {
-	const struct regul_struct *regul = get_regulator_data(name);
-
-	return stpmic1_register_update(regul->control_reg, 0,
-				       BIT(regul->enable_pos));
+	return stpmic1_regulator_set_enable(name, false);
 }
 
 bool stpmic1_is_regulator_enabled(const char *name)
@@ -703,17 +714,25 @@ int stpmic1_regulator_voltage_set(const char *name, uint16_t millivolts)
 	size_t voltage_index = voltage_to_index(name, millivolts);
 	const struct regul_struct *regul = get_regulator_data(name);
 	uint8_t mask = 0;
+	uint8_t value = 0;
+	int status = 0;
 
 	if (voltage_index == VOLTAGE_INDEX_INVALID)
 		return -1;
 
+	value = voltage_index << LDO_BUCK_VOLTAGE_SHIFT;
 	mask = find_plat_mask(name);
 	if (!mask)
 		return 0;
 
-	return stpmic1_register_update(regul->control_reg,
-				       voltage_index << LDO_BUCK_VOLTAGE_SHIFT,
-				       mask);
+	if (regul->low_power_reg) {
+		status = stpmic1_register_update(regul->low_power_reg, value,
+						 mask);
+		if (status)
+			return status;
+	}
+
+	return stpmic1_register_update(regul->control_reg, value, mask);
 }
 
 int stpmic1_regulator_mask_reset_set(const char *name)
@@ -876,13 +895,47 @@ int stpmic1_lp_cfg(const char *name, struct stpmic1_lp_cfg *cfg)
 int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg)
 {
 	uint8_t val = 0;
+	uint8_t lp_val = 0;
 	int status = 0;
 
 	assert(cfg->lp_reg);
 
 	status = stpmic1_register_read(cfg->ctrl_reg, &val);
+	lp_val =  (val & ~cfg->lp_mask) | cfg->lp_value;
 	if (!status)
-		status = stpmic1_register_write(cfg->lp_reg, val);
+		status = stpmic1_register_write(cfg->lp_reg, lp_val);
+
+	return status;
+}
+
+void stpmic1_lp_get_unpg(struct stpmic1_lp_cfg *cfg)
+{
+	assert(cfg->lp_reg);
+
+	cfg->lp_value = 0;
+	cfg->lp_mask = 0;
+}
+
+int stpmic1_lp_write_unpg(struct stpmic1_lp_cfg *cfg)
+{
+	uint8_t ctrl_val = 0;
+	uint8_t lp_val = 0;
+	uint8_t new_lp_val = 0;
+	int status = 0;
+
+	assert(cfg->lp_reg);
+
+	status = stpmic1_cache_get(cfg->ctrl_reg, &ctrl_val);
+	if (status)
+		return status;
+
+	status = stpmic1_cache_get(cfg->lp_reg, &lp_val);
+	if (status)
+		return status;
+
+	new_lp_val =  (ctrl_val & ~cfg->lp_mask) | cfg->lp_value;
+	if (new_lp_val != lp_val)
+		status = stpmic1_register_write(cfg->lp_reg, new_lp_val);
 
 	return status;
 }
@@ -891,16 +944,20 @@ int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable)
 {
 	assert(cfg->lp_reg && (enable == 0 || enable == 1));
 
-	return stpmic1_register_update(cfg->lp_reg, enable,
-				       LDO_BUCK_ENABLE_MASK);
+	cfg->lp_mask |= LDO_BUCK_ENABLE_MASK;
+	cfg->lp_value |= enable;
+
+	return 0;
 }
 
 int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg, unsigned int mode)
 {
 	assert(cfg->lp_reg && (mode == 0 || mode == 1));
-	return stpmic1_register_update(cfg->lp_reg,
-				       mode << LDO_BUCK_HPLP_POS,
-				       BIT(LDO_BUCK_HPLP_POS));
+
+	cfg->lp_mask |= BIT(LDO_BUCK_HPLP_POS);
+	cfg->lp_value |= mode << LDO_BUCK_HPLP_POS;
+
+	return 0;
 }
 
 /* Returns 1 if no configuration are expected applied at runtime, 0 otherwise */
@@ -928,7 +985,10 @@ int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg)
 {
 	assert(cfg->lp_reg);
 
-	return stpmic1_register_update(cfg->lp_reg, cfg->value,	cfg->mask);
+	cfg->lp_mask |= cfg->mask;
+	cfg->lp_value |= cfg->value;
+
+	return 0;
 }
 
 int stpmic1_register_read(uint8_t register_id,  uint8_t *value)
