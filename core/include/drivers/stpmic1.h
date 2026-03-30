@@ -175,12 +175,6 @@ int stpmic1_register_update(uint8_t register_id, uint8_t value, uint8_t mask);
 
 int stpmic1_regulator_mask_reset_set(const char *name);
 
-/* API for low power configuration of regulators driven from STPMIC1 device */
-int stpmic1_lp_copy_reg(const char *name);
-int stpmic1_lp_reg_on_off(const char *name, uint8_t enable);
-int stpmic1_lp_set_mode(const char *name, uint8_t hplp);
-int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts);
-
 /*
  * Specific API for controlling regulators driven from STPMIC1 device
  * from unpaged execution context of the STPMIC1 driver.

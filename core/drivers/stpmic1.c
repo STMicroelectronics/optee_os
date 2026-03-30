@@ -830,22 +830,6 @@ int stpmic1_regulator_voltage_get(const char *name)
 	return regul->voltage_table[value];
 }
 
-int stpmic1_lp_copy_reg(const char *name)
-{
-	const struct regul_struct *regul = get_regulator_data(name);
-	uint8_t val = 0;
-	int status = 0;
-
-	if (!regul->low_power_reg)
-		return -1;
-
-	status = stpmic1_register_read(regul->control_reg, &val);
-	if (status)
-		return status;
-
-	return stpmic1_register_write(regul->low_power_reg, val);
-}
-
 bool stpmic1_regu_has_lp_cfg(const char *name)
 {
 	return get_regulator_data(name)->low_power_reg;
@@ -878,17 +862,6 @@ int stpmic1_lp_load_unpg(struct stpmic1_lp_cfg *cfg)
 	return status;
 }
 
-int stpmic1_lp_reg_on_off(const char *name, uint8_t enable)
-{
-	const struct regul_struct *regul = get_regulator_data(name);
-
-	if (!regul->low_power_reg)
-		return -1;
-
-	return stpmic1_register_update(regul->low_power_reg, enable,
-				       LDO_BUCK_ENABLE_MASK);
-}
-
 int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable)
 {
 	assert(cfg->lp_reg && (enable == 0 || enable == 1));
@@ -897,39 +870,12 @@ int stpmic1_lp_on_off_unpg(struct stpmic1_lp_cfg *cfg, int enable)
 				       LDO_BUCK_ENABLE_MASK);
 }
 
-int stpmic1_lp_set_mode(const char *name, uint8_t hplp)
-{
-	const struct regul_struct *regul = get_regulator_data(name);
-
-	assert(regul->low_power_reg && (hplp == 0 || hplp == 1));
-
-	return stpmic1_register_update(regul->low_power_reg,
-				       hplp << LDO_BUCK_HPLP_POS,
-				       BIT(LDO_BUCK_HPLP_POS));
-}
-
 int stpmic1_lp_mode_unpg(struct stpmic1_lp_cfg *cfg, unsigned int mode)
 {
 	assert(cfg->lp_reg && (mode == 0 || mode == 1));
 	return stpmic1_register_update(cfg->lp_reg,
 				       mode << LDO_BUCK_HPLP_POS,
 				       BIT(LDO_BUCK_HPLP_POS));
-}
-
-int stpmic1_lp_set_voltage(const char *name, uint16_t millivolts)
-{
-	size_t voltage_index = voltage_to_index(name, millivolts);
-	const struct regul_struct *regul = get_regulator_data(name);
-	uint8_t mask = 0;
-
-	assert(voltage_index != VOLTAGE_INDEX_INVALID);
-
-	mask = find_plat_mask(name);
-	if (!mask)
-		return 0;
-
-	return stpmic1_register_update(regul->low_power_reg, voltage_index << 2,
-				       mask);
 }
 
 /* Returns 1 if no configuration are expected applied at runtime, 0 otherwise */
