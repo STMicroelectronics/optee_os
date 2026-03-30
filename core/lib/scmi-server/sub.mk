@@ -17,7 +17,7 @@ scpfw-product = optee/$(CFG_SCMI_SCPFW_PRODUCT)
 scpfw-out-path := $(out-dir)/$(libdir)
 
 scpfw-integ-version-maj = 2
-scpfw-integ-version-min = 14
+scpfw-integ-version-min = 16
 scpfw-integ-version-pat = 0
 scpfw-integ-version = $(scpfw-integ-version-maj).$(scpfw-integ-version-min).$(scpfw-integ-version-pat)
 
