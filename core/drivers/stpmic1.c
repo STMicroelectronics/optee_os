@@ -571,6 +571,31 @@ static const struct regul_struct regulators_table[] = {
 	},
 };
 
+/* Cache content of CONTROL and PWRCTRL register (BUCK1 to LDO6) */
+#define CACHE_REG_NB		(LDO6_PWRCTRL_REG - BUCK1_CONTROL_REG + 1)
+#define CACHE_REG_IDX(reg)	((reg) - BUCK1_CONTROL_REG)
+uint8_t stpmic1_cache_reg[CACHE_REG_NB];
+
+static void stpmic1_cache_set(uint8_t register_id,  uint8_t value)
+{
+	int index = CACHE_REG_IDX(register_id);
+
+	if (index >= 0 &&  index < (int)sizeof(stpmic1_cache_reg))
+		stpmic1_cache_reg[index] = value;
+}
+
+static int stpmic1_cache_get(uint8_t register_id,  uint8_t *value)
+{
+	int index = CACHE_REG_IDX(register_id);
+
+	if (index >= 0 &&  index < (int)sizeof(stpmic1_cache_reg)) {
+		*value = stpmic1_cache_reg[index];
+		return 0;
+	}
+
+	return -1;
+}
+
 static const struct regul_struct *get_regulator_data(const char *name)
 {
 	unsigned int i = 0;
@@ -909,20 +934,30 @@ int stpmic1_lp_voltage_unpg(struct stpmic1_lp_cfg *cfg)
 int stpmic1_register_read(uint8_t register_id,  uint8_t *value)
 {
 	struct i2c_handle_s *i2c = pmic_i2c_handle;
+	int status = 0;
 
-	return stm32_i2c_read_write_membyte(i2c, pmic_i2c_addr,
-					    register_id, value,
-					    false /* !write */);
+	status = stm32_i2c_read_write_membyte(i2c, pmic_i2c_addr,
+					      register_id, value,
+					      false /* !write */);
+	if (!status)
+		stpmic1_cache_set(register_id, *value);
+
+	return status;
 }
 
 int stpmic1_register_write(uint8_t register_id, uint8_t value)
 {
 	struct i2c_handle_s *i2c = pmic_i2c_handle;
 	uint8_t val = value;
+	int status = 0;
 
-	return stm32_i2c_read_write_membyte(i2c, pmic_i2c_addr,
-					    register_id, &val,
-					    true /* write */);
+	status = stm32_i2c_read_write_membyte(i2c, pmic_i2c_addr,
+					      register_id, &val,
+					      true /* write */);
+	if (!status)
+		stpmic1_cache_set(register_id, value);
+
+	return status;
 }
 
 int stpmic1_register_update(uint8_t register_id, uint8_t value, uint8_t mask)
