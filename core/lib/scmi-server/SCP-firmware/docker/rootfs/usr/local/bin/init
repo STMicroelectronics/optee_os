@@ -1,0 +1,29 @@
+#!/usr/bin/env sh
+
+#
+# Arm SCP/MCP Software
+# Copyright (c) 2021-2023, Arm Limited and Contributors. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+if id user > /dev/null 2>&1; then
+    user=user
+fi
+
+if [ -z "${user}" ]; then
+    echo "Warning: Non-root user 'user' not found. Running as root." >&2
+    exec "$@"
+else
+    uid=$(stat -c "%u" ".")
+    gid=$(stat -c "%g" ".")
+
+    usermod -u "${uid}" "${user}"
+    groupmod -g "${gid}" "${user}"
+
+    if [ $# -eq 0 ]; then
+        exec su "${user}"
+    else
+        exec gosu "${user}" "$@"
+    fi
+fi

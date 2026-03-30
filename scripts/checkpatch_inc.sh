@@ -14,6 +14,7 @@ CHECKPATCH_IGNORE=$(echo \
 		core/arch/arm/dts \
 		ta/pkcs11/scripts/verify-helpers.sh \
 		core/lib/qcbor \
+		core/lib/scmi-server/SCP-firwmare \
 		core/arch/riscv/include/encoding.h )
 _CP_EXCL=$(for p in $CHECKPATCH_IGNORE; do echo ":(exclude)$p" ; done)
 

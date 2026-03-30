@@ -1,0 +1,194 @@
+/*
+ * Arm SCP/MCP Software
+ * Copyright (c) 2025, Arm Limited and Contributors. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
+
+#ifndef SI0_MMAP_H
+#define SI0_MMAP_H
+
+#ifndef __ASSEMBLER__
+#    include <fwk_assert.h>
+#endif
+#include <fwk_macros.h>
+
+#define SI0_SRAM_BASE    0x120000000
+#define SI0_ITC_RAM_SIZE (256 * 1024)
+#define SI0_DTC_RAM_SIZE (256 * 1024)
+#define SI0_ITC_RAM_BASE SI0_SRAM_BASE
+#define SI0_DTC_RAM_BASE (SI0_SRAM_BASE + SI0_ITC_RAM_SIZE)
+
+#define SI0_GIC_BASE  0x30000000
+#define SI0_GIC_SIZE  (1 * FWK_MIB)
+#define SI0_GICD_BASE 0x30000000
+#define SI0_GICR_BASE 0x30040000
+
+#define SI0_PERIPHERAL_BASE  0x2A000000
+#define SI0_PERIPHERAL_SIZE  (16 * FWK_MIB)
+#define SI0_UART_BASE        0x2A400000
+#define SI0_SSU_BASE         0x2A500000
+#define SI0_FMU0_BASE        0x2A510000
+#define SI0_FMU1_BASE        0x2A520000
+#define SI0_FMU2_BASE        0x2A530000
+#define SI0_FMU3_BASE        0x2A540000
+#define SI0_FMU4_BASE        0x2A550000
+#define SI0_TIMER_HW_COUNTER 0x2A6F0000
+#define SI0_TIMER_HW_TIMER   0x2A720000
+
+#define SI0_DEVICE_FMU_BASE 0x32000000
+#define SI0_DEVICE_FMU_SIZE (16 * FWK_MIB)
+#define SI0_GIC_FMU_BASE    0x32020000
+
+#define SI0_MHU_BASE                 0x38000000
+#define SI0_MHU_SIZE                 (16 * FWK_MIB)
+#define SI0_RSE2SI0_MHUV3_RCV_BASE   0x38140000
+#define SI0_SI02RSE_MHUV3_SEND_BASE  0x38100000
+#define SI0_AP2SI0_S_MHUV3_RCV_BASE  0x380C0000
+#define SI0_SI02AP_S_MHUV3_SEND_BASE 0x38080000
+
+#define SI0_RSE_CL0_MHU_FMU_BASE 0x321D0000
+#define SI0_CL0_RSE_MHU_FMU_BASE 0x321C0000
+#define SI0_PC0_CL0_MHU_FMU_BASE 0x32110000
+#define SI0_CL0_PC0_MHU_FMU_BASE 0x32100000
+#define SI0_PC1_CL0_MHU_FMU_BASE 0x32130000
+#define SI0_CL0_PC1_MHU_FMU_BASE 0x32120000
+#define SI0_PC2_CL0_MHU_FMU_BASE 0x32310000
+#define SI0_CL0_PC2_MHU_FMU_BASE 0x32300000
+#define SI0_PC3_CL0_MHU_FMU_BASE 0x32330000
+#define SI0_CL0_PC3_MHU_FMU_BASE 0x32320000
+
+#define SI0_ATW_IO_BASE  0x80000000
+#define SI0_ATW_IO_SIZE  (1536 * FWK_MIB)
+#define SI0_ATW_MEM_BASE (SI0_ATW_IO_BASE + SI0_ATW_IO_SIZE)
+#define SI0_ATW_MEM_SIZE (512 * FWK_MIB)
+
+#define SI0_ATW0_CMN_BASE SI0_ATW_IO_BASE
+#define SI0_ATW0_CMN_SIZE (1 * FWK_GIB)
+
+#define SI0_ATW1_CLUSTER_UTILITY_BASE (SI0_ATW0_CMN_BASE + SI0_ATW0_CMN_SIZE)
+#define SI0_ATW1_CLUSTER_UTILITY_SIZE (256 * FWK_MIB)
+
+#define SI0_ATW2_SMD_EXPANSION_BASE \
+    (SI0_ATW1_CLUSTER_UTILITY_BASE + SI0_ATW1_CLUSTER_UTILITY_SIZE)
+#define SI0_ATW2_SMD_EXPANSION_SIZE (128 * FWK_KIB)
+
+#define SI0_ATW3_SYSTOP_PIK_BASE \
+    (SI0_ATW2_SMD_EXPANSION_BASE + SI0_ATW2_SMD_EXPANSION_SIZE)
+#define SI0_ATW3_SYSTOP_PIK_SIZE (64 * FWK_KIB)
+
+#define SI0_ATW4_SYSTEM_ID_BASE \
+    (SI0_ATW3_SYSTOP_PIK_BASE + SI0_ATW3_SYSTOP_PIK_SIZE)
+#define SI0_ATW4_SYSTEM_ID_SIZE (64 * FWK_KIB)
+
+#define SI0_ATW5_CSS_COUNTERS_TIMERS_BASE \
+    (SI0_ATW4_SYSTEM_ID_BASE + SI0_ATW4_SYSTEM_ID_SIZE)
+#define SI0_ATW5_CSS_COUNTERS_TIMERS_SIZE (192 * FWK_KIB)
+
+#define SI0_ATW_IO_LIMIT \
+    (SI0_ATW5_CSS_COUNTERS_TIMERS_BASE + SI0_ATW5_CSS_COUNTERS_TIMERS_SIZE)
+
+#define SI0_ATW6_AP_PERIPHERAL_SRAM_BASE \
+    (SI0_ATW_MEM_BASE + SI0_ATW5_CSS_COUNTERS_TIMERS_SIZE)
+#define SI0_ATW6_AP_PERIPHERAL_SRAM_SIZE (8 * FWK_KIB)
+
+#define SI0_ATW_MEM_LIMIT \
+    (SI0_ATW6_AP_PERIPHERAL_SRAM_BASE + SI0_ATW6_AP_PERIPHERAL_SRAM_SIZE)
+
+#ifndef __ASSEMBLER__
+static_assert(
+    SI0_ATW_IO_LIMIT <= SI0_ATW_IO_BASE + SI0_ATW_IO_SIZE,
+    "IO ATU translation window is overflowing");
+static_assert(
+    SI0_ATW_MEM_LIMIT <= SI0_ATW_MEM_BASE + SI0_ATW_MEM_SIZE,
+    "Memory ATU translation window is overflowing");
+#endif
+
+#define SI0_SID_BASE (SI0_ATW4_SYSTEM_ID_BASE)
+
+#define SI0_SMD_EXPANSION3_BASE (SI0_ATW2_SMD_EXPANSION_BASE)
+
+#define SI0_CMN_BASE (SI0_ATW0_CMN_BASE)
+
+#define SI0_SYSTOP_PPU_OFFSET 0x1000
+#define SI0_PPU_SYS0_BASE     (SI0_ATW3_SYSTOP_PIK_BASE + SI0_SYSTOP_PPU_OFFSET)
+
+#define SI0_REFCLK_CNTCONTROL_BASE (SI0_ATW5_CSS_COUNTERS_TIMERS_BASE)
+#define SI0_REFCLK_CNTCONTROL_SIZE (64 * FWK_KIB)
+
+#define SI0_REFCLK_CNT_BASE \
+    (SI0_REFCLK_CNTCONTROL_BASE + SI0_REFCLK_CNTCONTROL_SIZE)
+#define SI0_REFCLK_CNT_SIZE (64 * FWK_KIB)
+
+#define SI0_REFCLK_CNTCTL_BASE (SI0_REFCLK_CNT_BASE + SI0_REFCLK_CNT_SIZE)
+#define SI0_REFCLK_CNTCTL_SIZE (64 * FWK_KIB)
+
+/*
+ * Size of SCP's view of per-cluster utility memory region.
+ */
+#define SI0_CLUSTER_UTILITY_SIZE (0x4000000UL)
+
+/*
+ * Offsets of various blocks within cluster utility that is
+ * mapped into SI0's address translation window 0. These offsets are applicable
+ * to each cluster in the system.
+ */
+#define SI0_CLUSTER_UTILITY_CLUSTER_PPU_OFFSET     (0x1030000UL)
+#define SI0_CLUSTER_UTILITY_CLUSTER_AE_OFFSET      (0x1050000UL)
+#define SI0_CLUSTER_UTILITY_CORE_PPU0_OFFSET       (0x1080000UL)
+#define SI0_CLUSTER_UTILITY_CORE_PPU_OFFSET        (0x100000UL)
+#define SI0_CLUSTER_UTILITY_CLUSTER_CONTROL_OFFSET (0x2000000UL)
+
+/* Secure Shared memory between AP and SI0 */
+#define SI0_AP_PERIPHERAL_SRAM_SHARED_SECURE_BASE \
+    (SI0_ATW6_AP_PERIPHERAL_SRAM_BASE)
+#define SI0_AP_PERIPHERAL_SRAM_SHARED_SECURE_SIZE (8 * FWK_KIB)
+
+/*
+ * SDS Memory Region inside Secure AP Peripheral SRAM that is shared between
+ * AP and SI0.
+ */
+#define SI0_SDS_SECURE_BASE (SI0_AP_PERIPHERAL_SRAM_SHARED_SECURE_BASE)
+#define SI0_SDS_SECURE_SIZE (3520)
+
+/*
+ * AP Context Memory Region inside Secure AP Peripheral SRAM that is shared
+ * between AP and SI0.
+ */
+#define SI0_AP_CONTEXT_SIZE (64)
+#define SI0_AP_CONTEXT_BASE \
+    (SI0_AP_PERIPHERAL_SRAM_SHARED_SECURE_BASE + \
+     SI0_AP_PERIPHERAL_SRAM_SHARED_SECURE_SIZE - SI0_AP_CONTEXT_SIZE)
+
+/* SCMI Secure Payload Area */
+#define SI0_SCMI_PAYLOAD_S_A2P_BASE (SI0_SDS_SECURE_BASE + SI0_SDS_SECURE_SIZE)
+#define SI0_SCMI_PAYLOAD_SIZE       (0x100)
+
+/* SCMI PFDI Monitor Secure Payload Area */
+#define SI0_SCMI_PFDI_MONITOR_S_A2P_BASE \
+    (SI0_SCMI_PAYLOAD_S_A2P_BASE + SI0_SCMI_PAYLOAD_SIZE)
+/*
+ * The size of reserved shared memory for each core =
+ * sizeof(struct mod_transport_buffer) + SCMI PFDI Monitor payload size =
+ * 32 + 8 = 40 bytes
+ */
+#define SI0_SCMI_PFDI_MONITOR_SIZE_CORE (40)
+#define SI0_SCMI_PFDI_MONITOR_SIZE      (SI0_SCMI_PFDI_MONITOR_SIZE_CORE * 16U)
+
+/* Shared RSE<->SI shared SRAM ie. SI Local SRAM Banks group0 */
+#define SI0_RSE_SHARED_SRAM_BASE (0x40000000UL)
+#define SI0_RSE_SHARED_SRAM_SIZE (8 * FWK_MIB)
+
+/*
+ * In RD-Aspen SCP firmware is running on SI CL0 whereas RSE is the commponent
+ * running TF-M firmware.
+ */
+/* RSE <> SCP a2p SCMI Secure Payload Area, it is for SCMI request/response */
+#define SI0_RSE_SCMI_PAYLOAD_BASE (SI0_RSE_SHARED_SRAM_BASE)
+#ifdef BUILD_HAS_SCMI_NOTIFICATIONS
+/* SCP -> RSE p2a SCMI Secure Payload Area, it is for SCMI notification */
+#    define SI0_RSE_SCMI_P2A_PAYLOAD_BASE \
+        (SI0_RSE_SCMI_PAYLOAD_BASE + SI0_SCMI_PAYLOAD_SIZE)
+#endif
+
+#endif /* SI0_MMAP_H */

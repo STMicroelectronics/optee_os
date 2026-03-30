@@ -1,0 +1,184 @@
+/*
+ * Arm SCP/MCP Software
+ * Copyright (c) 2023-2025, Arm Limited and Contributors. All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
+ * Description:
+ *      SCMI Power capping and monitoring protocol completer.
+ */
+
+#ifndef MOD_SCMI_POWER_CAPPING_H
+#define MOD_SCMI_POWER_CAPPING_H
+
+#include <fwk_id.h>
+
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+/*!
+ * \addtogroup GroupModules Modules
+ * \{
+ */
+
+/*!
+ * \defgroup GroupSCMI_POWER_CAPPING SCMI power capping protocol
+ * \{
+ */
+
+/*!
+ * \brief SCMI Power capping domain unit.
+ */
+enum mod_scmi_power_capping_power_cap_unit {
+    MOD_SCMI_PCAPPING_POWER_CAP_ABSTRACT = 0x0,
+    MOD_SCMI_PCAPPING_POWER_CAP_MICROWATT = 0x1,
+    MOD_SCMI_PCAPPING_POWER_CAP_MILLIWATT = 0x2,
+};
+
+/*!
+ * \brief Power Capping fast channels domain configuration.
+ */
+struct scmi_pcapping_fch_config {
+    /*!
+     * \brief Corresponding transport element ID.
+     */
+    fwk_id_t transport_id;
+
+    /*!
+     * \brief Corresponding transport API ID.
+     */
+    fwk_id_t transport_api_id;
+
+    /*!
+     * \brief Service ID that access the fast channel.
+     */
+    fwk_id_t service_id;
+
+    /*!
+     * \brief SCMI power capping domain index that is acted on by the fast
+     *     channel.
+     */
+    unsigned int scmi_power_capping_domain_idx;
+
+    /*!
+     * \brief Associated message ID.
+     */
+    uint32_t message_id;
+};
+
+#ifdef BUILD_HAS_SCMI_POWER_CAPPING_FAST_CHANNELS_COMMANDS
+struct scmi_power_capping_config {
+    /*!
+     * \brief Fast channels configuration.
+     *
+     * \details Assign the table of configurations for the fast channels using
+     *      this domain.
+     */
+    const struct scmi_pcapping_fch_config *fch_config_table;
+
+    size_t fch_count;
+};
+#endif
+
+/*!
+ * \brief SCMI Power capping domain configuration.
+ */
+struct mod_scmi_power_capping_domain_config {
+    /*!
+     * \brief Minimum power cap.
+     *
+     * \details The minimum power value that can be set as the power cap for
+     *     this domain, its value cannot be zero.
+     */
+    uint32_t min_power_cap;
+
+    /*!
+     * \brief Maximum power cap.
+     *
+     * \details The maximum power value that can be set as the power cap for
+     *     this domain, its value cannot be zero.
+     */
+    uint32_t max_power_cap;
+
+    /*!
+     * \brief Power cap step.
+     *
+     * \details The step size between two consecutive power
+     *     cap values supported by this power capping domain.
+     */
+    uint32_t power_cap_step;
+
+    /*!
+     * \brief PAI configuration support.
+     */
+    bool pai_config_support;
+
+#ifdef BUILD_HAS_SCMI_POWER_CAPPING_STD_COMMANDS
+    /*!
+     * \brief Sustainable Power.
+     *
+     * \details The maximum sustainable power consumption
+     *     for this domain under normal conditions considering
+     *     all known external factors like thermal constraints.
+     */
+    uint32_t max_sustainable_power;
+
+    /*!
+     * \brief Parent id.
+     *
+     * \details This field identifies the parent power capping domain. This
+     *     field is useful in constructing a power capping domain
+     *     topology when the power capping domain (identified by domain_id)
+     *     has a parent power capping domain (identified by parent_id).
+     *
+     *     A value of 0xFFFFFFFF implies that this power capping domain is
+     *     contained within no parent domains.
+     */
+    uint32_t parent_idx;
+
+    /*!
+     * \brief Power unit used for capping and monitoring.
+     */
+    enum mod_scmi_power_capping_power_cap_unit power_cap_unit;
+#    ifdef BUILD_HAS_SCMI_NOTIFICATIONS
+    /*!
+     * \brief Power cap and PAI change notifications support enable.
+     */
+    bool cap_pai_change_notification_support;
+
+    /*!
+     * \brief Power measurements change notifications support enable.
+     */
+    bool power_measurements_change_notification_support;
+#    endif
+#endif
+    /*!
+     * \brief Power Capping HAL domain ID.
+     */
+    fwk_id_t power_capping_domain_id;
+};
+
+/*!
+ * \brief SCMI power capping APIs.
+ *
+ * \details APIs exported by SCMI power capping protocol.
+ */
+enum mod_scmi_power_capping_api {
+#ifdef BUILD_HAS_SCMI_POWER_CAPPING_STD_COMMANDS
+    /*! Index for the SCMI power capping request API */
+    MOD_SCMI_POWER_CAPPING_API_IDX_REQUEST,
+#endif
+    /*! Number of APIs */
+    MOD_SCMI_POWER_CAPPING_API_IDX_COUNT,
+};
+
+/*!
+ * \}
+ */
+
+/*!
+ * \}
+ */
+
+#endif /* MOD_SCMI_POWER_CAPPING_H */

@@ -1,0 +1,85 @@
+#
+# Arm SCP/MCP Software
+# Copyright (c) 2024-2025, Arm Limited and Contributors. All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
+#
+
+- product: fvp-baser-aemv8r
+  configs:
+    - name: default
+    - name: integration-test-debug
+      extra_config_args: ["-DSCP_ENABLE_DEBUGGER=ON"]
+  toolchains:
+    - name: GNU
+    - name: Clang
+      extra_config_args: ["-DSCP_LLVM_SYSROOT_CC=aarch64-none-elf-gcc"]
+
+- product: host
+  toolchains:
+    - name: GNU
+
+- product: juno
+  variants:
+    - name: BOARD
+    - name: FVP
+
+- product: morello
+
+- product: n1sdp
+
+- product: rcar
+  toolchains:
+    - name: GNU
+
+- product: rdv3
+  variants:
+    - name: 0
+    - name: 1
+    - name: 2
+  product_group: neoverse-rd
+
+- product: rdv1
+  product_group: neoverse-rd
+
+- product: rdv1mc
+  product_group: neoverse-rd
+
+- product: rdn1e1
+  product_group: neoverse-rd
+
+- product: rdn2
+  variants:
+    - name: 0
+    - name: 1
+    - name: 2
+    - name: 3
+  product_group: neoverse-rd
+
+- product: sgi575
+  product_group: neoverse-rd
+
+- product: sgm775
+
+- product: sgm776
+
+- product: synquacer
+
+- product: rd1ae
+  product_group: automotive-rd
+
+- product: tc3
+  product_group: totalcompute
+
+- product: tc4
+  product_group: totalcompute
+  configs:
+    - name: default
+      extra_config_args: ["-DSCP_ENABLE_PLAT_FVP=ON"]
+
+- product: rdaspen
+  product_group: automotive-rd
+  toolchains:
+    - name: GNU
+    - name: Clang
+      extra_config_args: ["-DSCP_LLVM_SYSROOT_CC=aarch64-none-elf-gcc"]

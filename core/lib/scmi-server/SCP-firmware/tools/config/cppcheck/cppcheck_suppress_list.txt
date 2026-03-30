@@ -1,0 +1,62 @@
+// Depending on how the project is compiled, some code
+// snippets are unused. So, some of the functions are not called.
+unusedFunction
+
+// missingIncludeSystem: Cppcheck can handle whether a system header (e. g.
+// stdio.h) can not be found, so we do not want those warnings.
+missingIncludeSystem
+
+// If Cppcheck does not find any errors to be suppressed,
+// it would raise a warning by default. This entry prevents that.
+unmatchedSuppression
+
+// redundantAssignment: Conflicts with a secure coding guideline stating to
+// 'Initialize variables'.
+redundantAssignment
+
+// Conflicts with our coding style that states all local
+// variables should be declared at the beginning of the function.
+variableScope
+
+// We often create register maps based on the documentations
+// and it can happen that we do not read or write a specific field.
+unusedStructMember
+
+// Cppcheck seems to get confused with macro substitution
+syntaxError:*framework/src/fwk_log.c:178
+syntaxError:*framework/src/fwk_log.c:186
+syntaxError:*framework/src/fwk_log.c:190
+syntaxError:*product/morello/module/morello_system/src/mod_morello_system.c:302
+
+// Cppcheck doesn't like include directives that use macros
+preprocessorErrorDirective:*framework/test/fwk_module_idx.h:14
+
+// Cppcheck does not properly parse the `FWK_HAS_INCLUDE` macro
+preprocessorErrorDirective:*arch/arm/common/src/arch_mm.c:16
+
+// Cppcheck is not able to parse returned boolean values inside if conditions
+internalAstError:*framework/src/fwk_core.c:317
+
+// Suppress CMSIS errors
+*:*/CMSIS*/*
+
+// Suppress Cmock errors
+*:*/cmock*/*
+
+// Cppcheck seems to get confused with macro substitution
+unknownMacro:*product/rcar/module/rcar_system/src/rcar_common.c:22
+unknownMacro:*product/rcar/module/rcar_system/src/rcar_iic_dvfs.c:172
+unknownMacro:*product/rcar/module/rcar_system/src/rcar_pwc.c:172
+unknownMacro:*product/morello/module/morello_system/src/mod_morello_system.c:302
+unknownEvaluationOrder:*framework/src/fwk_io.c:71
+unknownEvaluationOrder:*framework/src/fwk_io.c:72
+unknownEvaluationOrder:*framework/src/fwk_io.c:74
+unknownEvaluationOrder:*framework/src/fwk_log.c:55
+unknownEvaluationOrder:*framework/src/fwk_log.c:57
+
+// Cppcheck is unable to fully parse newlib on AArch64 (when included explicitly with Clang)
+preprocessorErrorDirective:*machine/*
+preprocessorErrorDirective:*sys/*
+
+// Cppcheck is failing to interpret the FMU implementation API
+constParameter:*product/automotive-rd/module/fmu/src/*
