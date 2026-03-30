@@ -849,9 +849,22 @@ $(call force,CFG_SCMI_PTA,y,Required by CFG_SCMI_SCPFW)
 ifeq (,$(CFG_SCMI_SCPFW_PRODUCT))
 $(error CFG_SCMI_SCPFW=y requires CFG_SCMI_SCPFW_PRODUCT configuration)
 endif
-ifeq (,$(wildcard $(CFG_SCP_FIRMWARE)/CMakeLists.txt))
-$(error CFG_SCMI_SCPFW=y requires CFG_SCP_FIRMWARE configuration)
+ifeq (,$(CFG_SCP_FIRMWARE))
+$(call force,_CFG_SCP_FIRMWARE_IN_TREE,y)
+endif #CFG_SCP_FIRMWARE empty
+
+ifeq ($(_CFG_SCP_FIRMWARE_IN_TREE),y)
+ifeq (,$(wildcard core/lib/scmi-server/SCP-firmware/CMakeLists.txt))
+$(info WARNING: CFG_SCMI_SCPFW=y without CFG_SCP_FIRMWARE value expects SCP-firmware source tree at core/lib/scmi-serve/SCP-firmware/)
+$(info WARNING: Maybe need to get SCP-firmware source tree and set its absolute path in CFG_SCP_FIRMWARE.)
+$(error CFG_SCMI_SCPFW=y but cannot find the location of SCP-firmware source tree)
 endif
+else #_CFG_SCP_FIRMWARE_IN_TREE
+ifeq (,$(wildcard $(CFG_SCP_FIRMWARE)/CMakeLists.txt))
+$(info WARNING: Invalid config SCP-firmware source tree absolute path CFG_SCP_FIRMWARE=$(CFG_SCP_FIRMWARE))
+$(error CFG_SCMI_SCPFW=y but CFG_SCP_FIRMWARE does not seems to provide the source tree location)
+endif
+endif #_CFG_SCP_FIRMWARE_IN_TREE
 endif #CFG_SCMI_SCPFW
 
 # CFG_SCMI_SCPFW_FROM_DT, when enabled, calls scpfw_configure() function

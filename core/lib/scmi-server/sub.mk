@@ -7,7 +7,12 @@
 # The toolchain build directive must also match the list of
 # embedded modules.
 
+ifeq ($(_CFG_SCP_FIRMWARE_IN_TREE),y)
+scpfw-path = ${CURDIR}/core/lib/scmi-server/SCP-firmware
+else
 scpfw-path = $(CFG_SCP_FIRMWARE)
+endif
+
 scpfw-product = optee/$(CFG_SCMI_SCPFW_PRODUCT)
 scpfw-out-path := $(out-dir)/$(libdir)
 
@@ -53,8 +58,12 @@ cppflags-lib-y += -DBUILD_VERSION_MAJOR=$(scpfw-integ-version-maj) \
 		  -DBUILD_VERSION_MINOR=$(scpfw-integ-version-min) \
 		  -DBUILD_VERSION_PATCH=$(scpfw-integ-version-pat)
 
+ifeq ($(_CFG_SCP_FIRMWARE_IN_TREE),y)
+scpfw-impl-version := $(shell echo $(scpfw-integ-version)-intree-optee-os-$(TEE_IMPL_VERSION))
+else
 scpfw-impl-version := $(shell git -C $(scpfw-path) describe --tags --always --dirty=-dev 2>/dev/null || \
-                      echo Unknown_$(scpfw-integ-version))
+			echo Unknown_$(scpfw-integ-version))
+endif
 cppflags-lib-y += -DBUILD_VERSION_DESCRIBE_STRING=\"$(scpfw-impl-version)\"
 
 cppflags-lib-y += -DFWK_LOG_LEVEL=$(CFG_SCPFW_LOG_LEVEL)
@@ -110,4 +119,3 @@ cppflags-lib-$(CFG_SCPFW_INBAND_MSG_SUPPORT) += -DBUILD_HAS_INBAND_MSG_SUPPORT
 
 # Include SCP-firmware make files
 include $(scpfw-path)/product/optee/sub.mk
-
