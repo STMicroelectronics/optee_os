@@ -120,7 +120,12 @@ __weak int psci_node_hw_state(uint32_t cpu_id __unused,
 
 __weak int psci_set_system_suspend_mode(uint32_t mode __unused)
 {
-	return PSCI_RET_NOT_SUPPORTED;
+	switch (mode) {
+	case PSCI_SUSPEND_MODE_PLATFORM_COORDINATED:
+		return PSCI_RET_SUCCESS;
+	default:
+		return PSCI_RET_INVALID_PARAMETERS;
+	}
 }
 
 __weak int psci_system_suspend(uintptr_t entry __unused,
