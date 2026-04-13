@@ -133,6 +133,16 @@
 				status = "disabled";
 			};
 
+			hash2: hash@42010000  {
+				compatible = "st,stm32mp13-hash";
+				reg = <0x42010000  0x400>;
+				interrupts = <GIC_SPI 178 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_HASH2>;
+				resets = <&rcc HASH2_R>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_HASH2_ID>;
+				status = "disabled";
+			};
+
 			rng2: rng@42020000 {
 				compatible = "st,stm32mp21-rng";
 				reg = <0x42020000 0x400>;
@@ -140,6 +150,16 @@
 				clock-names = "rng_clk", "rng_hclk";
 				access-controllers = <&rifsc STM32MP21_RIFSC_RNG2_ID>;
 				resets = <&rcc RNG2_R>;
+			};
+
+			hash1: hash@42030400 {
+				compatible = "st,stm32mp13-hash";
+				reg = <0x42030400  0x400>;
+				interrupts = <GIC_SPI 132 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&rcc CK_BUS_HASH1>;
+				resets = <&rcc HASH1_R>;
+				access-controllers = <&rifsc STM32MP21_RIFSC_HASH1_ID>;
+				status = "disabled";
 			};
 
 			rng1: rng@42030800 {
