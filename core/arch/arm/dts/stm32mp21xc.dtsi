@@ -3,3 +3,25 @@
  * Copyright (C) 2025, STMicroelectronics - All Rights Reserved
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
+
+&rifsc {
+	cryp1: cryp@42030000 {
+		compatible = "st,stm32mp1-cryp";
+		reg = <0x42030000 0x400>;
+		interrupts = <GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc CK_BUS_CRYP1>;
+		resets = <&rcc CRYP1_R>;
+		access-controllers = <&rifsc STM32MP21_RIFSC_CRYP1_ID>;
+		status = "disabled";
+	};
+
+	cryp2: cryp@42040000 {
+		compatible = "st,stm32mp1-cryp";
+		reg = <0x42040000 0x400>;
+		interrupts = <GIC_SPI 157 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc CK_BUS_CRYP2>;
+		resets = <&rcc CRYP2_R>;
+		access-controllers = <&rifsc STM32MP21_RIFSC_CRYP2_ID>;
+		status = "disabled";
+	};
+};
