@@ -24,4 +24,15 @@
 		access-controllers = <&rifsc STM32MP21_RIFSC_CRYP2_ID>;
 		status = "disabled";
 	};
+
+	saes: saes@42030c00 {
+		compatible = "st,stm32mp13-saes";
+		reg = <0x42030c00 0x400>;
+		interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc CK_BUS_SAES>, <&rcc CK_BUS_RNG1>;
+		clock-names = "bus", "rng";
+		resets = <&rcc SAES_R>;
+		access-controllers = <&rifsc STM32MP21_RIFSC_SAES_ID>, <&rifsc STM32MP21_RIFSC_RNG1_ID>;
+		status = "disabled";
+	};
 };
