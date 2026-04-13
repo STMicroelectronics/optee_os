@@ -35,4 +35,15 @@
 		access-controllers = <&rifsc STM32MP21_RIFSC_SAES_ID>, <&rifsc STM32MP21_RIFSC_RNG1_ID>;
 		status = "disabled";
 	};
+
+	pka: pka@42032000 {
+		compatible = "st,stm32mp13-pka64";
+		reg = <0x42032000 0x2000>;
+		interrupts = <GIC_SPI 133 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&rcc CK_BUS_PKA>, <&rcc CK_BUS_RNG1>;
+		clock-names = "bus", "rng";
+		resets = <&rcc PKA_R>;
+		access-controllers = <&rifsc STM32MP21_RIFSC_PKA_ID>, <&rifsc STM32MP21_RIFSC_RNG1_ID>;
+		status = "disabled";
+	};
 };
