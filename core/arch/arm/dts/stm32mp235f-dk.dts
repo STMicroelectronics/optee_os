@@ -407,6 +407,10 @@
 	status = "okay";
 };
 
+&saes {
+	status = "okay";
+};
+
 &scmi_regulator {
 	regulators {
 		regulator@b {
