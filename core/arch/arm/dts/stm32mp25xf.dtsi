@@ -4,5 +4,4 @@
  * Author: Alexandre Torgue <alexandre.torgue@foss.st.com> for STMicroelectronics.
  */
 
-/ {
-};
+#include "stm32mp25xc.dtsi"
