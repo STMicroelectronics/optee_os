@@ -345,6 +345,12 @@
 			status = "disabled";
 		};
 
+		serc: serc@44080000 {
+			compatible = "st,stm32mp25-serc";
+			reg = <0x44080000 0x1000>;
+			interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&rcc CK_BUS_SERC>;
+		};
 
 		rcc: clock-controller@44200000 {
 			compatible = "st,stm32mp21-rcc", "syscon";
