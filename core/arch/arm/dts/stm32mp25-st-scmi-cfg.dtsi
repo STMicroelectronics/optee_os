@@ -683,6 +683,24 @@
 						domain-name = "ck_icn_m_etr";
 						clocks = <&rcc CK_KER_ETR>;
 					};
+
+					clock@7d {
+						reg = <CK_SCMI_HSI_KER_CK>;
+						domain-name = "hsi_ker_ck";
+						clocks = <&rcc HSI_KER_CK>;
+					};
+
+					clock@7e {
+						reg = <CK_SCMI_HSE_KER_CK>;
+						domain-name = "hse_ker_ck";
+						clocks = <&rcc HSE_KER_CK>;
+					};
+
+					clock@7f {
+						reg = <CK_SCMI_MSI_KER_CK>;
+						domain-name = "msi_ker_ck";
+						clocks = <&rcc MSI_KER_CK>;
+					};
 				};
 			};
 
