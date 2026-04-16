@@ -13,6 +13,12 @@
 #define HSE_THRESHOLD_PERCENT	110
 #define FREQ_MONITOR_COMPAT	"st,freq-monitor"
 
+struct stm32_hse_monitoring_data {
+	struct counter_device *counter;
+	void *config;
+	uint32_t threshold;
+};
+
 static void stm32_hse_over_frequency(void *priv,
 				     enum counter_event_type event __unused)
 {
@@ -22,8 +28,45 @@ static void stm32_hse_over_frequency(void *priv,
 }
 DECLARE_KEEP_PAGER(stm32_hse_over_frequency);
 
+static TEE_Result stm32_hse_monitoring_pm(enum pm_op op,
+					  unsigned int pm_hint __unused,
+					  const struct pm_callback_handle *h)
+{
+	struct stm32_hse_monitoring_data *priv =
+	(struct stm32_hse_monitoring_data *)PM_CALLBACK_GET_HANDLE(h);
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	if (op == PM_OP_RESUME) {
+		res = counter_set_threshold(priv->counter, priv->threshold);
+		if (res)
+			return res;
+
+		res = counter_enable_event(priv->counter,
+					   COUNTER_EVENT_THRESHOLD,
+					   stm32_hse_over_frequency,
+					   (void *)&priv->threshold);
+		if (res)
+			return res;
+
+		res = counter_start(priv->counter, priv->config);
+		if (res)
+			return res;
+	} else {
+		res = counter_stop(priv->counter);
+		if (res)
+			return res;
+
+		res = counter_disable_all_events(priv->counter);
+		if (res)
+			return res;
+	}
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result stm32_hse_monitoring(void)
 {
+	struct stm32_hse_monitoring_data *priv = NULL;
 	struct counter_device *counter = NULL;
 	struct clk *hse_clk = NULL;
 	struct clk *hsi_clk = NULL;
@@ -34,6 +77,10 @@ static TEE_Result stm32_hse_monitoring(void)
 	void *config = NULL;
 	int node = -1;
 	TEE_Result res = TEE_ERROR_GENERIC;
+
+	priv = calloc(1, sizeof(*priv));
+	if (!priv)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	fdt = get_embedded_dt();
 	if (!fdt)
@@ -73,13 +120,19 @@ static TEE_Result stm32_hse_monitoring(void)
 	counter = fdt_counter_get(fdt, node, &config);
 	assert(counter && config);
 
-	res = counter_set_threshold(counter, ticks);
+	priv->counter = counter;
+	priv->config = config;
+	priv->threshold = ticks;
+
+	register_pm_driver_cb(stm32_hse_monitoring_pm, priv,
+			      "stm32-hse-monitoring");
+	res = counter_set_threshold(counter, priv->threshold);
 	if  (res)
 		return res;
 
 	res = counter_enable_event(counter, COUNTER_EVENT_THRESHOLD,
 				   stm32_hse_over_frequency,
-				   (void *)&ticks);
+				   (void *)&priv->threshold);
 	if  (res)
 		return res;
 
