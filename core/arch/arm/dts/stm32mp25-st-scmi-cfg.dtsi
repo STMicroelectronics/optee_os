@@ -701,6 +701,30 @@
 						domain-name = "msi_ker_ck";
 						clocks = <&rcc MSI_KER_CK>;
 					};
+
+					clock@80 {
+						reg = <CK_SCMI_GPIOZ_AM>;
+						domain-name = "ck_gpioz_am";
+						clocks = <&rcc CK_GPIOZ_AM>;
+					};
+
+					clock@81 {
+						reg = <CK_SCMI_IPCC2_AM>;
+						domain-name = "ck_ipcc2_am";
+						clocks = <&rcc CK_IPCC2_AM>;
+					};
+
+					clock@82 {
+						reg = <CK_SCMI_LPDMA_AM>;
+						domain-name = "ck_lpdma_am";
+						clocks = <&rcc CK_LPDMA_AM>;
+					};
+
+					clock@83 {
+						reg = <CK_SCMI_RTC_AM>;
+						domain-name = "ck_rtc_am";
+						clocks = <&rcc CK_RTC_AM>;
+					};
 				};
 			};
 
