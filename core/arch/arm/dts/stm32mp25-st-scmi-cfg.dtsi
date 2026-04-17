@@ -725,6 +725,12 @@
 						domain-name = "ck_rtc_am";
 						clocks = <&rcc CK_RTC_AM>;
 					};
+
+					clock@84 {
+						reg = <CK_SCMI_ICN_PCIE>;
+						domain-name = "ck_icn_p_pcie";
+						clocks = <&rcc CK_BUS_PCIE>;
+					};
 				};
 			};
 
