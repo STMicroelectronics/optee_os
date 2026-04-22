@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2021, STMicroelectronics - All Rights Reserved
+ * Copyright (c) 2017-2026, STMicroelectronics - All Rights Reserved
  */
 
 #include <arm32.h>
@@ -192,6 +192,7 @@
 #define DDRPHYC_DSGCR_ODTPDD_MASK		GENMASK_32(23, 20)
 #define DDRPHYC_DSGCR_ODTPDD_0			BIT(20)
 #define DDRPHYC_DSGCR_NL2PD			BIT(24)
+#define DDRPHYC_DSGCR_CKOE			BIT(28)
 
 #define DDRPHYC_ZQ0CRN_ZDATA_MASK		GENMASK_32(27, 0)
 #define DDRPHYC_ZQ0CRN_ZDATA_SHIFT		0
@@ -345,6 +346,12 @@ static int ddr_sw_self_refresh_in(void)
 	/* Disable PZQ cell (PUBL register) */
 	io_setbits32(ddrphy_base + DDRPHYC_ZQ0CR0, DDRPHYC_ZQ0CRN_ZQPD);
 
+	/* Set latch */
+	io_clrbits32(ddrphy_base + DDRPHYC_DSGCR, DDRPHYC_DSGCR_CKOE);
+
+	/* Additional delay to avoid early latch */
+	udelay(10);
+
 	/* Activate sw retention in PWRCTRL */
 	io_setbits32(pwr_base + PWR_CR3_OFF, PWR_CR3_DDRRETEN);
 
@@ -449,6 +456,11 @@ static int ddr_sw_self_refresh_exit(void)
 	io_clrbits32(ddrphy_base + DDRPHYC_ACIOCR, DDRPHYC_ACIOCR_CSPDD_MASK);
 	io_clrbits32(ddrphy_base + DDRPHYC_DXCCR, DDRPHYC_DXCCR_DXPDD);
 	io_clrbits32(ddrphy_base + DDRPHYC_DXCCR, DDRPHYC_DXCCR_DXPDR);
+
+	/* Release latch */
+	io_setbits32(ddrphy_base + DDRPHYC_DSGCR, DDRPHYC_DSGCR_CKOE);
+
+	/* Finalize pad drivers enabling */
 	io_clrbits32(ddrphy_base + DDRPHYC_DSGCR, DDRPHYC_DSGCR_ODTPDD_MASK);
 	io_clrbits32(ddrphy_base + DDRPHYC_DSGCR, DDRPHYC_DSGCR_NL2PD);
 	io_clrbits32(ddrphy_base + DDRPHYC_DSGCR, DDRPHYC_DSGCR_CKEPDD_MASK);
