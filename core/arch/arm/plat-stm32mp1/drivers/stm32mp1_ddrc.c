@@ -244,7 +244,6 @@ static void ddr_enable_clock(void)
 	io_setbits32(rcc_base + RCC_DDRITFCR,
 		     RCC_DDRITFCR_DDRC1EN |
 		     RCC_DDRITFCR_DDRC2EN |
-		     RCC_DDRITFCR_DDRPHYCEN |
 		     RCC_DDRITFCR_DDRPHYCAPBEN |
 		     RCC_DDRITFCR_DDRCAPBEN);
 }
@@ -358,6 +357,9 @@ static int ddr_sw_self_refresh_in(void)
 	/* Switch controller clocks (uMCTL2/PUBL) to DLL ref clock */
 	io_setbits32(rcc_base + RCC_DDRITFCR, RCC_DDRITFCR_GSKPCTRL);
 
+	/* Deactivate DDRPHY clock */
+	io_clrbits32(rcc_base + RCC_DDRITFCR, RCC_DDRITFCR_DDRPHYCEN);
+
 	/* Disable all DLLs: GLITCH window */
 	io_setbits32(ddrphy_base + DDRPHYC_ACDLLCR, DDRPHYC_ACDLLCR_DLLDIS);
 	io_setbits32(ddrphy_base + DDRPHYC_DX0DLLCR, DDRPHYC_DXNDLLCR_DLLDIS);
@@ -365,10 +367,7 @@ static int ddr_sw_self_refresh_in(void)
 	io_setbits32(ddrphy_base + DDRPHYC_DX2DLLCR, DDRPHYC_DXNDLLCR_DLLDIS);
 	io_setbits32(ddrphy_base + DDRPHYC_DX3DLLCR, DDRPHYC_DXNDLLCR_DLLDIS);
 
-	/* Switch controller clocks (uMCTL2/PUBL) to DLL output clock */
-	io_clrbits32(rcc_base + RCC_DDRITFCR, RCC_DDRITFCR_GSKPCTRL);
-
-	/* Disable all clocks */
+	/* Disable all other DDR clocks */
 	ddr_disable_clock();
 
 	return 0;
@@ -392,7 +391,7 @@ static int ddr_sw_self_refresh_exit(void)
 	vaddr_t ddrctrl_base = get_ddrctrl_base();
 	vaddr_t ddrphy_base = get_ddrphy_base();
 
-	/* Enable all clocks */
+	/* Enable all clocks except DDRPHY */
 	ddr_enable_clock();
 
 	do_sw_handshake();
@@ -402,9 +401,6 @@ static int ddr_sw_self_refresh_exit(void)
 		     DDRCTRL_DFIMISC_DFI_INIT_COMPLETE_EN);
 
 	do_sw_ack();
-
-	/* Switch controller clocks (uMCTL2/PUBL) to DLL ref clock */
-	io_setbits32(rcc_base + RCC_DDRITFCR, RCC_DDRITFCR_GSKPCTRL);
 
 	/* Enable all DLLs: GLITCH window */
 	io_clrbits32(ddrphy_base + DDRPHYC_ACDLLCR, DDRPHYC_ACDLLCR_DLLDIS);
@@ -418,8 +414,15 @@ static int ddr_sw_self_refresh_exit(void)
 
 	/* Switch controller clocks (uMCTL2/PUBL) to DLL ref clock */
 	io_clrbits32(rcc_base + RCC_DDRITFCR, RCC_DDRITFCR_GSKPCTRL);
+
+	/* Assert DLL soft reset */
 	io_clrbits32(ddrphy_base + DDRPHYC_ACDLLCR, DDRPHYC_ACDLLCR_DLLSRST);
 	udelay(10);
+
+	/* Enable DDRPHY clock */
+	io_setbits32(rcc_base + RCC_DDRITFCR, RCC_DDRITFCR_DDRPHYCEN);
+
+	/* Release DLL soft reset */
 	io_setbits32(ddrphy_base + DDRPHYC_ACDLLCR, DDRPHYC_ACDLLCR_DLLSRST);
 
 	/* PHY partial init: (DLL lock and ITM reset) */
