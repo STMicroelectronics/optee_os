@@ -524,6 +524,9 @@ risaf_configure_region(struct stm32_risaf_instance *risaf,
 	uint32_t cid_cfg = stm32_risaf_get_region_cid_config(region->cfg);
 	uint32_t mask = risaf->ddata->mask_regions;
 
+	if (!is_tdcid)
+		return TEE_SUCCESS;
+
 	DMSG("Configuring %s region ID: %"PRIu32, risaf->pdata.risaf_name,
 	     id);
 
@@ -589,6 +592,8 @@ risaf_configure_subregion(struct stm32_risaf_instance *risaf,
 	uint32_t cfg = stm32_risaf_get_subregion_config(subregion->cfg);
 	uint32_t nest_cfg =
 		stm32_risaf_get_subregion_nest_config(subregion->cfg);
+	uint32_t nestr;
+	bool non_tdcid_update = false;
 
 	assert(subreg_id < risaf->ddata->max_subregions);
 
@@ -602,20 +607,35 @@ risaf_configure_subregion(struct stm32_risaf_instance *risaf,
 		return TEE_ERROR_ACCESS_DENIED;
 	}
 
+	nestr = io_read32(base + _RISAF_SUBREG_NESTR(reg_id, subreg_id));
+	non_tdcid_update = !is_tdcid &&
+			   (nestr & _RISAF_SUBREG_NESTR_DCEN) &&
+			   (((nestr & _RISAF_SUBREG_NESTR_DCCID) >>
+			     _RISAF_SUBREG_NESTR_DCCID_SHIFT) == RIF_CID1);
+
+	if (!is_tdcid && !non_tdcid_update)
+		return TEE_SUCCESS;
+
 	io_clrbits32(base + _RISAF_SUBREG_CFGR(reg_id, subreg_id),
 		     _RISAF_SUBREG_CFGR_SREN);
 
-	io_clrsetbits32(base + _RISAF_SUBREG_STARTR(reg_id, subreg_id), mask,
-			(start_addr - risaf->pdata.mem_base) & mask);
-	io_clrsetbits32(base + _RISAF_SUBREG_ENDR(reg_id, subreg_id), mask,
-			(eaddr - risaf->pdata.mem_base) & mask);
+	if (is_tdcid) {
+		io_clrsetbits32(base + _RISAF_SUBREG_STARTR(reg_id, subreg_id),
+				mask,
+				(start_addr - risaf->pdata.mem_base) & mask);
+		io_clrsetbits32(base + _RISAF_SUBREG_ENDR(reg_id, subreg_id),
+				mask,
+				(end_addr - risaf->pdata.mem_base) & mask);
+	}
+
 	io_clrsetbits32(base + _RISAF_SUBREG_CFGR(reg_id, subreg_id),
 			_RISAF_SUBREG_CFGR_ALL_MASK,
 			cfg & _RISAF_SUBREG_CFGR_ALL_MASK);
 
-	io_clrsetbits32(base + _RISAF_SUBREG_NESTR(reg_id, subreg_id),
-			_RISAF_SUBREG_NESTR_ALL_MASK,
-			nest_cfg & _RISAF_SUBREG_NESTR_ALL_MASK);
+	if (is_tdcid)
+		io_clrsetbits32(base + _RISAF_SUBREG_NESTR(reg_id, subreg_id),
+				_RISAF_SUBREG_NESTR_ALL_MASK,
+				nest_cfg & _RISAF_SUBREG_NESTR_ALL_MASK);
 
 	DMSG("RISAF %#"PRIxPA": region %02"PRIu32" - subregion %02"PRIu32
 	     "- start %#"PRIxPA" - end %#"PRIxPA" - cfg %#08"PRIx32
@@ -1123,9 +1143,6 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 	res = stm32_rifsc_check_tdcid(&is_tdcid);
 	if (res)
 		return res;
-
-	if (!is_tdcid)
-		return TEE_SUCCESS;
 
 	risaf = calloc(1, sizeof(*risaf));
 	if (!risaf)
