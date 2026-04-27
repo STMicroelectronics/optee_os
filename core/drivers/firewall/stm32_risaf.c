@@ -79,6 +79,23 @@
 #define _RISAF_REG_CIDCFGR(n)		(_RISAF_REG(n) + \
 					 _RISAF_REG_CIDCFGR_OFFSET)
 
+/* RISAF subregion registers (base relative) */
+#define _RISAF_SUBREG_SIZE		U(0x10)
+#define _RISAF_SUBREG(n, m)		(_RISAF_REG(n) + \
+					 (((m) + 1) * _RISAF_SUBREG_SIZE))
+#define _RISAF_SUBREG_CFGR_OFFSET	U(0x0)
+#define _RISAF_SUBREG_CFGR(n, m)	(_RISAF_SUBREG(n, m) + \
+					 _RISAF_SUBREG_CFGR_OFFSET)
+#define _RISAF_SUBREG_STARTR_OFFSET	U(0x4)
+#define _RISAF_SUBREG_STARTR(n, m)	(_RISAF_SUBREG(n, m) + \
+					 _RISAF_SUBREG_STARTR_OFFSET)
+#define _RISAF_SUBREG_ENDR_OFFSET	U(0x8)
+#define _RISAF_SUBREG_ENDR(n, m)	(_RISAF_SUBREG(n, m) + \
+					 _RISAF_SUBREG_ENDR_OFFSET)
+#define _RISAF_SUBREG_NESTR_OFFSET	U(0xC)
+#define _RISAF_SUBREG_NESTR(n, m)	(_RISAF_SUBREG(n, m) + \
+					 _RISAF_SUBREG_NESTR_OFFSET)
+
 /* RISAF region register field description */
 /* _RISAF_REG_CFGR(n) register fields */
 #define _RISAF_REG_CFGR_BREN_SHIFT	U(0)
@@ -111,7 +128,40 @@
 #define _RISAF_REG_WRITE_OK(reg, cid)	\
 	((reg) & BIT((cid) + _RISAF_REG_CIDCFGR_WRENC_SHIFT))
 
+/* _RISAF_SUBREG_CFGR(n, m) register fields */
+#define _RISAF_SUBREG_CFGR_SREN_SHIFT	U(0)
+#define _RISAF_SUBREG_CFGR_SREN		BIT(_RISAF_SUBREG_CFGR_SREN_SHIFT)
+#define _RISAF_SUBREG_CFGR_RLOCK_SHIFT	U(1)
+#define _RISAF_SUBREG_CFGR_RLOCK	BIT(_RISAF_SUBREG_CFGR_RLOCK_SHIFT)
+#define _RISAF_SUBREG_CFGR_SRCID_SHIFT	U(4)
+#define _RISAF_SUBREG_CFGR_SRCID	GENMASK_32(6, 4)
+#define _RISAF_SUBREG_CFGR_SEC_SHIFT	U(8)
+#define _RISAF_SUBREG_CFGR_SEC		BIT(_RISAF_SUBREG_CFGR_SEC_SHIFT)
+#define _RISAF_SUBREG_CFGR_PRIV_SHIFT	U(9)
+#define _RISAF_SUBREG_CFGR_PRIV		BIT(_RISAF_SUBREG_CFGR_PRIV_SHIFT)
+#define _RISAF_SUBREG_CFGR_RDEN_SHIFT	U(12)
+#define _RISAF_SUBREG_CFGR_RDEN		BIT(_RISAF_SUBREG_CFGR_RDEN_SHIFT)
+#define _RISAF_SUBREG_CFGR_WREN_SHIFT	U(13)
+#define _RISAF_SUBREG_CFGR_WREN		BIT(_RISAF_SUBREG_CFGR_WREN_SHIFT)
+#define _RISAF_SUBREG_CFGR_ALL_MASK	(_RISAF_SUBREG_CFGR_SREN | \
+					 _RISAF_SUBREG_CFGR_RLOCK | \
+					 _RISAF_SUBREG_CFGR_SRCID | \
+					 _RISAF_SUBREG_CFGR_SEC | \
+					 _RISAF_SUBREG_CFGR_PRIV | \
+					 _RISAF_SUBREG_CFGR_RDEN | \
+					 _RISAF_SUBREG_CFGR_WREN)
+
+/* _RISAF_SUBREG_NESTR(n, m) register fields */
+#define _RISAF_SUBREG_NESTR_DCEN_SHIFT	U(2)
+#define _RISAF_SUBREG_NESTR_DCEN	BIT(_RISAF_SUBREG_NESTR_DCEN_SHIFT)
+#define _RISAF_SUBREG_NESTR_DCCID_SHIFT	U(4)
+#define _RISAF_SUBREG_NESTR_DCCID	GENMASK_32(6, 4)
+#define _RISAF_SUBREG_NESTR_ALL_MASK	(_RISAF_SUBREG_NESTR_DCEN | \
+					 _RISAF_SUBREG_NESTR_DCCID)
+
 #define _RISAF_GET_REGION_ID(cfg)	((cfg) & DT_RISAF_REG_ID_MASK)
+#define _RISAF_GET_SUBREGION_ID(cfg)	((cfg) & DT_RISAF_SUB_REG_ID_MASK)
+
 #define _RISAF_GET_REGION_CFG(cfg) \
 	(((((cfg) & DT_RISAF_EN_MASK) >> DT_RISAF_EN_SHIFT) << \
 	  _RISAF_REG_CFGR_BREN_SHIFT) | \
@@ -136,13 +186,31 @@
 #define _RISAF_NB_CID_SUPPORTED		U(8)
 
 /**
+ * struct stm32_risaf_subregion - RISAF memory subregion
+ *
+ * @addr: Subregion base address.
+ * @len: Length of the memory subregion.
+ * @cfg: Subregion configuration.
+ */
+struct stm32_risaf_subregion {
+	paddr_t addr;
+	size_t len;
+	uint32_t cfg;
+};
+
+/**
  * struct stm32_risaf_region - RISAF memory region
  *
+ * @subregions: Number of memory subregions, defined by the device tree
+ * configuration.
+ * @nsubregions: Number of memory subregions found in the device tree.
  * @addr: Region base address.
  * @len: Length of the memory region.
  * @cfg: Region configuration.
  */
 struct stm32_risaf_region {
+	struct stm32_risaf_subregion *subregions;
+	unsigned int nsubregions;
 	paddr_t addr;
 	size_t len;
 	uint32_t cfg;
@@ -182,11 +250,14 @@ struct stm32_risaf_pdata {
  * @max_base_regions: Number of subdivision of the memory range (A.K.A memory
  * regions) supported by the RISAF instance.
  * @granularity: Length of the smallest possible region size.
+ * @max_subregions: Number of subdivision of each memory region (A.K.A memory
+ * subregions) supported by the RISAF instance.
  */
 struct stm32_risaf_ddata {
 	uint32_t mask_regions;
 	uint32_t max_base_regions;
 	uint32_t granularity;
+	uint32_t max_subregions;
 };
 
 struct stm32_risaf_instance {
@@ -249,6 +320,40 @@ static uint32_t stm32_risaf_get_region_cid_config(uint32_t cfg)
 			 _RISAF_REG_CIDCFGR_WRENC_SHIFT) |
 	       SHIFT_U32((cfg & DT_RISAF_READ_MASK) >> DT_RISAF_READ_SHIFT,
 			 _RISAF_REG_CIDCFGR_RDENC_SHIFT);
+}
+
+static uint32_t stm32_risaf_get_subregion_config(uint32_t cfg)
+{
+	return SHIFT_U32((cfg & DT_RISAF_SUB_EN_MASK) >> DT_RISAF_SUB_EN_SHIFT,
+			 _RISAF_SUBREG_CFGR_SREN_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_RLOCK_MASK) >>
+			 DT_RISAF_SUB_RLOCK_SHIFT,
+			 _RISAF_SUBREG_CFGR_RLOCK_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_SRCID_MASK) >>
+			 DT_RISAF_SUB_SRCID_SHIFT,
+			 _RISAF_SUBREG_CFGR_SRCID_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_SEC_MASK) >>
+			 (DT_RISAF_SUB_SEC_SHIFT),
+			 _RISAF_SUBREG_CFGR_SEC_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_PRIV_MASK) >>
+			 (DT_RISAF_SUB_PRIV_SHIFT),
+			 _RISAF_SUBREG_CFGR_PRIV_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_RDEN_MASK) >>
+			 (DT_RISAF_SUB_RDEN_SHIFT),
+			 _RISAF_SUBREG_CFGR_RDEN_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_WREN_MASK) >>
+			 DT_RISAF_SUB_WREN_SHIFT,
+			 _RISAF_SUBREG_CFGR_WREN_SHIFT);
+}
+
+static uint32_t stm32_risaf_get_subregion_nest_config(uint32_t cfg)
+{
+	return SHIFT_U32((cfg & DT_RISAF_SUB_DCEN_MASK) >>
+			 DT_RISAF_SUB_DCEN_SHIFT,
+			 _RISAF_SUBREG_NESTR_DCEN_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SUB_DCCID_MASK) >>
+			 DT_RISAF_SUB_DCCID_SHIFT,
+			 _RISAF_SUBREG_NESTR_DCCID_SHIFT);
 }
 
 void stm32_risaf_clear_illegal_access_flags(void)
@@ -348,6 +453,33 @@ risaf_check_region_boundaries(struct stm32_risaf_instance *risaf,
 }
 
 static TEE_Result
+risaf_check_subregion_boundaries(struct stm32_risaf_instance *risaf,
+				 struct stm32_risaf_region *region,
+				 int subregion_id)
+{
+	struct stm32_risaf_subregion *subregion =
+					&region->subregions[subregion_id];
+
+	if (!core_is_buffer_inside(subregion->addr, subregion->len,
+				   region->addr, region->len)) {
+		EMSG("Subregion %#"PRIxPA"..%#"PRIxPA" outside Region %#"PRIxPA"...%#"PRIxPA,
+		     subregion->addr, subregion->addr + subregion->len - 1,
+		     region->addr, region->addr + region->len - 1);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	if (!risaf->ddata->granularity ||
+	    (subregion->addr % risaf->ddata->granularity) ||
+	    (subregion->len % risaf->ddata->granularity)) {
+		EMSG("RISAF %#"PRIxPA": subregion start/end address granularity not respected",
+		     risaf->pdata.base.pa);
+		return TEE_ERROR_BAD_PARAMETERS;
+	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result
 risaf_check_overlap(struct stm32_risaf_instance *risaf __maybe_unused,
 		    struct stm32_risaf_region *region, unsigned int index)
 {
@@ -431,6 +563,50 @@ static TEE_Result risaf_configure_region(struct stm32_risaf_instance *risaf,
 	return TEE_SUCCESS;
 }
 
+static TEE_Result risaf_configure_subregion(struct stm32_risaf_instance *risaf,
+					    uint32_t reg_id,
+					    uint32_t subreg_id, uint32_t cfg,
+					    uint32_t nest_cfg, uintptr_t saddr,
+					    uintptr_t eaddr)
+{
+	vaddr_t base = risaf_base(risaf);
+	uint32_t mask = risaf->ddata->mask_regions;
+
+	if (cfg & _RISAF_SUBREG_CFGR_RLOCK) {
+		EMSG("RISAF %#"PRIxPA": can't configure locked subregion",
+		     risaf->pdata.base.pa);
+		return TEE_ERROR_ACCESS_DENIED;
+	}
+
+	io_clrbits32(base + _RISAF_SUBREG_CFGR(reg_id, subreg_id),
+		     _RISAF_SUBREG_CFGR_SREN);
+
+	io_clrsetbits32(base + _RISAF_SUBREG_STARTR(reg_id, subreg_id), mask,
+			(saddr - risaf->pdata.mem_base) & mask);
+	io_clrsetbits32(base + _RISAF_SUBREG_ENDR(reg_id, subreg_id), mask,
+			(eaddr - risaf->pdata.mem_base) & mask);
+	io_clrsetbits32(base + _RISAF_SUBREG_CFGR(reg_id, subreg_id),
+			_RISAF_SUBREG_CFGR_ALL_MASK,
+			cfg & _RISAF_SUBREG_CFGR_ALL_MASK);
+
+	io_clrsetbits32(base + _RISAF_SUBREG_NESTR(reg_id, subreg_id),
+			_RISAF_SUBREG_NESTR_ALL_MASK,
+			nest_cfg & _RISAF_SUBREG_NESTR_ALL_MASK);
+
+	DMSG("RISAF %#"PRIxPA": region %02"PRIu32" - subregion %02"PRIu32
+	     "- start %#"PRIxPA" - end %#"PRIxPA" - cfg %#08"PRIx32
+	     " - nest %#08"PRIx32,
+	     risaf->pdata.base.pa, reg_id, subreg_id,
+	     risaf->pdata.mem_base +
+	     io_read32(base + _RISAF_SUBREG_STARTR(reg_id, subreg_id)),
+	     risaf->pdata.mem_base +
+	     io_read32(base + _RISAF_SUBREG_ENDR(reg_id, subreg_id)),
+	     io_read32(base + _RISAF_SUBREG_CFGR(reg_id, subreg_id)),
+	     io_read32(base + _RISAF_SUBREG_NESTR(reg_id, subreg_id)));
+
+	return TEE_SUCCESS;
+}
+
 static void risaf_print_version(struct stm32_risaf_instance *risaf)
 {
 	vaddr_t base = risaf_base(risaf);
@@ -490,6 +666,10 @@ static TEE_Result stm32_risaf_init_ddata(struct stm32_risaf_instance *risaf)
 	risaf->ddata->granularity = BIT((hwcfgr & _RISAF_HWCFGR_CFG3_MASK) >>
 					_RISAF_HWCFGR_CFG3_SHIFT);
 
+	/* Get maximum number of subregions */
+	risaf->ddata->max_subregions = (hwcfgr & _RISAF_HWCFGR_CFG2_MASK) >>
+					_RISAF_HWCFGR_CFG2_SHIFT;
+
 	return TEE_SUCCESS;
 }
 
@@ -504,6 +684,8 @@ static TEE_Result stm32_risaf_pm_resume(struct stm32_risaf_instance *risaf)
 		paddr_t end_addr = 0;
 		uint32_t cid_cfg = 0;
 		uint32_t cfg = 0;
+		unsigned int j = 0;
+		struct stm32_risaf_subregion *subreg = regions[i].subregions;
 
 		if (!id)
 			continue;
@@ -515,6 +697,24 @@ static TEE_Result stm32_risaf_pm_resume(struct stm32_risaf_instance *risaf)
 		if (risaf_configure_region(risaf, id, cfg, cid_cfg,
 					   start_addr, end_addr))
 			panic();
+
+		for (j = 0; j < regions[i].nsubregions; j++) {
+			uint32_t subreg_id =
+				_RISAF_GET_SUBREGION_ID(subreg[j].cfg);
+			uint32_t nest_cfg = 0;
+
+			cfg = stm32_risaf_get_subregion_config(subreg[j].cfg);
+			nest_cfg =
+			stm32_risaf_get_subregion_nest_config(subreg[j].cfg);
+
+			start_addr = subreg[j].addr;
+			end_addr = start_addr + subreg[j].len - 1U;
+
+			if (risaf_configure_subregion(risaf, id, subreg_id,
+						      cfg, nest_cfg,
+						      start_addr, end_addr))
+				panic();
+		}
 	}
 
 	return TEE_SUCCESS;
@@ -538,6 +738,8 @@ static TEE_Result stm32_risaf_pm_suspend(struct stm32_risaf_instance *risaf)
 		uint32_t enc = 0;
 		uint32_t sec = 0;
 		uint32_t en = 0;
+		size_t j = 0;
+		struct stm32_risaf_subregion *subreg = region->subregions + i;
 
 		/* Skip region not defined in DT, not configured in probe */
 		if (!id)
@@ -570,6 +772,65 @@ static TEE_Result stm32_risaf_pm_suspend(struct stm32_risaf_instance *risaf)
 		end_addr = io_read32(base + _RISAF_REG_ENDR(id));
 		region->addr = start_addr + risaf->pdata.mem_base;
 		region->len = end_addr - start_addr + 1;
+
+		for (j = 0; j < region->nsubregions; j++) {
+			uint32_t subreg_id = 0;
+			uint32_t rlock = 0;
+			uint32_t srcid = 0;
+			uint32_t nest = 0;
+			uint32_t dcen = 0;
+			uint32_t dccid = 0;
+
+			subreg_id = _RISAF_GET_SUBREGION_ID(subreg->cfg);
+			cfg = io_read32(base +
+					_RISAF_SUBREG_CFGR(id, subreg_id));
+			en = cfg & _RISAF_SUBREG_CFGR_SREN;
+			rlock = (cfg & _RISAF_SUBREG_CFGR_RLOCK) >>
+				_RISAF_SUBREG_CFGR_RLOCK_SHIFT;
+			srcid = (cfg & _RISAF_SUBREG_CFGR_SRCID) >>
+				_RISAF_SUBREG_CFGR_SRCID_SHIFT;
+			sec = (cfg & _RISAF_SUBREG_CFGR_SEC) >>
+			      _RISAF_SUBREG_CFGR_SEC_SHIFT;
+			priv = (cfg & _RISAF_SUBREG_CFGR_PRIV) >>
+			       _RISAF_SUBREG_CFGR_PRIV_SHIFT;
+			rden = (cfg & _RISAF_SUBREG_CFGR_RDEN) >>
+			       _RISAF_SUBREG_CFGR_RDEN_SHIFT;
+			wren = (cfg & _RISAF_SUBREG_CFGR_WREN) >>
+			       _RISAF_SUBREG_CFGR_WREN_SHIFT;
+
+			nest = io_read32(base +
+					 _RISAF_SUBREG_NESTR(id, subreg_id));
+			dcen = (nest & _RISAF_SUBREG_NESTR_DCEN) >>
+			       _RISAF_SUBREG_NESTR_DCEN_SHIFT;
+			dccid = (nest & _RISAF_SUBREG_NESTR_DCCID) >>
+				_RISAF_SUBREG_NESTR_DCCID_SHIFT;
+
+			subreg->cfg = id |
+				      SHIFT_U32(en, DT_RISAF_SUB_EN_SHIFT) |
+				      SHIFT_U32(rlock,
+						DT_RISAF_SUB_RLOCK_SHIFT) |
+				      SHIFT_U32(srcid,
+						DT_RISAF_SUB_SRCID_SHIFT) |
+				      SHIFT_U32(sec,
+						DT_RISAF_SUB_SEC_SHIFT) |
+				      SHIFT_U32(priv,
+						DT_RISAF_SUB_PRIV_SHIFT) |
+				      SHIFT_U32(rden,
+						DT_RISAF_SUB_RDEN_SHIFT) |
+				      SHIFT_U32(wren,
+						DT_RISAF_SUB_WREN_SHIFT) |
+				      SHIFT_U32(dcen,
+						DT_RISAF_SUB_DCEN_SHIFT) |
+				      SHIFT_U32(dccid,
+						DT_RISAF_SUB_DCCID_SHIFT);
+
+			start_addr = io_read32(base +
+					  _RISAF_SUBREG_STARTR(id, subreg_id));
+			end_addr = io_read32(base +
+					  _RISAF_SUBREG_ENDR(id, subreg_id));
+			subreg->addr = start_addr + risaf->pdata.mem_base;
+			subreg->len = end_addr - start_addr + 1;
+		}
 	}
 
 	return TEE_SUCCESS;
@@ -805,6 +1066,7 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 
 	for (i = 0; i < nregions; i++) {
 		const fdt32_t *prop = NULL;
+		const fdt32_t *subconf_list = NULL;
 		paddr_t start_addr = 0;
 		paddr_t end_addr = 0;
 		uint32_t cid_cfg = 0;
@@ -812,6 +1074,8 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 		uint32_t cfg = 0;
 		uint32_t id = 0;
 		int pnode = 0;
+		unsigned int j = 0;
+		struct stm32_risaf_subregion *subreg = NULL;
 
 		phandle = fdt32_to_cpu(*(conf_list + i));
 		pnode = fdt_node_offset_by_phandle(fdt, phandle);
@@ -862,6 +1126,77 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 		if (risaf_configure_region(risaf, id, cfg, cid_cfg,
 					   start_addr, end_addr))
 			panic();
+
+		/*  Consider subregions if any */
+		subconf_list = fdt_getprop(fdt, pnode, "memory-region", &len);
+		if (!subconf_list)
+			continue;
+
+		regions[i].nsubregions = (unsigned int)len / sizeof(uint32_t);
+
+		if (regions[i].nsubregions > risaf->ddata->max_subregions)
+			panic();
+
+		regions[i].subregions =	calloc(regions[i].nsubregions,
+					       sizeof(*regions[i].subregions));
+		if (regions[i].nsubregions && !regions[i].subregions) {
+			EMSG("Out of memory in node %s",
+			     fdt_get_name(fdt, pnode, NULL));
+			panic();
+		}
+
+		subreg = regions[i].subregions;
+
+		for (j = 0; j < regions[i].nsubregions; j++) {
+			int subnode = 0;
+			uint32_t subreg_id = 0;
+			uint32_t nest_cfg = 0;
+
+			phandle = fdt32_to_cpu(*(subconf_list + j));
+			subnode = fdt_node_offset_by_phandle(fdt, phandle);
+			if (subnode < 0)
+				continue;
+
+			subreg[j].addr = fdt_reg_base_address(fdt, subnode);
+			subreg[j].len = fdt_reg_size(fdt, subnode);
+			if (subreg[j].addr == DT_INFO_INVALID_REG ||
+			    subreg[j].len == DT_INFO_INVALID_REG_SIZE) {
+				EMSG("Invalid config in node %s",
+				     fdt_get_name(fdt, subnode, NULL));
+				panic();
+			}
+
+			prop = fdt_getprop(fdt, subnode, "st,protreg", NULL);
+			if (!prop)
+				continue;
+
+			subreg[j].cfg = fdt32_to_cpu(*prop);
+
+			DMSG("RISAF %#"PRIxPA": [SUB] cfg %#08"PRIx32
+			     "- addr %#"PRIxPA" - len %#zx",
+			     risaf->pdata.base.pa, subreg[j].cfg,
+			     subreg[j].addr, subreg[j].len);
+
+			if (risaf_check_subregion_boundaries(risaf,
+							     &regions[i], j))
+				panic();
+
+			subreg_id = _RISAF_GET_SUBREGION_ID(subreg[j].cfg);
+			assert(subreg_id < risaf->ddata->max_subregions);
+
+			cfg = stm32_risaf_get_subregion_config(subreg[j].cfg);
+
+			nest_cfg =
+			stm32_risaf_get_subregion_nest_config(subreg[j].cfg);
+
+			start_addr = subreg[j].addr;
+			end_addr = start_addr + subreg[j].len - 1U;
+
+			if (risaf_configure_subregion(risaf, id, subreg_id,
+						      cfg, nest_cfg,
+						      start_addr, end_addr))
+				panic();
+		}
 	}
 
 	controller = calloc(1, sizeof(*controller));
