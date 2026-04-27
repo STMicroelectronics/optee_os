@@ -217,7 +217,6 @@ $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_STM32MP13_REGULATOR_IOD,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
 $(call force,CFG_WITH_NSEC_GPIOS,n)
-CFG_STM32_CPU_OPP ?= y
 CFG_STM32MP_OPP_COUNT ?= 3
 # Measured latency on STM32MP13 is around 650uS so set 1mS
 CFG_STM32MP_OPP_LATENCY_US ?= 1000
@@ -302,6 +301,7 @@ endif
 $(call force,CFG_STM32MP1_SCMI_SHM_SIZE,0x1000)
 
 CFG_STM32_BSEC ?= y
+CFG_STM32_CPU_OPP ?= y
 CFG_STM32_CRYP ?= y
 CFG_STM32_ETZPC ?= y
 CFG_STM32_EXTI ?= y
@@ -377,8 +377,6 @@ ifeq ($(CFG_STM32_BSEC_PTA),y)
 $(call force,CFG_STM32_BSEC,y,Required by CFG_STM32_BSEC_PTA)
 endif
 
-# Default disable CPU OPP support
-CFG_STM32_CPU_OPP ?= n
 
 # Force enable SCMI PTA support
 $(call force,CFG_SCMI_PTA,y)
