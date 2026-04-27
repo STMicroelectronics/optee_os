@@ -32,7 +32,7 @@
 #include "clk-stm32-core.h"
 
 #ifdef CFG_STM32_CPU_OPP
-#define MAX_OPP		PLAT_MAX_OPP_NB
+#define MAX_OPP		CFG_STM32MP_OPP_COUNT
 #else
 #define MAX_OPP		(2U)
 #endif
