@@ -363,14 +363,12 @@ void stm32_risaf_clear_illegal_access_flags(void)
 	SLIST_FOREACH(risaf, &risaf_list, link) {
 		vaddr_t base = io_pa_or_va_secure(&risaf->pdata.base, 1);
 
-		if (clk_enable(risaf->pdata.clock))
-			panic("Can't enable RISAF clock");
+		if (!clk_is_enabled(risaf->pdata.clock))
+			continue;
 
 		if (io_read32(base + _RISAF_IASR))
 			io_write32(base + _RISAF_IACR, _RISAF_IACR_CAEF |
 				   _RISAF_IACR_IAEF0 | _RISAF_IACR_IAEF1);
-
-		clk_disable(risaf->pdata.clock);
 	}
 }
 
@@ -384,14 +382,10 @@ void stm32_risaf_print_erroneous_data(void)
 	SLIST_FOREACH(risaf, &risaf_list, link) {
 		vaddr_t base = io_pa_or_va_secure(&risaf->pdata.base, 1);
 
-		if (clk_enable(risaf->pdata.clock))
-			panic("Can't enable RISAF clock");
-
 		/* Check if faulty address on this RISAF */
-		if (!io_read32(base + _RISAF_IASR)) {
-			clk_disable(risaf->pdata.clock);
+		if (!clk_is_enabled(risaf->pdata.clock) ||
+		    !io_read32(base + _RISAF_IASR))
 			continue;
-		}
 
 		IMSG("\n\nDUMPING DATA FOR %s\n\n", risaf->pdata.risaf_name);
 		IMSG("=====================================================");
@@ -425,7 +419,6 @@ void stm32_risaf_print_erroneous_data(void)
 		}
 
 		IMSG("=====================================================\n");
-		clk_disable(risaf->pdata.clock);
 	};
 }
 
