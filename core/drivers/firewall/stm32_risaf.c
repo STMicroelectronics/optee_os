@@ -363,11 +363,14 @@ void stm32_risaf_clear_illegal_access_flags(void)
 	SLIST_FOREACH(risaf, &risaf_list, link) {
 		vaddr_t base = io_pa_or_va_secure(&risaf->pdata.base, 1);
 
-		if (!io_read32(base + _RISAF_IASR))
-			continue;
+		if (clk_enable(risaf->pdata.clock))
+			panic("Can't enable RISAF clock");
 
-		io_write32(base + _RISAF_IACR, _RISAF_IACR_CAEF |
-			   _RISAF_IACR_IAEF0 | _RISAF_IACR_IAEF1);
+		if (io_read32(base + _RISAF_IASR))
+			io_write32(base + _RISAF_IACR, _RISAF_IACR_CAEF |
+				   _RISAF_IACR_IAEF0 | _RISAF_IACR_IAEF1);
+
+		clk_disable(risaf->pdata.clock);
 	}
 }
 
@@ -381,9 +384,14 @@ void stm32_risaf_print_erroneous_data(void)
 	SLIST_FOREACH(risaf, &risaf_list, link) {
 		vaddr_t base = io_pa_or_va_secure(&risaf->pdata.base, 1);
 
+		if (clk_enable(risaf->pdata.clock))
+			panic("Can't enable RISAF clock");
+
 		/* Check if faulty address on this RISAF */
-		if (!io_read32(base + _RISAF_IASR))
+		if (!io_read32(base + _RISAF_IASR)) {
+			clk_disable(risaf->pdata.clock);
 			continue;
+		}
 
 		IMSG("\n\nDUMPING DATA FOR %s\n\n", risaf->pdata.risaf_name);
 		IMSG("=====================================================");
@@ -417,6 +425,7 @@ void stm32_risaf_print_erroneous_data(void)
 		}
 
 		IMSG("=====================================================\n");
+		clk_disable(risaf->pdata.clock);
 	};
 }
 
@@ -841,10 +850,16 @@ stm32_risaf_pm(enum pm_op op, unsigned int pm_hint,
 	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
 		return TEE_SUCCESS;
 
+	res = clk_enable(risaf->pdata.clock);
+	if (res)
+		return res;
+
 	if (op == PM_OP_RESUME)
 		res = stm32_risaf_pm_resume(risaf);
 	else
 		res = stm32_risaf_pm_suspend(risaf);
+
+	clk_disable(risaf->pdata.clock);
 
 	return res;
 }
@@ -940,6 +955,10 @@ static TEE_Result stm32_risaf_acquire_access(struct firewall_query *fw,
 	if (res)
 		return res;
 
+	res = clk_enable(risaf->pdata.clock);
+	if (res)
+		return res;
+
 	region = &risaf->pdata.regions[region_idx];
 	id = _RISAF_GET_REGION_ID(region->cfg);
 
@@ -959,8 +978,10 @@ static TEE_Result stm32_risaf_acquire_access(struct firewall_query *fw,
 		    !(cfgr & _RISAF_REG_CFGR_SEC) ||
 		    (cidcfgr &&
 		     ((read && !_RISAF_REG_READ_OK(cidcfgr, RIF_CID1)) ||
-		      (write && !_RISAF_REG_WRITE_OK(cidcfgr, RIF_CID1)))))
-			return TEE_ERROR_ACCESS_DENIED;
+		      (write && !_RISAF_REG_WRITE_OK(cidcfgr, RIF_CID1))))) {
+			res = TEE_ERROR_ACCESS_DENIED;
+			goto err;
+		}
 	} else {
 		/*
 		 * Access is denied if the subregion is disabled and OP-TEE does
@@ -974,22 +995,31 @@ static TEE_Result stm32_risaf_acquire_access(struct firewall_query *fw,
 		cfgr = io_read32(base + _RISAF_SUBREG_CFGR(id, sid));
 
 		if ((!(cfgr & _RISAF_SUBREG_CFGR_SREN) && !is_tdcid) ||
-		    !(cfgr & _RISAF_SUBREG_CFGR_SEC))
-			return TEE_ERROR_ACCESS_DENIED;
+		    !(cfgr & _RISAF_SUBREG_CFGR_SEC)) {
+			res = TEE_ERROR_ACCESS_DENIED;
+			goto err;
+		}
 
 		if ((cfgr & _RISAF_SUBREG_CFGR_SREN) &&
 		    (((cfgr & _RISAF_SUBREG_CFGR_SRCID) >>
 		      _RISAF_SUBREG_CFGR_SRCID_SHIFT) != RIF_CID1) &&
-		    (read || write))
-			return TEE_ERROR_ACCESS_DENIED;
+		    (read || write)) {
+			res = TEE_ERROR_ACCESS_DENIED;
+			goto err;
+		}
 
 		if ((cfgr & _RISAF_SUBREG_CFGR_SREN) &&
 		    ((read && !(cfgr & _RISAF_SUBREG_CFGR_RDEN)) ||
-		    (write && !(cfgr & _RISAF_SUBREG_CFGR_WREN))))
-			return TEE_ERROR_ACCESS_DENIED;
+		    (write && !(cfgr & _RISAF_SUBREG_CFGR_WREN)))) {
+			res = TEE_ERROR_ACCESS_DENIED;
+			goto err;
+		}
 	}
 
-	return TEE_SUCCESS;
+err:
+	clk_disable(risaf->pdata.clock);
+
+	return res;
 }
 
 static TEE_Result stm32_risaf_reconfigure_area(struct firewall_query *fw,
@@ -1026,6 +1056,10 @@ static TEE_Result stm32_risaf_reconfigure_area(struct firewall_query *fw,
 	region = &risaf->pdata.regions[region_idx];
 	id = _RISAF_GET_REGION_ID(region->cfg);
 
+	res = clk_enable(risaf->pdata.clock);
+	if (res)
+		return res;
+
 	exceptions = cpu_spin_lock_xsave(&risaf->pdata.conf_lock);
 
 	if (is_region) {
@@ -1052,6 +1086,8 @@ static TEE_Result stm32_risaf_reconfigure_area(struct firewall_query *fw,
 	}
 
 	cpu_spin_unlock_xrestore(&risaf->pdata.conf_lock, exceptions);
+
+	clk_disable(risaf->pdata.clock);
 
 	return res;
 }
@@ -1251,6 +1287,8 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 				panic();
 		}
 	}
+
+	clk_disable(risaf->pdata.clock);
 
 	controller = calloc(1, sizeof(*controller));
 	if (!controller)
