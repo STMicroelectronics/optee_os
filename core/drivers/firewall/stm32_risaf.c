@@ -856,17 +856,75 @@ stm32_risaf_pm(enum pm_op op, unsigned int pm_hint,
 	return res;
 }
 
+static TEE_Result risaf_analyze_qconfig(struct stm32_risaf_instance *risaf,
+					uint32_t q_config, paddr_t paddr,
+					size_t size, unsigned int *region_idx,
+					unsigned int *subregion_idx,
+					bool *is_region)
+{
+	struct stm32_risaf_region *region = NULL;
+	struct stm32_risaf_subregion *subregion = NULL;
+	uint32_t reg_id = 0;
+	uint32_t subreg_id = 0;
+	bool region_found = false;
+	bool subregion_found = false;
+	unsigned int i = 0;
+	unsigned int j = 0;
+
+	reg_id = _RISAF_GET_REGION_ID(q_config);
+	subreg_id = _RISAF_GET_SUBREGION_ID(q_config);
+
+	for (i = 0; i < risaf->pdata.nregions; i++) {
+		region = &risaf->pdata.regions[i];
+		if (reg_id == _RISAF_GET_REGION_ID(region->cfg)) {
+			if (region->addr == paddr && region->len == size) {
+				region_found = true;
+				break;
+			}
+		}
+		if (subreg_id >= region->nsubregions)
+			continue;
+		for (j = 0; j < region->nsubregions; j++) {
+			subregion = &risaf->pdata.regions[i].subregions[j];
+			if (subreg_id ==
+			    _RISAF_GET_SUBREGION_ID(subregion->cfg)) {
+				if (subregion->addr == paddr &&
+				    subregion->len == size) {
+					subregion_found = true;
+					break;
+				}
+			}
+		}
+		if (subregion_found)
+			break;
+	}
+
+	if (region_found)
+		*is_region = true;
+	else if (subregion_found)
+		*is_region = false;
+	else if (!region_found && !subregion_found)
+		return TEE_ERROR_ITEM_NOT_FOUND;
+
+	*region_idx = i;
+	*subregion_idx = j;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result stm32_risaf_acquire_access(struct firewall_query *fw,
 					     paddr_t paddr, size_t size,
 					     bool read, bool write)
 {
 	struct stm32_risaf_instance *risaf = NULL;
 	struct stm32_risaf_region *region = NULL;
-	uint32_t cidcfgr = 0;
-	unsigned int i = 0;
 	uint32_t cfgr = 0;
 	vaddr_t base = 0;
 	uint32_t id = 0;
+	unsigned int region_idx = 0;
+	unsigned int subregion_idx = 0;
+	bool is_region = false;
+	TEE_Result res = TEE_ERROR_ACCESS_DENIED;
 
 	assert(fw->ctrl->priv && (read || write));
 
@@ -884,53 +942,75 @@ static TEE_Result stm32_risaf_acquire_access(struct firewall_query *fw,
 	 * follows:
 	 * firewall->args[0]: Region configuration
 	 */
-	id = _RISAF_GET_REGION_ID(fw->args[0]);
+	res = risaf_analyze_qconfig(risaf, fw->args[0], paddr, size,
+				    &region_idx, &subregion_idx, &is_region);
+	if (res)
+		return res;
 
-	if (!id || id >= risaf->pdata.nregions)
-		return TEE_ERROR_BAD_PARAMETERS;
+	region = &risaf->pdata.regions[region_idx];
+	id = _RISAF_GET_REGION_ID(region->cfg);
 
-	for (i = 0; i < risaf->pdata.nregions; i++) {
-		if (id == _RISAF_GET_REGION_ID(risaf->pdata.regions[i].cfg)) {
-			region = &risaf->pdata.regions[i];
-			if (region->addr != paddr || region->len != size)
-				return TEE_ERROR_GENERIC;
-			break;
-		}
-	}
-	if (!region)
-		return TEE_ERROR_ITEM_NOT_FOUND;
+	if (is_region) {
+		/*
+		 * Access is denied if the region is disabled and OP-TEE does
+		 * not run as TDCID, or the region is not secure, or if it is
+		 * not accessible in read and/or write mode, if requested, by
+		 * OP-TEE CID.
+		 */
+		uint32_t cidcfgr = 0;
 
-	cfgr = io_read32(base + _RISAF_REG_CFGR(id));
-	cidcfgr = io_read32(base + _RISAF_REG_CIDCFGR(id));
+		cfgr = io_read32(base + _RISAF_REG_CFGR(id));
+		cidcfgr = io_read32(base + _RISAF_REG_CIDCFGR(id));
 
-	/*
-	 * Access is denied if the region is disabled and OP-TEE does not run as
-	 * TDCID, or the region is not secure, or if it is not accessible in
-	 * read and/or write mode, if requested, by OP-TEE CID.
-	 */
-	if (!(cfgr & _RISAF_REG_CFGR_BREN) && !is_tdcid)
-		return TEE_ERROR_ACCESS_DENIED;
+		if ((!(cfgr & _RISAF_REG_CFGR_BREN) && !is_tdcid) ||
+		    !(cfgr & _RISAF_REG_CFGR_SEC) ||
+		    (cidcfgr &&
+		     ((read && !_RISAF_REG_READ_OK(cidcfgr, RIF_CID1)) ||
+		      (write && !_RISAF_REG_WRITE_OK(cidcfgr, RIF_CID1)))))
+			return TEE_ERROR_ACCESS_DENIED;
+	} else {
+		/*
+		 * Access is denied if the subregion is disabled and OP-TEE does
+		 * not run as TDCID, or the subregion is not secure, or if it is
+		 * not accessible in read and/or write mode, if requested, by
+		 * OP-TEE CID.
+		 */
+		uint32_t sid =
+		_RISAF_GET_SUBREGION_ID(region->subregions[subregion_idx].cfg);
 
-	if ((cfgr & _RISAF_REG_CFGR_BREN) &&
-	    (!(cfgr & _RISAF_REG_CFGR_SEC) ||
-	     (read && !_RISAF_REG_READ_OK(cidcfgr, RIF_CID1)) ||
-	     (write && !_RISAF_REG_WRITE_OK(cidcfgr, RIF_CID1)))) {
-		return TEE_ERROR_ACCESS_DENIED;
+		cfgr = io_read32(base + _RISAF_SUBREG_CFGR(id, sid));
+
+		if ((!(cfgr & _RISAF_SUBREG_CFGR_SREN) && !is_tdcid) ||
+		    !(cfgr & _RISAF_SUBREG_CFGR_SEC))
+			return TEE_ERROR_ACCESS_DENIED;
+
+		if ((cfgr & _RISAF_SUBREG_CFGR_SREN) &&
+		    (((cfgr & _RISAF_SUBREG_CFGR_SRCID) >>
+		      _RISAF_SUBREG_CFGR_SRCID_SHIFT) != RIF_CID1) &&
+		    (read || write))
+			return TEE_ERROR_ACCESS_DENIED;
+
+		if ((cfgr & _RISAF_SUBREG_CFGR_SREN) &&
+		    ((read && !(cfgr & _RISAF_SUBREG_CFGR_RDEN)) ||
+		    (write && !(cfgr & _RISAF_SUBREG_CFGR_WREN))))
+			return TEE_ERROR_ACCESS_DENIED;
 	}
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result stm32_risaf_reconfigure_region(struct firewall_query *fw,
-						 paddr_t paddr, size_t size)
+static TEE_Result stm32_risaf_reconfigure_area(struct firewall_query *fw,
+					       paddr_t paddr, size_t size)
 {
 	struct stm32_risaf_instance *risaf = NULL;
 	struct stm32_risaf_region *region = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint32_t exceptions = 0;
-	uint32_t q_cfg = 0;
-	unsigned int i = 0;
 	uint32_t id = 0;
+	uint32_t q_cfg = 0;
+	unsigned int region_idx = 0;
+	unsigned int subregion_idx = 0;
+	bool is_region = false;
 
 	assert(fw->ctrl->priv);
 
@@ -940,36 +1020,51 @@ static TEE_Result stm32_risaf_reconfigure_region(struct firewall_query *fw,
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/*
-	 * RISAF region configuration, we assume the query is as
-	 * follows:
-	 * firewall->args[0]: Region configuration
+	 * RISAF region or subregion configuration.
+	 * We assume the query is as follows:
+	 * firewall->args[0]: region or subregion configuration
 	 */
 	q_cfg = fw->args[0];
-	id = _RISAF_GET_REGION_ID(q_cfg);
+	res = risaf_analyze_qconfig(risaf, q_cfg, paddr, size, &region_idx,
+				    &subregion_idx, &is_region);
+	if (res)
+		return res;
 
-	if (!id || id >= risaf->pdata.nregions)
-		return TEE_ERROR_BAD_PARAMETERS;
-
-	for (i = 0; i < risaf->pdata.nregions; i++) {
-		if (id == _RISAF_GET_REGION_ID(risaf->pdata.regions[i].cfg)) {
-			region = &risaf->pdata.regions[i];
-			if (region->addr != paddr || region->len != size)
-				return TEE_ERROR_GENERIC;
-			break;
-		}
-	}
-	if (!region)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	DMSG("Reconfiguring %s region ID: %"PRIu32, risaf->pdata.risaf_name,
-	     id);
+	region = &risaf->pdata.regions[region_idx];
+	id = _RISAF_GET_REGION_ID(region->cfg);
 
 	exceptions = cpu_spin_lock_xsave(&risaf->pdata.conf_lock);
-	res = risaf_configure_region(risaf, id,
-				     stm32_risaf_get_region_config(q_cfg),
-				     stm32_risaf_get_region_cid_config(q_cfg),
-				     region->addr,
-				     region->addr + region->len - 1);
+
+	if (is_region) {
+		DMSG("Reconfiguring %s region ID: %"PRIu32,
+		     risaf->pdata.risaf_name, id);
+		res =
+		risaf_configure_region(risaf, id,
+				       stm32_risaf_get_region_config(q_cfg),
+				       stm32_risaf_get_region_cid_config(q_cfg),
+				       region->addr,
+				       region->addr + region->len - 1);
+	} else {
+		struct stm32_risaf_subregion *subreg = NULL;
+		uint32_t subreg_id = 0;
+		uint32_t cfg = 0;
+		uint32_t nest = 0;
+
+		subreg = &region->subregions[subregion_idx];
+		subreg_id = _RISAF_GET_SUBREGION_ID(subreg->cfg);
+
+		DMSG("Reconfiguring %s subregion ID: %"PRIu32
+		     " region ID: %"PRIu32,
+		     risaf->pdata.risaf_name, subreg_id, id);
+
+		cfg = stm32_risaf_get_subregion_config(q_cfg);
+		nest = stm32_risaf_get_subregion_nest_config(q_cfg);
+
+		res =
+		risaf_configure_subregion(risaf, id, subreg_id, cfg, nest,
+					  subreg->addr,
+					  subreg->addr + subreg->len - 1);
+	}
 
 	cpu_spin_unlock_xrestore(&risaf->pdata.conf_lock, exceptions);
 
@@ -978,7 +1073,7 @@ static TEE_Result stm32_risaf_reconfigure_region(struct firewall_query *fw,
 
 static const struct firewall_controller_ops firewall_ops = {
 	.acquire_memory_access = stm32_risaf_acquire_access,
-	.set_memory_conf = stm32_risaf_reconfigure_region,
+	.set_memory_conf = stm32_risaf_reconfigure_area,
 };
 
 static TEE_Result stm32_risaf_probe(const void *fdt, int node,
