@@ -468,7 +468,6 @@ void stm32_risaf_is_locked(struct stm32_risaf_instance *risaf, bool *state)
 static TEE_Result stm32_risaf_init_ddata(struct stm32_risaf_instance *risaf)
 {
 	vaddr_t base = risaf_base(risaf);
-	uint32_t granularity = 0;
 	uint32_t mask_lsb = 0;
 	uint32_t mask_msb = 0;
 	uint32_t hwcfgr = 0;
@@ -488,10 +487,8 @@ static TEE_Result stm32_risaf_init_ddata(struct stm32_risaf_instance *risaf)
 					 _RISAF_HWCFGR_CFG1_SHIFT;
 
 	/* Get IP region granularity */
-	granularity = io_read32(risaf_base(risaf) + _RISAF_HWCFGR);
-	granularity = BIT((granularity & _RISAF_HWCFGR_CFG3_MASK) >>
-			  _RISAF_HWCFGR_CFG3_SHIFT);
-	risaf->ddata->granularity = granularity;
+	risaf->ddata->granularity = BIT((hwcfgr & _RISAF_HWCFGR_CFG3_MASK) >>
+					_RISAF_HWCFGR_CFG3_SHIFT);
 
 	return TEE_SUCCESS;
 }
