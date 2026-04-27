@@ -683,16 +683,24 @@ static TEE_Result stm32_risaf_init_ddata(struct stm32_risaf_instance *risaf)
 	mask_msb = mask_lsb + ((hwcfgr & _RISAF_HWCFGR_CFG4_MASK) >>
 			       _RISAF_HWCFGR_CFG4_SHIFT) - 1U;
 	risaf->ddata->mask_regions = GENMASK_32(mask_msb, mask_lsb);
-	risaf->ddata->max_base_regions = (hwcfgr & _RISAF_HWCFGR_CFG1_MASK) >>
-					 _RISAF_HWCFGR_CFG1_SHIFT;
+	/* hw_nregions take account the base0, which is not configurable */
+	risaf->ddata->max_base_regions = ((hwcfgr & _RISAF_HWCFGR_CFG1_MASK) >>
+					  _RISAF_HWCFGR_CFG1_SHIFT) - 1;
 
 	/* Get IP region granularity */
 	risaf->ddata->granularity = BIT((hwcfgr & _RISAF_HWCFGR_CFG3_MASK) >>
 					_RISAF_HWCFGR_CFG3_SHIFT);
 
-	/* Get maximum number of subregions */
-	risaf->ddata->max_subregions = (hwcfgr & _RISAF_HWCFGR_CFG2_MASK) >>
-					_RISAF_HWCFGR_CFG2_SHIFT;
+	/*
+	 * Get maximum number of subregions.
+	 * hw_nsubregions reflects the total number of subregions A and B.
+	 * It also takes into account the base0, decrement it.
+	 * Convert it to the number of subregions per region.
+	 */
+	mask_lsb = ((hwcfgr & _RISAF_HWCFGR_CFG2_MASK) >>
+		   _RISAF_HWCFGR_CFG2_SHIFT) - 1;
+	risaf->ddata->max_subregions = (mask_lsb * 2) /
+				       risaf->ddata->max_base_regions;
 
 	return TEE_SUCCESS;
 }
@@ -1226,7 +1234,7 @@ static TEE_Result stm32_risaf_probe(const void *fdt, int node,
 			panic();
 
 		id = _RISAF_GET_REGION_ID(regions[i].cfg);
-		assert(id < risaf->ddata->max_base_regions);
+		assert(id <= risaf->ddata->max_base_regions);
 
 		if (risaf_configure_region(risaf, &regions[i]))
 			panic();
