@@ -9,6 +9,8 @@
 #include <drivers/stm32_bsec.h>
 #include <drivers/rstctrl.h>
 #include <drivers/stm32_rif.h>
+#include <drivers/stm32_risab.h>
+#include <drivers/stm32_risaf.h>
 #include <drivers/stm32_serc.h>
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
@@ -139,6 +141,14 @@ void boot_secondary_init_intc(void)
 #ifdef CFG_STM32_RIF
 void stm32_rif_access_violation_action(void)
 {
+#ifdef CFG_STM32_RISAF
+	stm32_risaf_print_erroneous_data();
+	stm32_risaf_clear_illegal_access_flags();
+#endif
+#ifdef CFG_STM32_RISAB
+	stm32_risab_print_erroneous_data();
+	stm32_risab_clear_illegal_access_flags();
+#endif
 }
 #endif /* CFG_STM32_RIF */
 
