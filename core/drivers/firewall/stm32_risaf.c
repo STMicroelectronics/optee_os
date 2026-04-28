@@ -162,27 +162,6 @@
 #define _RISAF_GET_REGION_ID(cfg)	((cfg) & DT_RISAF_REG_ID_MASK)
 #define _RISAF_GET_SUBREGION_ID(cfg)	((cfg) & DT_RISAF_SUB_REG_ID_MASK)
 
-#define _RISAF_GET_REGION_CFG(cfg) \
-	(((((cfg) & DT_RISAF_EN_MASK) >> DT_RISAF_EN_SHIFT) << \
-	  _RISAF_REG_CFGR_BREN_SHIFT) | \
-	 ((((cfg) & DT_RISAF_SEC_MASK) >> DT_RISAF_SEC_SHIFT) << \
-	  _RISAF_REG_CFGR_SEC_SHIFT) | \
-	 ((((cfg) & DT_RISAF_ENC_MASK) >> (DT_RISAF_ENC_SHIFT + 1)) << \
-	  _RISAF_REG_CFGR_ENC_SHIFT) | \
-	 ((((cfg) & DT_RISAF_PRIV_MASK) >> DT_RISAF_PRIV_SHIFT) << \
-	  _RISAF_REG_CFGR_PRIVC_SHIFT))
-#define _RISAF_GET_REGION_CID_CFG(cfg) \
-	(((((cfg) & DT_RISAF_WRITE_MASK) >> DT_RISAF_WRITE_SHIFT) << \
-	  _RISAF_REG_CIDCFGR_WRENC_SHIFT) | \
-	 ((((cfg) & DT_RISAF_READ_MASK) >> DT_RISAF_READ_SHIFT) << \
-	  _RISAF_REG_CIDCFGR_RDENC_SHIFT))
-
-#ifdef CFG_CORE_RESERVED_SHM
-#define TZDRAM_RESERVED_SIZE		(TZDRAM_SIZE + TEE_SHMEM_SIZE)
-#else
-#define TZDRAM_RESERVED_SIZE		TZDRAM_SIZE
-#endif
-
 #define _RISAF_NB_CID_SUPPORTED		U(8)
 
 /**
@@ -304,6 +283,16 @@ static vaddr_t risaf_base(struct stm32_risaf_instance *risaf)
 
 static uint32_t stm32_risaf_get_region_config(uint32_t cfg)
 {
+#if defined(CFG_STM32MP21)
+	return SHIFT_U32((cfg & DT_RISAF_EN_MASK) >> DT_RISAF_EN_SHIFT,
+			 _RISAF_REG_CFGR_BREN_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_SEC_MASK) >> DT_RISAF_SEC_SHIFT,
+			 _RISAF_REG_CFGR_SEC_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_ENC_MASK) >> (DT_RISAF_ENC_SHIFT),
+			 _RISAF_REG_CFGR_ENC_SHIFT) |
+	       SHIFT_U32((cfg & DT_RISAF_PRIV_MASK) >> DT_RISAF_PRIV_SHIFT,
+			 _RISAF_REG_CFGR_PRIVC_SHIFT);
+#else /* defined(CFG_STM32MP21) */
 	return SHIFT_U32((cfg & DT_RISAF_EN_MASK) >> DT_RISAF_EN_SHIFT,
 			 _RISAF_REG_CFGR_BREN_SHIFT) |
 	       SHIFT_U32((cfg & DT_RISAF_SEC_MASK) >> DT_RISAF_SEC_SHIFT,
@@ -312,6 +301,7 @@ static uint32_t stm32_risaf_get_region_config(uint32_t cfg)
 			 _RISAF_REG_CFGR_ENC_SHIFT) |
 	       SHIFT_U32((cfg & DT_RISAF_PRIV_MASK) >> DT_RISAF_PRIV_SHIFT,
 			 _RISAF_REG_CFGR_PRIVC_SHIFT);
+#endif /* defined(CFG_STM32MP21) */
 }
 
 static uint32_t stm32_risaf_get_region_cid_config(uint32_t cfg)
@@ -771,12 +761,7 @@ static TEE_Result stm32_risaf_pm_suspend(struct stm32_risaf_instance *risaf)
 		cfg = io_read32(base + _RISAF_REG_CFGR(id));
 		en = cfg & _RISAF_REG_CFGR_BREN;
 		sec = (cfg & _RISAF_REG_CFGR_SEC) >> _RISAF_REG_CFGR_SEC_SHIFT;
-#if defined(CFG_STM32MP21)
-		enc = ((cfg & _RISAF_REG_CFGR_ENC) >>
-		       _RISAF_REG_CFGR_ENC_SHIFT) << DT_RISAF_ENC_SHIFT;
-#else /* defined(CFG_STM32MP21) */
 		enc = (cfg & _RISAF_REG_CFGR_ENC) >> _RISAF_REG_CFGR_ENC_SHIFT;
-#endif /* defined(CFG_STM32MP21) */
 		priv = (cfg & _RISAF_REG_CFGR_PRIVC_MASK) >>
 		       _RISAF_REG_CFGR_PRIVC_SHIFT;
 
@@ -785,12 +770,21 @@ static TEE_Result stm32_risaf_pm_suspend(struct stm32_risaf_instance *risaf)
 		wren = (cid_cfg & _RISAF_REG_CIDCFGR_WRENC_MASK) >>
 		       _RISAF_REG_CIDCFGR_WRENC_SHIFT;
 
+#if defined(CFG_STM32MP21)
+		region->cfg = id | SHIFT_U32(en, DT_RISAF_EN_SHIFT) |
+			      SHIFT_U32(sec, DT_RISAF_SEC_SHIFT) |
+			      SHIFT_U32(enc, DT_RISAF_ENC_SHIFT) |
+			      SHIFT_U32(priv, DT_RISAF_PRIV_SHIFT) |
+			      SHIFT_U32(rden, DT_RISAF_READ_SHIFT) |
+			      SHIFT_U32(wren, DT_RISAF_WRITE_SHIFT);
+#else /* defined(CFG_STM32MP21) */
 		region->cfg = id | SHIFT_U32(en, DT_RISAF_EN_SHIFT) |
 			      SHIFT_U32(sec, DT_RISAF_SEC_SHIFT) |
 			      SHIFT_U32(enc, DT_RISAF_ENC_SHIFT + 1) |
 			      SHIFT_U32(priv, DT_RISAF_PRIV_SHIFT) |
 			      SHIFT_U32(rden, DT_RISAF_READ_SHIFT) |
 			      SHIFT_U32(wren, DT_RISAF_WRITE_SHIFT);
+#endif /* defined(CFG_STM32MP21) */
 		start_addr = io_read32(base + _RISAF_REG_STARTR(id));
 		end_addr = io_read32(base + _RISAF_REG_ENDR(id));
 		region->addr = start_addr + risaf->pdata.mem_base;
