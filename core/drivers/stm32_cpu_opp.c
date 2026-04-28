@@ -445,6 +445,7 @@ stm32_cpu_init(const void *fdt, int node, const void *compat_data __unused)
 	int len = 0;
 	uint32_t phandle = 0;
 	TEE_Result res = TEE_SUCCESS;
+	uint16_t __maybe_unused cpu_voltage = 0;
 
 	cuint = fdt_getprop(fdt, node, "operating-points-v2", &len);
 	if (!cuint || len != sizeof(uint32_t)) {
@@ -462,6 +463,13 @@ stm32_cpu_init(const void *fdt, int node, const void *compat_data __unused)
 
 	phandle = fdt32_to_cpu(*cuint);
 	opp_node = fdt_node_offset_by_phandle(fdt, phandle);
+
+#ifdef CFG_STM32MP15
+	cpu_voltage = regulator_get_voltage(cpu_opp.regul);
+
+	if (stm32mp1_clk_compute_all_pll1_settings(fdt, opp_node, cpu_voltage))
+		panic();
+#endif
 
 	return stm32_cpu_opp_get_dt_subnode(fdt, opp_node);
 }
