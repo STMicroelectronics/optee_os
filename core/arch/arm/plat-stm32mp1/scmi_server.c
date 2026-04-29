@@ -680,7 +680,8 @@ int32_t plat_scmi_rd_autonomous(unsigned int channel_id, unsigned int scmi_id,
 	if (rd->reset_id == MCU_HOLD_BOOT_R)
 		return SCMI_NOT_SUPPORTED;
 	/* Remoteproc driver may handle all MCU reset controllers */
-	if (rd->reset_id == MCU_R && stm32_rproc_is_secure(STM32_M4_RPROC_ID))
+	if (rd->reset_id == MCU_R &&
+	    stm32_rproc_is_secure(STM32MP1_M4_RPROC_ID))
 		return SCMI_DENIED;
 #endif
 
@@ -714,7 +715,7 @@ int32_t plat_scmi_rd_set_state(unsigned int channel_id, unsigned int scmi_id,
 #ifdef CFG_STM32MP15
 	/* Remoteproc driver may handle all MCU reset controllers */
 	if ((rd->reset_id == MCU_R || rd->reset_id == MCU_HOLD_BOOT_R) &&
-	    stm32_rproc_is_secure(STM32_M4_RPROC_ID))
+	    stm32_rproc_is_secure(STM32MP1_M4_RPROC_ID))
 		return SCMI_DENIED;
 #endif
 

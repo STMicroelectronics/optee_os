@@ -433,7 +433,7 @@ err:
 }
 
 static const struct stm32_rproc_compat_data stm32_rproc_m4_compat = {
-	.rproc_id = STM32_M4_RPROC_ID,
+	.rproc_id = STM32MP1_M4_RPROC_ID,
 	.ns_loading = false,
 };
 
