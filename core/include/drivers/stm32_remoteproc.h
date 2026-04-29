@@ -90,6 +90,20 @@ TEE_Result stm32_rproc_set_boot_address(uint32_t rproc_id, paddr_t address);
  */
 TEE_Result stm32_rproc_enable_sec_boot(uint32_t rproc_id);
 
+/*
+ * stm32_rproc_get_mem() - get access right to memories
+ * @rproc_id	unique identifier of the remote processor
+ * Return TEE_SUCCESS or appropriate error.
+ */
+TEE_Result stm32_rproc_get_mem(uint32_t rproc_id);
+
+/*
+ * stm32_rproc_release_mem() - release access right to memories
+ * @rproc_id	unique identifier of the remote processor
+ * Return TEE_SUCCESS or appropriate error.
+ */
+TEE_Result stm32_rproc_release_mem(uint32_t rproc_id);
+
 #ifdef CFG_STM32MP_REMOTEPROC
 /* Return true is secure loading of remoteproc firmware is enabled */
 bool stm32_rproc_is_secure(uint32_t rproc_id);

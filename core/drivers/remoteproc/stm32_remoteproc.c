@@ -52,6 +52,7 @@ struct stm32_rproc_mem {
  * struct stm32_rproc_instance - rproc instance context
  *
  * @cdata:	pointer to the device compatible data
+ * @fdt:	device tree file to work on
  * @link:	the node in the rproc_list
  * @n_regions:	number of memory regions
  * @regions:	memory regions used
@@ -60,9 +61,11 @@ struct stm32_rproc_mem {
  * @m33_cr_right: access rights for the M33 subsystem control registers
  * @boot_addr:	boot address
  * @tzen:	indicate if the remote processor should enable the TrustZone
+ * @m_get_cnt:	counter used for the memory region get/release balancing
  */
 struct stm32_rproc_instance {
 	const struct stm32_rproc_compat_data *cdata;
+	const void *fdt;
 	SLIST_ENTRY(stm32_rproc_instance) link;
 	size_t n_regions;
 	struct stm32_rproc_mem *regions;
@@ -71,6 +74,7 @@ struct stm32_rproc_instance {
 	uint32_t m33_cr_right;
 	paddr_t boot_addr;
 	bool tzen;
+	uint32_t m_get_cnt;
 };
 
 /**
@@ -108,6 +112,68 @@ bool stm32_rproc_is_secure(uint32_t rproc_id)
 		return !rproc->cdata->ns_loading;
 
 	return false;
+}
+
+/* Re-apply default access right on the memory regions */
+static TEE_Result
+stm32_rproc_release_mems_access(struct stm32_rproc_instance *rproc)
+{
+	struct stm32_rproc_mem *mems = rproc->regions;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	unsigned int i = 0;
+
+	rproc->m_get_cnt--;
+	if (rproc->m_get_cnt)
+		return TEE_SUCCESS;
+
+	for (i = 0; i < rproc->n_regions; i++) {
+		DMSG("Release access of the memory region %#"PRIxPA" size %#zx",
+		     mems[i].addr, mems[i].size);
+		res = firewall_set_memory_alternate_conf(mems[i].default_conf,
+							 mems[i].addr,
+							 mems[i].size);
+		if (res) {
+			EMSG("Failed to apply access rights on region %#"
+			     PRIxPA" size %#zx", mems[i].addr, mems[i].size);
+			return res;
+		}
+	}
+
+	return TEE_SUCCESS;
+}
+
+/* Set the firewall configuration allowing to load the remoteproc firmware */
+static TEE_Result
+stm32_rproc_get_mems_access(struct stm32_rproc_instance *rproc)
+{
+	struct stm32_rproc_mem *mems = rproc->regions;
+	TEE_Result res = TEE_ERROR_GENERIC;
+	unsigned int i = 0;
+
+	rproc->m_get_cnt++;
+	if (rproc->m_get_cnt > 1)
+		return TEE_SUCCESS;
+
+	for (i = 0; i < rproc->n_regions; i++) {
+		DMSG("Get access of the memory region %#"PRIxPA" size %#zx",
+		     mems[i].addr, mems[i].size);
+		res = firewall_set_memory_alternate_conf(mems[i].load_conf,
+							 mems[i].addr,
+							 mems[i].size);
+		if (res) {
+			EMSG("Failed to apply access rights on region %#"
+			     PRIxPA" size %#zx", mems[i].addr, mems[i].size);
+			goto err;
+		}
+	}
+
+	return TEE_SUCCESS;
+
+err:
+	if (stm32_rproc_release_mems_access(rproc) != TEE_SUCCESS)
+		panic();
+
+	return res;
 }
 
 static TEE_Result stm32mp2_rproc_start(struct stm32_rproc_instance *rproc)
@@ -260,7 +326,7 @@ TEE_Result stm32_rproc_map(uint32_t rproc_id, paddr_t pa, size_t size,
 		if (!core_is_buffer_inside(pa, size, mems[i].addr,
 					   mems[i].size))
 			continue;
-		*va = core_mmu_add_mapping(MEM_AREA_RAM_NSEC, pa, size);
+		*va = core_mmu_add_mapping(MEM_AREA_RAM_SEC, pa, size);
 		if (!*va) {
 			EMSG("Can't map region %#"PRIxPA" size %zu", pa, size);
 			return TEE_ERROR_GENERIC;
@@ -292,7 +358,7 @@ TEE_Result stm32_rproc_unmap(uint32_t rproc_id, void *va, size_t size)
 		/* Flush the cache before unmapping the memory */
 		dcache_clean_range(va, size);
 
-		if (core_mmu_remove_mapping(MEM_AREA_RAM_NSEC, va, size)) {
+		if (core_mmu_remove_mapping(MEM_AREA_RAM_SEC, va, size)) {
 			EMSG("Can't unmap region %#"PRIxPA" size %zu",
 			     pa, size);
 			return TEE_ERROR_GENERIC;
@@ -500,6 +566,10 @@ TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id)
 	if (!rproc)
 		return TEE_ERROR_BAD_PARAMETERS;
 
+	res = stm32_rproc_get_mems_access(rproc);
+	if (res)
+		return res;
+
 	mems = rproc->regions;
 	for (i = 0; i < rproc->n_regions; i++) {
 		pa = mems[i].addr;
@@ -513,7 +583,30 @@ TEE_Result stm32_rproc_clean_up_memories(uint32_t rproc_id)
 			break;
 	}
 
+	if (stm32_rproc_release_mems_access(rproc) != TEE_SUCCESS)
+		panic();
+
 	return res;
+}
+
+TEE_Result stm32_rproc_get_mem(uint32_t rproc_id)
+{
+	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
+
+	if (!rproc)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return stm32_rproc_get_mems_access(rproc);
+}
+
+TEE_Result stm32_rproc_release_mem(uint32_t rproc_id)
+{
+	struct stm32_rproc_instance *rproc = stm32_rproc_get(rproc_id);
+
+	if (!rproc)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	return stm32_rproc_release_mems_access(rproc);
 }
 
 static void stm32_rproc_cleanup(struct stm32_rproc_instance *rproc)
@@ -547,6 +640,7 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 		return TEE_ERROR_OUT_OF_MEMORY;
 
 	rproc->cdata = comp_data;
+	rproc->fdt = fdt;
 
 #if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
 	if (rproc->cdata->ns_loading) {
