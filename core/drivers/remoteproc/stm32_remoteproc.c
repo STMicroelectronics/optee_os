@@ -405,6 +405,7 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 			goto err;
 	}
 
+#ifdef CFG_STM32MP15
 	if (!stm32_rcc_is_secure()) {
 		IMSG("WARNING: insecure rproc isolation, RCC is not secure");
 		if (!IS_ENABLED(CFG_INSECURE))
@@ -412,6 +413,7 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 	} else {
 		stm32_rcc_set_mckprot(true);
 	}
+#endif
 
 	/*
 	 * The memory management should be enhance with firewall
