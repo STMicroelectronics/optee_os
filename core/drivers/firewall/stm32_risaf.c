@@ -526,7 +526,7 @@ risaf_configure_region(struct stm32_risaf_instance *risaf,
 		 * for another platform.
 		 */
 		if (!IS_ENABLED(CFG_STM32MP21) && (cfg & BIT(14))) {
-			EMSG("RISAF %#"PRIxPTR": unsupported encryption mode",
+			EMSG("RISAF %#"PRIxPA": unsupported encryption mode",
 			     risaf->pdata.base.pa);
 			return TEE_ERROR_NOT_SUPPORTED;
 		}
