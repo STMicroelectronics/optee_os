@@ -11,7 +11,6 @@
 #include <drivers/clk.h>
 #include <drivers/gic.h>
 #include <drivers/regulator.h>
-#include <drivers/stm32_etzpc.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp1_ddrc.h>
 #include <drivers/stm32mp1_pwr.h>
