@@ -430,8 +430,8 @@ CFG_STM32_TAMP_NVRAM ?= y
 # Default enable PKCS11 TA to have PKCS11 tests built in OP-TEE Test
 CFG_PKCS11_TA ?= y
 
-# Default use stm32mp1 PM mailbox context version 3
-CFG_STM32MP1_PM_CONTEXT_VERSION ?= 3
+# Default use stm32mp1 PM mailbox context version 4
+CFG_STM32MP1_PM_CONTEXT_VERSION ?= 4
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 CFG_HWRNG_PTA ?= y
