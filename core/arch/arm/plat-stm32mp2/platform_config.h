@@ -136,6 +136,9 @@
 #define TARGET_CPU1_GIC_MASK		BIT(1)
 #define TARGET_CPUS_GIC_MASK		GENMASK_32(CFG_TEE_CORE_NB_CORE - 1, 0)
 
+/* SGI list */
+#define GIC_SEC_SGI_1			9
+
 /* USART/UART resources */
 #define USART1_BASE			UART1_BASE
 #define USART2_BASE			UART2_BASE

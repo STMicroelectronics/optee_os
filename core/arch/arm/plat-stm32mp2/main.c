@@ -20,6 +20,7 @@
 #include <initcall.h>
 #include <kernel/abort.h>
 #include <kernel/boot.h>
+#include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
@@ -277,15 +278,29 @@ bool stm32mp_supports_cpu_opp(uint32_t opp_id __maybe_unused)
 }
 #endif /* CFG_STM32_CPU_OPP */
 
+static bool stm32mp_supports_second_core(void)
+{
+	if (CFG_TEE_CORE_NB_CORE == 1)
+		return false;
+
+	return true;
+}
+
 void __noreturn do_reset(const char *str __maybe_unused)
 {
 	struct rstctrl *rstctrl = NULL;
 
-	if (CFG_TEE_CORE_NB_CORE > 1) {
-		/* Halt execution of other CPUs */
+	if (stm32mp_supports_second_core()) {
+		uint32_t target_mask = 0;
+
+		if (get_core_pos() == 0)
+			target_mask = TARGET_CPU1_GIC_MASK;
+		else
+			target_mask = TARGET_CPU0_GIC_MASK;
+
 		interrupt_raise_sgi(interrupt_get_main_chip(),
-				    CFG_HALT_CORES_SGI,
-				    ITR_CPU_MASK_TO_OTHER_CPUS);
+				    CFG_HALT_CORES_SGI, target_mask);
+		/* Wait that other core is halted */
 		mdelay(1);
 	}
 
