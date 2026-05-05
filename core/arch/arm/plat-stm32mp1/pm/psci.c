@@ -27,6 +27,8 @@
 #include <stm32_util.h>
 #include <trace.h>
 
+#include "power.h"
+
 #define CONSOLE_FLUSH_DELAY_MS		10
 
 /*
@@ -77,18 +79,9 @@ int psci_affinity_info(uint32_t affinity, uint32_t lowest_affinity_level)
 	}
 }
 
-#if CFG_TEE_CORE_NB_CORE == 1
-/*
- * Function called when a CPU is booted through the OP-TEE.
- * All cores shall register when online.
- */
-void stm32mp_register_online_cpu(void)
-{
-	assert(core_state[0] == CORE_OFF);
-	core_state[0] = CORE_ON;
-}
-#else
-static void __noreturn stm32_pm_cpu_power_down_wfi(void)
+#ifndef CFG_PM
+/* Implements stm32_pm_cpu_power_down_wfi() when CFG_PM is disable */
+void __noreturn stm32_pm_cpu_power_down_wfi(void)
 {
 	dcache_op_level1(DCACHE_OP_CLEAN);
 
@@ -100,7 +93,19 @@ static void __noreturn stm32_pm_cpu_power_down_wfi(void)
 	wfi();
 	panic();
 }
+#endif
 
+#if CFG_TEE_CORE_NB_CORE == 1
+/*
+ * Function called when a CPU is booted through the OP-TEE.
+ * All cores shall register when online.
+ */
+void stm32mp_register_online_cpu(void)
+{
+	assert(core_state[0] == CORE_OFF);
+	core_state[0] = CORE_ON;
+}
+#else
 void stm32mp_register_online_cpu(void)
 {
 	size_t pos = get_core_pos();

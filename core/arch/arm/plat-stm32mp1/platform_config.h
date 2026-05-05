@@ -148,6 +148,19 @@
 #define GIC_SEC_SGI_0			8
 #define GIC_SEC_SGI_1			9
 
+#define GIC_MPU_WAKEUP_PIN		157
+
+#define STM32MP_GIC_PRIORITY_CSTOP	U(0xC0)
+
+/* RCC platform resources */
+#ifdef CFG_STM32MP13
+#define RCC_WAKEUP_IT			U(154)
+#endif
+
+#ifdef CFG_STM32MP15
+#define RCC_WAKEUP_IT			U(177)
+#endif
+
 #define TARGET_CPU0_GIC_MASK		BIT(0)
 #define TARGET_CPU1_GIC_MASK		BIT(1)
 #define TARGET_CPUS_GIC_MASK		GENMASK_32(CFG_TEE_CORE_NB_CORE - 1, 0)

@@ -163,6 +163,15 @@
 #define IDPFR1_GENTIMER_SHIFT        U(16)
 #define IDPFR1_GENTIMER_MASK         SHIFT_U32(0xF, IDPFR1_GENTIMER_SHIFT)
 
+/* Generic timer registers and fields */
+#define CNTCR_OFFSET		0x000
+#define CNTSR_OFFSET		0x004
+#define CNTCVL_OFFSET		0x008
+#define CNTCVU_OFFSET		0x00C
+#define CNTFID_OFFSET		0x020
+
+#define CNTCR_EN		BIT(0)
+
 #ifndef __ASSEMBLER__
 #include <generated/arm32_sysreg.h>
 #ifdef CFG_ARM_GICV3

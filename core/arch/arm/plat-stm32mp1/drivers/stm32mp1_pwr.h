@@ -70,6 +70,9 @@
 
 #define PWR_MPUWKUPENR_MASK	GENMASK_32(5, 0)
 
+#define PWR_CR2_BRRDY		BIT(16)
+#define PWR_CR2_RRRDY		BIT(17)
+
 enum pwr_regulator {
 	PWR_REG11 = 0,
 	PWR_REG18,

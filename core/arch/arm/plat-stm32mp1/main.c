@@ -61,6 +61,14 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
 
 register_ddr(DDR_BASE, CFG_DRAM_SIZE);
 
+#ifdef CFG_STM32MP15
+/* Map non-secure DDR bottom for the low power sequence */
+register_phys_mem(MEM_AREA_RAM_NSEC, DDR_BASE, SMALL_PAGE_SIZE);
+
+/* Map TEE physical RAM as read-only for content storage when suspending */
+register_phys_mem(MEM_AREA_ROM_SEC, TEE_RAM_START, TEE_RAM_PH_SIZE);
+#endif /* CFG_STM32MP15 */
+
 #define _ID2STR(id)		(#id)
 #define ID2STR(id)		_ID2STR(id)
 
