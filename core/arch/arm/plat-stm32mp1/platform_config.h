@@ -148,8 +148,6 @@
 #define GIC_SEC_SGI_0			8
 #define GIC_SEC_SGI_1			9
 
-#define GIC_MPU_WAKEUP_PIN		157
-
 #define STM32MP_GIC_PRIORITY_CSTOP	U(0xC0)
 
 /* RCC platform resources */
