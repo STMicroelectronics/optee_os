@@ -394,6 +394,22 @@ static TEE_Result stm32mp_pwr_probe(const void *fdt, int node,
 	if (res)
 		panic("Failed to apply rif_config");
 
+#ifdef CFG_STM32_PWR_IRQ
+	res = stm32mp25_pwr_irq_probe(fdt, node, pwr_d->interrupt);
+	if (res) {
+		if (pwr_d->conf_data) {
+			free(pwr_d->conf_data->access_mask);
+			free(pwr_d->conf_data->cid_confs);
+			free(pwr_d->conf_data->priv_conf);
+			free(pwr_d->conf_data->sec_conf);
+		}
+		free(pwr_d->conf_data);
+		free(pwr_d);
+		pwr_d = NULL;
+		return res;
+	}
+#endif
+
 	fdt_for_each_subnode(subnode, fdt, node) {
 		res = dt_driver_maybe_add_probe_node(fdt, subnode);
 		if (res) {
