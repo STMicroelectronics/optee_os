@@ -72,9 +72,6 @@
 
 #define PWR_MPUWKUPENR_MASK	GENMASK_32(5, 0)
 
-#define PWR_CR2_BRRDY		BIT(16)
-#define PWR_CR2_RRRDY		BIT(17)
-
 /*
  * Flags for PWR wakeup event management
  * PWR_WKUP_FLAG_RISING - Detect event on signal rising edge
