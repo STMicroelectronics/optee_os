@@ -33,6 +33,8 @@ static inline bool stm32_stpmic2_is_present(void)
 }
 #endif
 
+void stm32_debug_suspend(unsigned long a0);
+
 /* Get device ID from SYSCFG registers */
 uint32_t stm32mp_syscfg_get_chip_dev_id(void);
 #endif /*__STM32_UTIL_H__*/

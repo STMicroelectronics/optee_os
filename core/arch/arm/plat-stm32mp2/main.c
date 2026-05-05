@@ -16,7 +16,11 @@
 #include <drivers/stm32_uart.h>
 #include <drivers/stm32mp_dt_bindings.h>
 #include <drivers/stm32mp25_pwr.h>
+#if defined(CFG_STM32MP25) || defined(STM32MP23)
 #include <drivers/stm32mp25_rcc.h>
+#else /* defined(CFG_STM32MP21) */
+#include <drivers/stm32mp21_rcc.h>
+#endif
 #include <initcall.h>
 #include <kernel/abort.h>
 #include <kernel/boot.h>
@@ -29,12 +33,18 @@
 #include <mm/core_memprot.h>
 #include <platform_config.h>
 #include <stm32_util.h>
+#include <stm32mp_pm.h>
 #include <string.h>
 #include <trace.h>
 #include <util.h>
 
 /* DBGMCU registers */
+#define DBGMCU_CR			U(0x4)
 #define DBGMCU_DBG_AUTH_DEV		U(0x104)
+
+#define DBGMCU_CR_DBG_SLEEP		BIT(0)
+#define DBGMCU_CR_DBG_STOP		BIT(1)
+#define DBGMCU_CR_DBG_STANDBY		BIT(2)
 
 register_phys_mem_pgdir(MEM_AREA_IO_NSEC, APB1_BASE, APB1_SIZE);
 
@@ -50,6 +60,8 @@ register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAPB_BASE, SAPB_SIZE);
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, SAHB_BASE, SAHB_SIZE);
 
 register_phys_mem_pgdir(MEM_AREA_IO_SEC, GIC_BASE, GIC_SIZE);
+
+register_phys_mem_pgdir(MEM_AREA_IO_NSEC, DBGMCU_BASE, DBGMCU_SIZE);
 
 #ifdef CFG_STM32_CM33TDCID
 /* Map beginning SRAM1 as read-only non-secure for BSEC shadow */
@@ -314,4 +326,46 @@ void __noreturn do_reset(const char *str __maybe_unused)
 
 	/* Cannot occur */
 	panic();
+}
+
+/*
+ * Handle low-power emulation mode
+ * In PWR debug Standby mode, the low power modes is not signaled to external
+ * regulators with the SOC signals PWR_CPU_ON and PWR_ON so the regulators
+ * required by the boot devices are not restored after the simulated low power
+ * modes.
+ * On reference design with STPMIC25, the NRSTC1MS signals are connected to
+ * pins PWRCTRL3 and to used to drive the PMIC regulators required by ROM code
+ * to reboot for external mass-storage (D1 domain exits DStandby, not Standby).
+ * To avoid a wake-up issue in ROM Code in simulated STANDBY low power mode,
+ * we force the STPMIC25 regulators configuration with a pulse on NRSTC1MS pin
+ * as a workaround.
+ */
+void stm32_debug_suspend(unsigned long a0)
+{
+	struct clk *dbgmcu_clk = stm32mp_rcc_clock_id_to_clk(CK_ICN_APBDBG);
+	uint32_t dbgmcu_cr = U(0);
+	static bool info_displayed;
+
+	if (clk_enable(dbgmcu_clk))
+		return;
+
+	dbgmcu_cr = io_read32(stm32_dbgmcu_base() + DBGMCU_CR);
+
+	/* WARN ONCE when emulation debug is activated */
+	if (!info_displayed &&
+	    dbgmcu_cr & (DBGMCU_CR_DBG_SLEEP | DBGMCU_CR_DBG_STOP |
+			 DBGMCU_CR_DBG_STANDBY)) {
+		MSG("Low power emulation mode enable (DBGMCU_CR=%#"PRIx32")",
+		    dbgmcu_cr);
+		info_displayed = true;
+	}
+
+	/* Pulse on NRSTC1MS pin for standby request when PMIC is used */
+	if (dbgmcu_cr & DBGMCU_CR_DBG_STANDBY && a0 >= PM_D2_LPLV_LEVEL &&
+	    stm32_stpmic2_is_present())
+		io_setbits32(stm32_rcc_base() + RCC_C1MSRDCR,
+			     RCC_C1MSRDCR_C1MSRST);
+
+	clk_disable(dbgmcu_clk);
 }
