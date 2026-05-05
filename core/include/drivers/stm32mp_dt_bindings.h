@@ -10,6 +10,7 @@
 #include <dt-bindings/clock/stm32mp13-clksrc.h>
 #include <dt-bindings/firewall/stm32mp13-etzpc.h>
 #include <dt-bindings/firewall/stm32mp13-tzc400.h>
+#include <dt-bindings/power/stm32mp1-power.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include <dt-bindings/reset/stm32mp13-resets.h>
 #include <dt-bindings/tamper/st,stm32mp13-tamp.h>
