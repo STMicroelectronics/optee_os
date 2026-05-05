@@ -65,7 +65,7 @@
 		FLEXGEN_CFG(24, XBAR_SRC_PLL7, 0, 16)
 		FLEXGEN_CFG(25, XBAR_SRC_PLL7, 0, 16)
 		FLEXGEN_CFG(26, XBAR_SRC_PLL4, 0, 11)
-		FLEXGEN_CFG(27, XBAR_SRC_PLL8, 0, 3)
+		FLEXGEN_CFG(27, XBAR_SRC_PLL8, 0, 59)
 		FLEXGEN_CFG(29, XBAR_SRC_PLL5, 0, 1)
 		FLEXGEN_CFG(30, XBAR_SRC_HSE_KER, 0, 1)
 		FLEXGEN_CFG(31, XBAR_SRC_PLL5, 0, 19)
@@ -168,10 +168,10 @@
 	};
 
 	pll8: st,pll-8 {
-		st,pll = <&pll8_cfg_594MHz>;
+		st,pll = <&pll8_cfg_600MHz>;
 
-		pll8_cfg_594MHz: pll8-cfg-594MHz {
-			cfg = <297 5 1 4>;
+		pll8_cfg_600MHz: pll8-cfg-600MHz {
+			cfg = <300 5 1 4>;
 			src = <MUX_CFG(MUX_MUXSEL4, MUXSEL_HSE)>;
 		};
 	};
