@@ -524,6 +524,35 @@ static void gate_pm_context_clocks(bool enable)
 	}
 }
 
+static uint32_t get_pm_hint(unsigned int soc_mode)
+{
+	uint32_t pm_hint = 0U;
+
+	assert(soc_mode < STM32_PM_MAX_SOC_MODE);
+
+	switch (soc_mode) {
+	case STM32_PM_CSLEEP_RUN:
+	case STM32_PM_CSTOP_ALLOW_STOP:
+	case STM32_PM_CSTOP_ALLOW_LP_STOP:
+	case STM32_PM_CSTOP_ALLOW_LPLV_STOP:
+	case STM32_PM_CSTANDBY_ALLOW_LPLV_STOP2:
+		pm_hint = PM_HINT_CLOCK_STATE;
+		break;
+
+	default:
+	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR:
+	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF:
+	case STM32_PM_SHUTDOWN:
+		pm_hint = PM_HINT_CONTEXT_STATE;
+		break;
+	};
+
+	pm_hint |= ((soc_mode << PM_HINT_PLATFORM_STATE_SHIFT) &
+		    PM_HINT_PLATFORM_STATE_MASK);
+
+	return pm_hint;
+}
+
 /*
  * Context (TEE RAM content + peripherals) must be restored
  * only if system may reach STANDBY state.
@@ -534,7 +563,7 @@ TEE_Result stm32mp_pm_save_context(unsigned int soc_mode)
 
 	save_time();
 
-	res = pm_change_state(PM_OP_SUSPEND, soc_mode);
+	res = pm_change_state(PM_OP_SUSPEND, get_pm_hint(soc_mode));
 	if (res)
 		return res;
 
@@ -567,14 +596,17 @@ void stm32mp_pm_restore_context(unsigned int soc_mode)
 		stm32mp1_clk_restore_context_for_stop();
 #endif
 
-	if (pm_change_state(PM_OP_RESUME, 0))
+	if (pm_change_state(PM_OP_RESUME, get_pm_hint(soc_mode)))
 		panic();
 
 	restore_time();
 }
 
-void stm32mp_pm_shutdown_context(void)
+void stm32mp_pm_shutdown_context(unsigned int soc_mode)
 {
+	if (pm_change_state(PM_OP_SUSPEND, get_pm_hint(soc_mode)))
+		panic();
+
 	gate_pm_context_clocks(true);
 	load_earlyboot_pm_mailbox();
 	enable_pm_mailbox(0);

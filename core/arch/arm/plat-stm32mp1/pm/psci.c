@@ -401,9 +401,6 @@ void __noreturn psci_system_off(void)
 
 	DMSG("core %u", get_core_pos());
 
-	if (pm_change_state(PM_OP_SUSPEND, soc_mode))
-		panic();
-
 	stm32_enter_cstop_shutdown(soc_mode);
 }
 

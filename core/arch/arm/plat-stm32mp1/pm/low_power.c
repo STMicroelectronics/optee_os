@@ -363,6 +363,7 @@ void __noreturn stm32_enter_cstop_shutdown(uint32_t mode)
 				    TARGET_CPU1_GIC_MASK);
 	}
 #endif
+	stm32mp_pm_shutdown_context(mode);
 
 	switch (mode) {
 	case STM32_PM_SHUTDOWN:
@@ -375,7 +376,6 @@ void __noreturn stm32_enter_cstop_shutdown(uint32_t mode)
 		}
 		break;
 	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF:
-		stm32mp_pm_shutdown_context();
 		stm32_enter_cstop(mode);
 		dsb();
 		isb();
