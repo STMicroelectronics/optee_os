@@ -53,9 +53,18 @@ static inline bool stm32_stpmic1_is_present(void)
 }
 #endif
 
+#ifdef CFG_STPMIC2
+bool stm32_stpmic2_is_present(void);
+#else
+static inline bool stm32_stpmic2_is_present(void)
+{
+	return false;
+}
+#endif
+
 static inline bool stm32mp_with_pmic(void)
 {
-	return stm32_stpmic1_is_present();
+	return stm32_stpmic1_is_present() || stm32_stpmic2_is_present();
 }
 
 /* Power management service */

@@ -323,6 +323,7 @@ CFG_STM32_TIM ?= y
 CFG_STM32_UART ?= y
 CFG_STM32MP_PROVISIONING ?= y
 CFG_STPMIC1 ?= y
+CFG_STPMIC2 ?= y
 CFG_TZC400 ?= y
 
 # Default RTC accuracy, higher accuracy means higher power consumption
