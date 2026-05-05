@@ -8,7 +8,6 @@
 
 #include <assert.h>
 #include <drivers/clk.h>
-#include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stm32mp1_rcc_util.h>
 #include <kernel/panic.h>
 #include <stdbool.h>
