@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: BSD-3-Clause
 /*
- * Copyright (c) 2017-2020, STMicroelectronics
+ * Copyright (c) 2017-2024, STMicroelectronics
  */
 
 #include <config.h>
-#include <drivers/scmi-msg.h>
 #include <kernel/thread.h>
 #include <sm/optee_smc.h>
 #include <sm/sm.h>
@@ -31,17 +30,6 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		args->a2 = STM32_SIP_SVC_UID_2;
 		args->a3 = STM32_SIP_SVC_UID_3;
 		break;
-	case STM32_SIP_SVC_FUNC_SCMI_AGENT:
-		if (IS_ENABLED(CFG_STM32MP1_SCMI_SIP)) {
-			scmi_smt_fastcall_smc_entry(0);
-			args->a0 = STM32_SIP_SVC_OK;
-		} else {
-			args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
-		}
-		break;
-	case STM32_SIP_SVC_FUNC_SCMI_AGENT1:
-		args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
-		break;
 	case STM32_SIP_SVC_FUNC_BSEC:
 		args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
 		break;
@@ -50,6 +38,11 @@ static enum sm_handler_ret sip_service(struct sm_ctx *ctx __unused,
 		break;
 	case STM32_SIP_FUNC_PD_DOMAIN:
 		args->a0 = pm_domain_scv_handler(args->a1, args->a2);
+		break;
+	/* Deprecated function IDs */
+	case STM32_SIP_SVC_FUNC_SCMI_AGENT:
+	case STM32_SIP_SVC_FUNC_SCMI_AGENT1:
+		args->a0 = ARM_SMCCC_RET_NOT_SUPPORTED;
 		break;
 	default:
 		return SM_HANDLER_PENDING_SMC;
