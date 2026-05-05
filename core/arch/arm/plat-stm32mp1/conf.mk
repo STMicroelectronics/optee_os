@@ -178,6 +178,11 @@ $(call force,CFG_STM32_SAES,n)
 CFG_WITH_SOFTWARE_PRNG ?= y
 endif
 
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP1-PWR-OSTL)),)
+$(call force,CFG_STM32_LOWPOWER_SIP,n)
+$(call force,CFG_STM32_PWR_SIP,n)
+endif
+
 # Force this mode to keep performance on RSA key operations
 CFG_CORE_UNSAFE_MODEXP ?= y
 
