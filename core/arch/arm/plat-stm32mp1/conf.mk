@@ -557,3 +557,7 @@ CFG_STM32MP15x_STM32IMAGE ?= n
 
 # When CFG_DT_CACHED_NODE_INFO is enabled, boot time may be divided by 2
 CFG_DT_CACHED_NODE_INFO ?= y
+
+ifeq (,$(filter 1 2 3,$(CFG_STM32MP1_PM_CONTEXT_VERSION)))
+$(call force,CFG_ZLIB,y)
+endif

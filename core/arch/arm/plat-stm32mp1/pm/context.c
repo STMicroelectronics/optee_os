@@ -29,6 +29,7 @@
 #include <stm32_util.h>
 #include <stm32mp_pm.h>
 #include <string.h>
+#include <zlib.h>
 
 #include "context.h"
 #include "power.h"
@@ -43,9 +44,12 @@
  * PLL1 dual OPP settings structure (86 bytes) and low power entry point,
  * BL2 code start, end and BL2_END (102 bytes). And, only for STM32MP13,
  * add MCE master key (16 bytes)
+ *
+ * STANDBY_CONTEXT_MAGIC V4
+ * Context v4 provides the v3 content + size and CRC.
  */
 
-#if CFG_STM32MP1_PM_CONTEXT_VERSION < 3 || CFG_STM32MP1_PM_CONTEXT_VERSION > 3
+#if CFG_STM32MP1_PM_CONTEXT_VERSION < 3 || CFG_STM32MP1_PM_CONTEXT_VERSION > 4
 #error Invalid value for CFG_STM32MP1_PM_CONTEXT_VERSION
 #endif
 
@@ -98,6 +102,8 @@ static struct pm_clocks pm_clocks;
  * @magic: magic value read by early boot stage for consistency
  * @zq0cr0_zdata: DDRPHY configuration to be restored.
  * @ddr_training_backup: DDR area saved at suspend and backed up at resume
+ * @size: struct size, used for CRC32 check
+ * @crc_32: CRC32 of this struct, computed on @size with @crc_32 = 0
  */
 struct pm_mailbox {
 	uint32_t magic;
@@ -112,6 +118,9 @@ struct pm_mailbox {
 #ifdef CFG_STM32MP13
 	uint8_t mce_mkey[MCE_KEY_SIZE_IN_BYTES];
 #endif
+/* VERSION 4 */
+	uint32_t size;
+	uint32_t crc_32;
 };
 
 uint32_t optee_magic;
@@ -307,6 +316,9 @@ static void load_earlyboot_pm_mailbox(void)
 	save_pll1_settings();
 #endif /* CFG_STM32MP1_OPTEE_IN_SYSRAM */
 
+	if (MAGIC_VERSION(optee_magic) >= 4)
+		mailbox->size = sizeof(*mailbox);
+
 	save_ddr_training_area();
 }
 
@@ -421,14 +433,28 @@ static void enable_pm_mailbox(unsigned int suspend)
 #else
 		hint = virt_to_phys(&get_retram_resume_ctx()->resume_sequence);
 #endif
+		mailbox->core0_resume_ep = hint;
+
+		if (MAGIC_VERSION(optee_magic) >= 4) {
+			mailbox->crc_32 = 0;
+#ifdef CFG_ZLIB
+			/* compute CRC32 on struct size with crc_32 = 0 */
+			mailbox->crc_32 = crc32(0, (const Bytef *)mailbox,
+						mailbox->size);
+#endif
+		}
+
+		DMSG("%s(crc=%x, size=%u, magic=%x)\n", __func__,
+		     mailbox->crc_32, mailbox->size, mailbox->magic);
 	} else {
 		mailbox->magic = 0;
+		mailbox->core0_resume_ep = 0;
+		if (MAGIC_VERSION(optee_magic) >= 4)
+			mailbox->crc_32 = 0;
 	}
 
 	io_write32(stm32mp_bkpreg(BCKR_CORE1_MAGIC_NUMBER), magic);
 	io_write32(stm32mp_bkpreg(BCKR_CORE1_BRANCH_ADDRESS), hint);
-
-	mailbox->core0_resume_ep = hint;
 }
 
 static void gate_pm_context_clocks(bool enable)
