@@ -504,6 +504,8 @@ void __noreturn stm32_pm_cpu_power_down_wfi(void)
 #ifdef CFG_STM32MP13
 	panic();
 #else
+	/* Clear flag before core 1 reset */
+	io_write32(rcc_base + RCC_MP_RSTSCLRR, RCC_MP_RSTSCLRR_MPUP1RSTF);
 	io_write32(rcc_base + RCC_MP_GRSTCSETR, RCC_MP_GRSTCSETR_MPUP1RST);
 #endif
 	cpu_wfi();

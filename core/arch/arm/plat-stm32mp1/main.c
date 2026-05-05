@@ -165,16 +165,24 @@ void boot_primary_init_intc(void)
 	gic_init(GIC_BASE + GICC_OFFSET, GIC_BASE + GICD_OFFSET);
 
 	stm32mp_register_online_cpu();
+
+	/* clear reset flag after core 0 power on */
+	io_write32(stm32_rcc_base() + RCC_MP_RSTSCLRR,
+		   RCC_MP_RSTSCLRR_MPUP0RSTF);
 }
 
+#ifdef CFG_STM32MP15
 void boot_secondary_init_intc(void)
 {
 	gic_init_per_cpu();
 
 	stm32mp_register_online_cpu();
+
+	/* clear reset flag after core 1 power on */
+	io_write32(stm32_rcc_base() + RCC_MP_RSTSCLRR,
+		   RCC_MP_RSTSCLRR_MPUP1RSTF);
 }
 
-#ifdef CFG_STM32MP15
 /*
  * This concerns OP-TEE pager for STM32MP1 to use secure internal
  * RAMs to execute. TZSRAM refers the TZSRAM_BASE/TZSRAM_SIZE
