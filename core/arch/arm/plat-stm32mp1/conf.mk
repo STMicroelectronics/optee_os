@@ -195,6 +195,7 @@ $(call force,CFG_DRIVERS_REGULATOR,y)
 $(call force,CFG_DRIVERS_STM32_CLK,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_INIT_CNTVOFF,y)
+$(call force,CFG_PM_ARM32,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_REGULATOR_FIXED,y)
 $(call force,CFG_SCMI_MSG_PERF_DOMAIN,y)
@@ -216,6 +217,7 @@ $(call force,CFG_STM32_VREFBUF,y)
 $(call force,CFG_STM32MP_CLK_CORE,y)
 $(call force,CFG_STM32MP1_OPTEE_IN_SYSRAM,n)
 $(call force,CFG_STM32MP1_RSTCTRL,y)
+$(call force,CFG_STM32MP1_SCMI_SIP,n)
 $(call force,CFG_STM32MP13_CLK,y)
 $(call force,CFG_STM32MP13_REGULATOR_IOD,y)
 $(call force,CFG_TEE_CORE_NB_CORE,1)
@@ -228,6 +230,7 @@ endif # CFG_STM32MP13
 ifeq ($(CFG_STM32MP15),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
+$(call force,CFG_DDR_LOWPOWER,y)
 $(call force,CFG_HALT_CORES_SGI,15)
 $(call force,CFG_SECONDARY_INIT_CNTFRQ,y)
 $(call force,CFG_STM32_IRQ_NOTIF,y)
@@ -429,6 +432,9 @@ CFG_STM32_TAMP_NVRAM ?= y
 
 # Default enable PKCS11 TA to have PKCS11 tests built in OP-TEE Test
 CFG_PKCS11_TA ?= y
+
+# Default use stm32mp1 PM mailbox context version 3
+CFG_STM32MP1_PM_CONTEXT_VERSION ?= 3
 
 ifneq ($(CFG_WITH_SOFTWARE_PRNG),y)
 CFG_HWRNG_PTA ?= y
