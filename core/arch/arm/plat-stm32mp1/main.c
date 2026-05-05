@@ -434,11 +434,6 @@ void plat_bsec_get_static_cfg(struct stm32_bsec_static_cfg *cfg)
 	cfg->max_id = STM32MP1_OTP_MAX_ID;
 }
 
-bool __weak stm32mp_with_pmic(void)
-{
-	return false;
-}
-
 uint32_t may_spin_lock(unsigned int *lock)
 {
 	if (!lock || !cpu_mmu_enabled())

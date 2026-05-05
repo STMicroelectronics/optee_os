@@ -84,7 +84,7 @@ static bool pmic_is_secure(void)
 	return pmic_status == DT_STATUS_OK_SEC;
 }
 
-bool stm32mp_with_pmic(void)
+bool stm32_stpmic1_is_present(void)
 {
 	return pmic_status != -1;
 }
