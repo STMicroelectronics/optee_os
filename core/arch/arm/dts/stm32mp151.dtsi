@@ -1314,6 +1314,11 @@
 				access-controllers = <&etzpc STM32MP1_ETZPC_TIM15_ID>;
 				status = "disabled";
 
+				counter {
+					compatible = "st,stm32-timer-counter";
+					status = "disabled";
+				};
+
 				pwm {
 					compatible = "st,stm32-pwm";
 					#pwm-cells = <3>;
