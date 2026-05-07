@@ -117,6 +117,7 @@ $(call force,CFG_HALT_CORES_SGI,15)
 $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_SCMI_SCPFW_PRODUCT,stm32mp2)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
+$(call force,CFG_STM32_HSE_MONITORING,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 $(call force,CFG_STM32_STGEN,y)
 $(call force,CFG_STM32_PWR,y)
@@ -219,6 +220,10 @@ CFG_STM32_EARLY_CONSOLE_UART ?= 2
 
 # Default disable external DT support
 CFG_EXTERNAL_DT ?= n
+
+ifeq ($(CFG_STM32_HSE_MONITORING),y)
+$(call force,CFG_STM32_LPTIMER,y)
+endif
 
 # If any crypto driver is enabled, enable the crypto-framework layer
 ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP CFG_STM32_HASH CFG_STM32_PKA \
