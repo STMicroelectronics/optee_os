@@ -1417,6 +1417,9 @@ static TEE_Result stm32_tamp_set_config(void)
 		}
 	}
 
+	/* Drain any tamper event latched before interrupt enable. */
+	stm32_tamp_it_handler(stm32_tamp_dev->pdata.itr);
+
 	/* Enable interrupts. */
 	io_write32(base + _TAMP_IER, ier);
 
