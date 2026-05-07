@@ -677,6 +677,10 @@
 		pwr: pwr@44210000 {
 			compatible = "st,stm32mp21-pwr";
 			reg = <0x44210000 0x400>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			wakeup-gpios = <0>, <0>, <0>, <0>, <0>, <0>;
 			status = "disabled";
 
 			vdda18adc: vdda18adc {
@@ -717,6 +721,7 @@
 
 		exti1: interrupt-controller@44220000 {
 			compatible = "st,stm32mp1-exti";
+			wakeup-parent = <&pwr>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			reg = <0x44220000 0x400>;
@@ -773,12 +778,12 @@
 				<0>,
 				<0>,						/* EXTI_50 */
 				<0>,
-				<0>,
-				<0>,
-				<0>,
-				<0>,
-				<0>,
-				<0>,
+				<&pwr 0 IRQ_TYPE_EDGE_FALLING>,
+				<&pwr 1 IRQ_TYPE_EDGE_FALLING>,
+				<&pwr 2 IRQ_TYPE_EDGE_FALLING>,
+				<&pwr 3 IRQ_TYPE_EDGE_FALLING>,
+				<&pwr 4 IRQ_TYPE_EDGE_FALLING>,
+				<&pwr 5 IRQ_TYPE_EDGE_FALLING>,
 				<0>,
 				<&intc GIC_SPI 152 IRQ_TYPE_LEVEL_HIGH>,
 				<0>,						/* EXTI_60 */
