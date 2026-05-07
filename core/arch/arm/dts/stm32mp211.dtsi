@@ -633,6 +633,18 @@
 				 <&clk_lsi>, <&clk_msi>, <&clk_i2sin>;
 			clock-names = "clk-hse", "clk-hsi", "clk-lse",
 				      "clk-lsi", "clk-msi", "clk-i2sin";
+
+			hsi_calibration: hsi-calibration {
+				compatible = "st,hsi-cal";
+				st,cal_hsi_dev = <31>;
+				st,cal_hsi_ref = <1953>;
+				status = "disabled";
+			};
+
+			msi_calibration: msi-calibration {
+				compatible = "st,msi-cal";
+				status = "disabled";
+			};
 		};
 
 		pwr: pwr@44210000 {
