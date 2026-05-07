@@ -341,6 +341,16 @@
 	st,non-secure-otp-provisioning;
 };
 
+&osc_calibration {
+	csi-calibration {
+		status = "okay";
+	};
+
+	hsi-calibration {
+		status = "okay";
+	};
+};
+
 &pka {
 	status = "okay";
 };
@@ -592,6 +602,14 @@
 		st,tamp-mode = <TAMPER_CONFIRMED_MODE>;
 		st,tamp-id = <3>, <1>;
 		status = "disabled";
+	};
+};
+
+&timers12 {
+	status = "okay";
+
+	counter {
+		status = "okay";
 	};
 };
 
