@@ -496,6 +496,16 @@
 	status = "disabled";
 };
 
+&osc_calibration {
+	csi-calibration {
+		status = "okay";
+	};
+
+	hsi-calibration {
+		status = "okay";
+	};
+};
+
 &pwr_regulators {
 	vdd-supply = <&vdd>;
 	vdd_3v3_usbfs-supply = <&vdd_usb>;
