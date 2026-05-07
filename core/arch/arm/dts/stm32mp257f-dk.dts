@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include <dt-bindings/clock/stm32mp25-clksrc.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/mfd/st,stpmic2.h>
 #include <dt-bindings/regulator/st,stm32mp25-regulator.h>
 #include <dt-bindings/soc/stm32mp-provisioning.h>
@@ -368,6 +369,7 @@
 
 &pwr {
 	status = "okay";
+	wakeup-gpios = <&gpioa 0 GPIO_ACTIVE_HIGH>, <0>, <0>, <0>, <0>, <0>;
 
 	vdd33ucpd: vdd33ucpd {
 		status = "okay";
