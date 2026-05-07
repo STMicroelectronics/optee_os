@@ -65,6 +65,10 @@
 	status = "okay";
 };
 
+&hsi_calibration {
+	status = "okay";
+};
+
 &i2c7 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c7_pins_a>;
