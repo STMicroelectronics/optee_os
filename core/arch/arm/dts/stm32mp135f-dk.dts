@@ -10,6 +10,7 @@
 #include <dt-bindings/firewall/stm32mp13-tzc400.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/gpio/stm32mp_gpio.h>
+#include <dt-bindings/mfd/st,stpmic1.h>
 #include <dt-bindings/regulator/st,stm32mp13-regulator.h>
 #include <dt-bindings/soc/stm32mp-provisioning.h>
 #include <dt-bindings/tamper/st,stm32mp13-tamp.h>
@@ -55,6 +56,14 @@
 			st,shadow-value = <0x000001E0>;
 			st,shadow-lock = <STICKY_LOCK_SR>;
 		};
+	};
+
+	typec_wakeup: typec_wakeup {
+		compatible = "st,stm32-irq-notifier";
+		interrupts-extended = <&exti 59 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-source;
+		st,notif-it-id = <1>;
+		status = "okay";
 	};
 
 	vin: vin {
@@ -174,8 +183,10 @@
 		compatible = "st,stpmic1";
 		reg = <0x33>;
 		status = "okay";
-		st,wakeup-pin-number = <1>;
-		st,notif-it-id = <0>;
+		interrupts-extended = <&exti 55 IRQ_TYPE_EDGE_FALLING>;
+		wakeup-source;
+		st,pmic-it-id = <IT_PONKEY_F IT_PONKEY_R>;
+		st,notif-it-id = <0 2>;
 
 		regulators {
 			compatible = "st,stpmic1-regulators";
@@ -373,6 +384,11 @@
 
 &pka {
 	status = "okay";
+};
+
+&pwr_irq {
+	status = "okay";
+	wakeup-gpios = <&gpiof 8 GPIO_ACTIVE_HIGH>, <&gpioi 3 GPIO_ACTIVE_HIGH>, <0>, <0>, <&gpioi 2 GPIO_PULL_UP>, <0>;
 };
 
 &pwr_regulators {
