@@ -1699,8 +1699,15 @@ stm32_tamp_configure_pin_from_dt(const void *fdt, int node,
 
 	if (res != TEE_ERROR_ITEM_NOT_FOUND) {
 		active = true;
+		if (!out_tamp_id) {
+			EMSG("OUT_TAMP ID can't be 0");
+			gpio_put(gpio_out);
+			return TEE_ERROR_BAD_PARAMETERS;
+		}
+
 		out_id = OUT_TAMP1 + out_tamp_id - 1;
 		if (out_tamp_id > pdata->compat->ext_tamp_size) {
+			EMSG("OUT_TAMP ID out of range");
 			gpio_put(gpio_out);
 			return TEE_ERROR_BAD_PARAMETERS;
 		}
