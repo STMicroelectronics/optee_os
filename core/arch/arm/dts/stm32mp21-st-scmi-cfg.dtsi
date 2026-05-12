@@ -684,6 +684,18 @@
 					#address-cells = <1>;
 					#size-cells = <0>;
 
+					reset@1 {
+						reg = <RST_SCMI_C2_R>;
+						domain-name = "c2";
+						resets = <&m33_rproc 0>;
+					};
+
+					reset@3 {
+						reg = <RST_SCMI_C2_HOLDBOOT_R>;
+						domain-name = "c2_holdboot";
+						resets = <&m33_rproc 1>;
+					};
+
 					reset@4 {
 						reg = <RST_SCMI_FMC>;
 						domain-name = "fmc";
