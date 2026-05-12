@@ -353,6 +353,10 @@
 	status = "okay";
 };
 
+&m33_rproc {
+	status = "okay";
+};
+
 &pka {
 	status = "okay";
 };
