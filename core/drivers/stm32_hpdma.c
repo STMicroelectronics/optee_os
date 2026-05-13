@@ -20,6 +20,7 @@
 #include <mm/core_memprot.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <stm32_sysconf.h>
 #include <stm32_util.h>
 #include <trace.h>
 
@@ -79,6 +80,7 @@
 struct hpdma_pdata {
 	struct clk *hpdma_clock;
 	struct rif_conf_data *conf_data;
+	uint32_t syscfg_arcr[2];
 	unsigned int nb_channels;
 	vaddr_t base;
 	bool errata_ahbrisab;
@@ -126,6 +128,29 @@ static TEE_Result handle_available_semaphores(struct hpdma_pdata *hpdma_d)
 			}
 		}
 	}
+
+	return TEE_SUCCESS;
+}
+
+static TEE_Result stm32_hpdma_syscfg_set_arcr(struct hpdma_pdata *hpdma_d)
+{
+	uint32_t offset = hpdma_d->syscfg_arcr[0];
+	uint32_t mask = hpdma_d->syscfg_arcr[1];
+
+	if (!IS_ENABLED(CFG_STM32MP21) || !offset)
+		return TEE_SUCCESS;
+
+	/* Verify that offset is consistent */
+	if (SYSCON_ID(SYSCON_SYSCFG, offset) != SYSCFG_HPDMAARCR)
+		panic("HPDMA offset for axi address remap is incorrect");
+
+	/* Verify that mask is consistent */
+	if (!(mask == HPDMAARCR_HPDMA1AREN ||
+	      mask == HPDMAARCR_HPDMA2AREN ||
+	      mask == HPDMAARCR_HPDMA3AREN))
+		panic("HPDMA bitmask for axi address remap is incorrect");
+
+	stm32mp_syscfg_write(SYSCFG_HPDMAARCR, mask, mask);
 
 	return TEE_SUCCESS;
 }
@@ -250,6 +275,12 @@ static TEE_Result parse_dt(const void *fdt, int node,
 	hpdma_d->errata_ahbrisab = fdt_getprop(fdt, node, "st,errata-ahbrisab",
 					       NULL);
 
+	cuint = fdt_getprop(fdt, node, "st,syscfg-arcr", &lenp);
+	if (cuint && (lenp / sizeof(uint32_t)) == 3) {
+		hpdma_d->syscfg_arcr[0] = fdt32_to_cpu(cuint[1]);
+		hpdma_d->syscfg_arcr[1] = fdt32_to_cpu(cuint[2]);
+	}
+
 	cuint = fdt_getprop(fdt, node, "st,protreg", &lenp);
 	if (!cuint) {
 		DMSG("No RIF configuration available");
@@ -284,6 +315,9 @@ static TEE_Result parse_dt(const void *fdt, int node,
 static void stm32_hpdma_pm_resume(struct hpdma_pdata *hpdma)
 {
 	if (apply_rif_config(hpdma, true))
+		panic("Failed to resume HPDMA");
+
+	if (stm32_hpdma_syscfg_set_arcr(hpdma))
 		panic("Failed to resume HPDMA");
 }
 
@@ -371,6 +405,10 @@ static TEE_Result stm32_hpdma_probe(const void *fdt, int node,
 	if (res)
 		panic("Failed to apply RIF config");
 
+	res = stm32_hpdma_syscfg_set_arcr(hpdma_d);
+	if (res)
+		panic("Failed to apply hpdma AXI port configuration");
+
 	clk_disable(hpdma_d->hpdma_clock);
 
 	SLIST_INSERT_HEAD(&hpdma_list, hpdma_d, link);
@@ -381,7 +419,8 @@ static TEE_Result stm32_hpdma_probe(const void *fdt, int node,
 }
 
 static const struct dt_device_match stm32_hpdma_match_table[] = {
-	{ .compatible = "st,stm32-dma3" },
+	{ .compatible = "st,stm32mp21-dma3" },
+	{ .compatible = "st,stm32mp25-dma3" },
 	{ }
 };
 
