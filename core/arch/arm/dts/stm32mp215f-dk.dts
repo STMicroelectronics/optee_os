@@ -48,6 +48,18 @@
 	status = "okay";
 };
 
+&hpdma1 {
+	status = "okay";
+};
+
+&hpdma2 {
+	status = "okay";
+};
+
+&hpdma3 {
+	status = "okay";
+};
+
 &i2c3 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c3_pins_a>;
