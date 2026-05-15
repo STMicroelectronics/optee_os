@@ -8,7 +8,7 @@
 #include <console.h>
 #include <drivers/clk.h>
 #include <drivers/rstctrl.h>
-#include <drivers/stm32mp1_pmic.h>
+#include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stm32mp1_rcc.h>
 #include <drivers/stpmic1.h>
 #include <drivers/stm32mp_dt_bindings.h>

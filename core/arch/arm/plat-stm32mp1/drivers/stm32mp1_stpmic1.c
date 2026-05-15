@@ -7,7 +7,7 @@
 #include <drivers/i2c.h>
 #include <drivers/regulator.h>
 #include <drivers/stm32_i2c.h>
-#include <drivers/stm32mp1_pmic.h>
+#include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stpmic1.h>
 #include <drivers/stpmic1_regulator.h>
 #include <io.h>

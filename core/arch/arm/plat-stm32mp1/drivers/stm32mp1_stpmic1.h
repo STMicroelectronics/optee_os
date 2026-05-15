@@ -3,8 +3,8 @@
  * Copyright (c) 2017-2020, STMicroelectronics
  */
 
-#ifndef __STM32MP1_PMIC_H__
-#define __STM32MP1_PMIC_H__
+#ifndef __STM32MP1_STPMIC1_H__
+#define __STM32MP1_STPMIC1_H__
 
 #include <kernel/panic.h>
 

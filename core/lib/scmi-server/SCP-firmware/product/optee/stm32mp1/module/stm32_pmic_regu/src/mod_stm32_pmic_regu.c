@@ -14,7 +14,7 @@
  *     stpmic1_regulator_*(). They execute in a threaded interruptible,
  *     and rescheduable context.
  */
-#include <drivers/stm32mp1_pmic.h>
+#include <drivers/stm32mp1_stpmic1.h>
 #include <drivers/stpmic1_regulator.h>
 #include <stm32_util.h>
 
