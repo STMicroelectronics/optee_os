@@ -233,6 +233,8 @@ endif # CFG_STM32MP13
 
 ifeq ($(CFG_STM32MP15),y)
 $(call force,CFG_BOOT_SECONDARY_REQUEST,y)
+$(call force,CFG_CORE_ASYNC_NOTIF,y)
+$(call force,CFG_CORE_ASYNC_NOTIF_GIC_INTID,31)
 $(call force,CFG_DRIVERS_CLK_FIXED,y)
 $(call force,CFG_DDR_LOWPOWER,y)
 $(call force,CFG_HALT_CORES_SGI,15)
