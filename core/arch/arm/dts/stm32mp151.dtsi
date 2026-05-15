@@ -209,6 +209,15 @@
 			};
 		};
 
+		pwr_irq: pwr@50001010 {
+			compatible = "st,stm32mp1-pwr-irq";
+			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			wakeup-gpios = <0>, <0>, <0>, <0>, <0>, <0>;
+			status = "disabled";
+		};
+
 		pwr_mcu: pwr_mcu@50001014 {
 			compatible = "st,stm32mp151-pwr-mcu", "syscon";
 			reg = <0x50001014 0x4>;
@@ -216,9 +225,12 @@
 
 		exti: interrupt-controller@5000d000 {
 			compatible = "st,stm32mp1-exti";
+			wakeup-parent = <&pwr_irq>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
 			reg = <0x5000d000 0x400>;
+			status = "disabled";
+
 			interrupts-extended =
 				<&intc GIC_SPI 6   IRQ_TYPE_LEVEL_HIGH>,	/* EXTI_0 */
 				<&intc GIC_SPI 7   IRQ_TYPE_LEVEL_HIGH>,
@@ -275,12 +287,12 @@
 				<&intc GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>,
 				<&intc GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
 				<&intc GIC_SPI 135 IRQ_TYPE_LEVEL_HIGH>,
-				<0>,
-				<0>,
-				<0>,
-				<0>,
-				<0>,
-				<0>,						/* EXTI_60 */
+				<&pwr_irq 0 IRQ_TYPE_EDGE_FALLING 0>,
+				<&pwr_irq 1 IRQ_TYPE_EDGE_FALLING 0>,
+				<&pwr_irq 2 IRQ_TYPE_EDGE_FALLING 0>,
+				<&pwr_irq 3 IRQ_TYPE_EDGE_FALLING 0>,
+				<&pwr_irq 4 IRQ_TYPE_EDGE_FALLING 0>,
+				<&pwr_irq 5 IRQ_TYPE_EDGE_FALLING 0>,		/* EXTI_60 */
 				<&intc GIC_SPI 100 IRQ_TYPE_LEVEL_HIGH>,
 				<0>,
 				<0>,
