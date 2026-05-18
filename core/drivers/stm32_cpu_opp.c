@@ -9,6 +9,7 @@
 #include <drivers/clk_dt.h>
 #include <drivers/regulator.h>
 #include <drivers/stm32_cpu_opp.h>
+#include <drivers/stm32mp_dt_bindings.h>
 #ifdef CFG_STM32MP13
 #include <drivers/stm32mp1_pwr.h>
 #endif
@@ -21,8 +22,14 @@
 #include <kernel/panic.h>
 #include <kernel/pm.h>
 #include <libfdt.h>
+#if defined(CFG_STM32MP21) || defined(CFG_STM32MP23) || defined(CFG_STM32MP25)
+#include <stm32mp_pm.h>
+#include <stm32_sysconf.h>
+#endif
 #include <stm32_util.h>
 #include <trace.h>
+
+#define TIMEOUT_US_OPP			U(1000)
 
 /*
  * struct cpu_dvfs - CPU DVFS registered operating point
@@ -245,6 +252,291 @@ static TEE_Result set_opp(unsigned int opp)
 }
 #endif /* CFG_STM32MP13 || CFG_STM32MP15 */
 
+#if defined(CFG_STM32MP21) || defined(CFG_STM32MP23) || defined(CFG_STM32MP25)
+/*
+ * To guarantee a correct synchronization of the ARM counter with STGEN and
+ * TSGEN counter, they has to be isolated during DVFS request with LPI register.
+ * Once this is done on STGEN, the ARM generic timer and associated delays or
+ * timeouts are not functional.
+ */
+static void ca35ss_lpi_isolate(bool *tsgen)
+{
+	struct clk *dbg_clk = stm32mp_rcc_clock_id_to_clk(CK_KER_TSDBG);
+	uint64_t timeout = 0;
+	uint32_t counter = UINT32_MAX;
+
+	*tsgen = false;
+
+	/* Isolate TSGEN for debug only if associated clock is enabled */
+	if (clk_is_enabled(dbg_clk)) {
+		stm32mp_syscfg_write(CA35SS_SSC_LPI_TSGEN_NTS_CR, 0,
+				     CA35SS_SSC_LPI_TSGEN_CSYSREQ);
+		timeout = timeout_init_us(TIMEOUT_US_OPP);
+		while (stm32mp_syscfg_read(CA35SS_SSC_LPI_TSGEN_NTS_CR)
+			& CA35SS_SSC_LPI_TSGEN_CSYSACK) {
+			if (timeout_elapsed(timeout))
+				panic("Timeout CA35SS_SSC_LPI_TSGEN_CSYSACK");
+		}
+		*tsgen = true;
+	}
+
+	/* Isolate STGEN: Clear bit and waiting ACK */
+	stm32mp_syscfg_write(CA35SS_SSC_LPI_STGEN_NTS_CR, 0,
+			     CA35SS_SSC_LPI_STGEN_CSYSREQ);
+	while (stm32mp_syscfg_read(CA35SS_SSC_LPI_STGEN_NTS_CR)
+		& CA35SS_SSC_LPI_STGEN_CSYSACK) {
+		/* With STGEN isolated, timer is not functional */
+		counter--;
+		if (!counter)
+			panic("Timeout CA35SS_SSC_LPI_STGEN_CSYSACK");
+	}
+}
+
+static void ca35ss_lpi_restore(bool tsgen)
+{
+	uint64_t timeout = 0;
+	uint32_t counter = UINT32_MAX;
+
+	/* Set bit REQ for STGEN and polling ACK */
+	stm32mp_syscfg_write(CA35SS_SSC_LPI_STGEN_NTS_CR,
+			     CA35SS_SSC_LPI_STGEN_CSYSREQ,
+			     CA35SS_SSC_LPI_STGEN_CSYSREQ);
+	while (!(stm32mp_syscfg_read(CA35SS_SSC_LPI_STGEN_NTS_CR)
+		 & CA35SS_SSC_LPI_STGEN_CSYSACK)) {
+		/* With STGEN isolated, timer is not functional */
+		counter--;
+		if (!counter)
+			panic("Timeout CA35SS_SSC_LPI_STGEN_CSYSACK");
+	}
+
+	/* Set bit REQ for TSGEN and polling ACK */
+	if (tsgen) {
+		stm32mp_syscfg_write(CA35SS_SSC_LPI_TSGEN_NTS_CR,
+				     CA35SS_SSC_LPI_TSGEN_CSYSREQ,
+				     CA35SS_SSC_LPI_TSGEN_CSYSREQ);
+		timeout = timeout_init_us(TIMEOUT_US_OPP);
+		while (!(stm32mp_syscfg_read(CA35SS_SSC_LPI_TSGEN_NTS_CR)
+			 & CA35SS_SSC_LPI_TSGEN_CSYSACK)) {
+			if (timeout_elapsed(timeout))
+				panic("Timeout CA35SS_SSC_LPI_TSGEN_CSYSACK");
+		}
+	}
+}
+
+/*
+ * Configure CA35SS for new OPP with syscfg register SSC_MEM and OPP_REQ
+ * the parameter overdrive indicates if the new OPP has an overdrive frequency
+ * NB: as STGEN is deactivated during OPP request, use polling without timeout
+ */
+static void ca35ss_configure_opp(unsigned int overdrive)
+{
+	uint32_t mem_ctrl = stm32mp_syscfg_read(CA35SS_SSC_MEM_CTRL);
+	bool tsgen = false;
+	uint32_t counter = UINT32_MAX;
+	uint32_t exceptions;
+
+	/*
+	 * SSC_MEM control the speed of memories inside Cortex-A35
+	 * - RME: 0 default margin setting for nominal Cortex-A35 frequencies
+	 * - RME: 1 margin setting from RM[2:0]
+	 * - RM: CA35SS_SSC_MEM_CTRL_RM_OVERDRIVE the recommended value for
+	 *       Cortex-A35 overdrive frequencies, not used if RME = 0
+	 *
+	 * This function configure the CA35SS values only if the OPP change
+	 * (nominal vs overdrive)
+	 */
+	if (overdrive) {
+		if (mem_ctrl & CA35SS_SSC_MEM_CTRL_RME)
+			return;
+
+		stm32mp_syscfg_write(CA35SS_SSC_MEM_CTRL,
+				     CA35SS_SSC_MEM_CTRL_RME |
+				     CA35SS_SSC_MEM_CTRL_RM_OVERDRIVE,
+				     CA35SS_SSC_MEM_CTRL_RME |
+				     CA35SS_SSC_MEM_CTRL_RM_MASK);
+	} else {
+		if (!(mem_ctrl & CA35SS_SSC_MEM_CTRL_RME))
+			return;
+
+		stm32mp_syscfg_write(CA35SS_SSC_MEM_CTRL,
+				     CA35SS_SSC_MEM_CTRL_RM_OVERDRIVE,
+				     CA35SS_SSC_MEM_CTRL_RME |
+				     CA35SS_SSC_MEM_CTRL_RM_MASK);
+	}
+
+	exceptions = thread_mask_exceptions(THREAD_EXCP_ALL);
+
+	ca35ss_lpi_isolate(&tsgen);
+
+	/* Launch the OPP request*/
+	stm32mp_syscfg_write(CA35SS_SSC_OPP_REQ, CA35SS_SSC_OPP_REQ_REQ,
+			     CA35SS_SSC_OPP_REQ_REQ);
+
+	/* Wait for the request to be complete */
+	while (!(stm32mp_syscfg_read(CA35SS_SSC_OPP_REQ)
+		 & CA35SS_SSC_OPP_REQ_ACK)) {
+		/* After LPI isolate, the ARM generic timer is frozen  */
+		counter--;
+		if (!counter)
+			panic("Timeout CA35SS_SSC_OPP_REQ_ACK");
+	}
+
+	/* Stop the OPP request */
+	stm32mp_syscfg_write(CA35SS_SSC_OPP_REQ, 0, CA35SS_SSC_OPP_REQ_REQ);
+
+	ca35ss_lpi_restore(tsgen);
+
+	/* Restore interrupts */
+	thread_unmask_exceptions(exceptions);
+}
+
+static TEE_Result set_opp(unsigned int opp)
+{
+	bool overdrive = false;
+	unsigned int def_freq_khz = cpu_opp.dvfs[cpu_opp.default_opp].freq_khz;
+	unsigned int opp_freq_khz = cpu_opp.dvfs[opp].freq_khz;
+	int opp_volt_uv = cpu_opp.dvfs[opp].volt_uv;
+	int res = TEE_ERROR_GENERIC;
+
+	if (opp_freq_khz == clk_get_rate(cpu_opp.clock))
+		return TEE_SUCCESS;
+
+	/* The default OPP is the OPP with nominal frequency */
+	if (opp_freq_khz > def_freq_khz)
+		overdrive = true;
+
+	/* switch to bypass and disable PLL1 */
+	clk_set_parent(cpu_opp.clock,
+		       clk_get_parent_by_index(cpu_opp.clock, 1));
+
+	/* Change OPP/RM(nominal) when moving OPP Overdrive to Nominal */
+	if (!overdrive)
+		ca35ss_configure_opp(false);
+
+	/* Update voltage */
+	res = regulator_set_voltage(cpu_opp.regul, opp_volt_uv);
+	if (res) {
+		EMSG("Failed to set OPP %uuV", opp_volt_uv);
+		return res;
+	}
+
+	/* Change OPP/RM(overdrive) when moving OPP Nominal to Overdrive */
+	if (overdrive)
+		ca35ss_configure_opp(true);
+
+	/* Configure and start PLL1 */
+	if (clk_set_rate(cpu_opp.clock, opp_freq_khz * 1000UL)) {
+		EMSG("Failed to set OPP %ukHz", opp_freq_khz);
+		return TEE_ERROR_GENERIC;
+	}
+
+	return TEE_SUCCESS;
+}
+#endif /* CFG_STM32MP21 || CFG_STM32MP23 || CFG_STM32MP25*/
+
+#ifdef CFG_SCPFW_MOD_DVFS
+/* Request to switch to CPU operating point related to @rate */
+TEE_Result stm32_cpu_opp_set_rate(unsigned int rate)
+{
+	size_t opp = 0;
+	uint64_t rate_khz = rate / 1000UL;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	for (opp = 0U; opp < cpu_opp.opp_count; opp++)
+		if (cpu_opp.dvfs[opp].freq_khz == rate_khz)
+			break;
+
+	if (opp > cpu_opp.opp_count)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	/* set OPP: configure clock and voltage with SoC function */
+	res = set_opp(opp);
+	if (!res)
+		cpu_opp.current_opp = opp;
+
+	return res;
+}
+
+/* Get rate related to current CPU operating point */
+unsigned int stm32_cpu_opp_get_rate(void)
+{
+	return clk_get_rate(cpu_opp.clock);
+}
+
+/* Request to CPU operating point related to @level */
+TEE_Result stm32_cpu_opp_get_rate_for_level(unsigned int level,
+					    unsigned int *rate)
+{
+	if (level >= cpu_opp.opp_count)
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	*rate = cpu_opp.dvfs[level].freq_khz * 1000UL;
+
+	return TEE_SUCCESS;
+}
+
+static int cmp_cpu_opp_by_freq(const void *a, const void *b)
+{
+	const struct cpu_dvfs *opp_a = a;
+	const struct cpu_dvfs *opp_b = b;
+
+	assert(opp_a->freq_khz != opp_b->freq_khz);
+
+	return CMP_TRILEAN(opp_a->freq_khz, opp_b->freq_khz);
+}
+
+TEE_Result optee_scmi_server_cpu_dvfs(int perf_id,
+				      struct scpfw_channel_config *channel_cfg)
+{
+	unsigned int *dvfs_khz = NULL;
+	unsigned int *dvfs_mv = NULL;
+	size_t opp = 0;
+	struct cpu_dvfs *sorted_dvfs = NULL;
+
+	assert(channel_cfg && cpu_opp.opp_count);
+
+	sorted_dvfs = calloc(cpu_opp.opp_count, sizeof(*sorted_dvfs));
+	dvfs_khz = calloc(cpu_opp.opp_count, sizeof(*dvfs_khz));
+	dvfs_mv = calloc(cpu_opp.opp_count, sizeof(*dvfs_mv));
+	if (!sorted_dvfs || !dvfs_khz || !dvfs_mv) {
+		free(sorted_dvfs);
+		free(dvfs_mv);
+		free(dvfs_khz);
+
+		return TEE_ERROR_OUT_OF_MEMORY;
+	}
+
+	/*
+	 * Sort operating points by increasing frequencies as expected by
+	 * SCP-firmware DVFS module.
+	 */
+	memcpy(sorted_dvfs, cpu_opp.dvfs,
+	       cpu_opp.opp_count * sizeof(*sorted_dvfs));
+
+	qsort(sorted_dvfs, cpu_opp.opp_count, sizeof(*sorted_dvfs),
+	      cmp_cpu_opp_by_freq);
+
+	/* Feed SCP-firmware with CPU DVFS configuration data */
+	for (opp = 0; opp < cpu_opp.opp_count; opp++) {
+		dvfs_khz[opp] = sorted_dvfs[opp].freq_khz;
+		dvfs_mv[opp] = sorted_dvfs[opp].volt_uv / U(1000);
+	}
+
+	free(sorted_dvfs);
+
+	channel_cfg->perfd[perf_id] = (struct scmi_perfd){
+		.name = "CPU DVFS",
+		.initial_opp = cpu_opp.default_opp,
+		.dvfs_opp_count = cpu_opp.opp_count,
+		.dvfs_opp_khz = dvfs_khz,
+		.dvfs_opp_mv = dvfs_mv,
+		.opp_id = OPP_ID_CPU,
+	};
+
+	return TEE_SUCCESS;
+}
+#endif /*CFG_SCPFW_MOD_DVFS*/
+
 #ifdef CFG_SCMI_MSG_PERF_DOMAIN
 unsigned int stm32_cpu_opp_sustained_level(void)
 {
@@ -340,13 +632,50 @@ static TEE_Result cpu_opp_pm(enum pm_op op, unsigned int pm_hint,
 		return TEE_SUCCESS;
 #endif
 
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
+	/* Nothing to do on Stop1, LP-Stop1 modes */
+	if (PM_HINT_PLATFORM_STATE(pm_hint) == PM_CORE_LEVEL)
+		return TEE_SUCCESS;
+#else
 	/* nothing to do if RCC clock tree is not lost */
 	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
 		return TEE_SUCCESS;
+#endif
 
 	if (op == PM_OP_SUSPEND) {
+#ifdef CFG_SCPFW_MOD_DVFS
+		unsigned int opp = 0;
+
+		/*
+		 * When CFG_SCPFW_MOD_DVFS is enabled, save CPU OPP on suspend
+		 * for restoration at resume. If CPU is not in an expected
+		 * OPP state, fallback to default OPP at PM resume.
+		 */
+		unsigned int cur_khz = 0;
+		int cur_uv = 0;
+
+		cur_khz = clk_get_rate(cpu_opp.clock) / 1000;
+
+		cur_uv = regulator_get_voltage(cpu_opp.regul);
+		if (!cur_uv)
+			panic();
+
+		/* Get current OPP or fallback to default */
+		for (opp = 0; opp < cpu_opp.opp_count; opp++)
+			if (cur_khz == cpu_opp.dvfs[opp].freq_khz  &&
+			    cur_uv == cpu_opp.dvfs[opp].volt_uv)
+				break;
+		if (opp >= cpu_opp.opp_count) {
+			EMSG("Unexpected OPP state, select default");
+
+			opp = cpu_opp.default_opp;
+		}
+		cpu_opp.current_opp = opp;
+#endif
 		/*
 		 * Force default OPP before suspend
+		 * On STM32MP2, it is not allowed to enter LPLV-Stop
+		 * with overdrive voltage on VDDCPU
 		 */
 		DMSG("Suspend to OPP %u", cpu_opp.default_opp);
 

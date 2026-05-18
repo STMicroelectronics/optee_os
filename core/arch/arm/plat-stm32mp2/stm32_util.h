@@ -20,6 +20,10 @@ bool stm32mp_allow_probe_shared_device(const void *fdt, int node);
 /* Print a message and reset the system */
 void __noreturn do_reset(const char *str);
 
+#ifdef CFG_STM32_CPU_OPP
+bool stm32mp_supports_cpu_opp(uint32_t opp_id);
+#endif /*CFG_STM32_CPU_OPP*/
+
 #ifdef CFG_STPMIC2
 bool stm32_stpmic2_is_present(void);
 #else

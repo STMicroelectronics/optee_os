@@ -236,6 +236,38 @@ early_init_late(init_debug);
 #endif /* !CFG_STM32_CM33TDCID */
 #endif /* CFG_STM32_BSEC3 */
 
+#ifdef CFG_STM32_CPU_OPP
+bool stm32mp_supports_cpu_opp(uint32_t opp_id __maybe_unused)
+{
+#ifdef CFG_STM32_BSEC3
+	static uint32_t part_number;
+	uint32_t otp = 0;
+	size_t bit_len = 0;
+	uint32_t id = 0;
+
+	if (stm32_bsec_find_otp_in_nvmem_layout("part_number_otp",
+						&otp, NULL, &bit_len))
+		return false;
+
+	if (stm32_bsec_read_otp(&part_number, otp))
+		return false;
+
+	/* The bit 31 indicate support of 1.5GHz in RPN (variant d/f) */
+	if (part_number & BIT(31))
+		id = BIT(1);
+	else
+		id = BIT(0);
+
+	return (opp_id & id) == id;
+#elif CFG_STM32_CM33TDCID
+	/* can't read OTP in M33TDCID to support all OPP */
+	return true;
+#else
+	return false;
+#endif
+}
+#endif /* CFG_STM32_CPU_OPP */
+
 void __noreturn do_reset(const char *str __maybe_unused)
 {
 	struct rstctrl *rstctrl = NULL;
