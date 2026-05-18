@@ -38,52 +38,36 @@ struct cpu_dvfs {
  * struct cpu_opp - CPU operating point
  *
  * @current_opp: Index of current CPU operating point in @dvfs array
+ * @default_opp: Index of OPP to set at boot or during suspend in @dvfs array
+ *               with a long term sustainable frequency
  * @opp_count: Number of cells of @dvfs
  * @clock: CPU clock handle
  * @regul: CPU regulator supply handle
  * @dvfs: Array of the supported CPU operating points
- * @sustained_freq_khz: Max long term sustainable frequency in kHz
+ * @running: boolean meaning that the dynamic part of the opp driver is running
  */
 struct cpu_opp {
 	unsigned int current_opp;
+	unsigned int default_opp;
 	unsigned int opp_count;
 	struct clk *clock;
 	struct regulator *regul;
 	struct cpu_dvfs *dvfs;
-	unsigned int sustained_freq_khz;
+#ifdef CFG_STM32MP15
+	bool running;
+#endif
 };
 
 static struct cpu_opp cpu_opp;
 
+#ifdef CFG_SCMI_MSG_PERF_DOMAIN
 /* Mutex for protecting CPU OPP changes */
 static struct mutex cpu_opp_mu = MUTEX_INITIALIZER;
+#endif
 
 unsigned int stm32_cpu_opp_count(void)
 {
 	return cpu_opp.opp_count;
-}
-
-unsigned int stm32_cpu_opp_sustained_level(void)
-{
-	return cpu_opp.sustained_freq_khz;
-}
-
-/* Perf level relates straight to CPU frequency in kHz */
-unsigned int stm32_cpu_opp_level(unsigned int opp)
-{
-	assert(opp < cpu_opp.opp_count);
-
-	return cpu_opp.dvfs[opp].freq_khz;
-}
-
-static TEE_Result set_opp_clk_rate(unsigned int opp)
-{
-	return clk_set_rate(cpu_opp.clock, cpu_opp.dvfs[opp].freq_khz * 1000);
-}
-
-static TEE_Result set_opp_voltage(unsigned int opp)
-{
-	return regulator_set_voltage(cpu_opp.regul, cpu_opp.dvfs[opp].volt_uv);
 }
 
 /*
@@ -146,13 +130,31 @@ static bool opp_voltage_is_supported(struct regulator *regul, uint32_t *volt_uv)
 	return true;
 }
 
+#if defined(CFG_STM32MP13) || defined(CFG_STM32MP15)
+static TEE_Result set_opp_clk_rate(unsigned int opp)
+{
+#ifdef CFG_STM32MP15
+	return stm32mp1_set_opp_khz(cpu_opp.dvfs[opp].freq_khz);
+#else
+	return clk_set_rate(cpu_opp.clock, cpu_opp.dvfs[opp].freq_khz * 1000);
+#endif
+}
+
+static TEE_Result set_opp_voltage(unsigned int opp)
+{
+	return regulator_set_voltage(cpu_opp.regul, cpu_opp.dvfs[opp].volt_uv);
+}
+
 static TEE_Result set_clock_then_voltage(unsigned int opp)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	res = set_opp_clk_rate(opp);
-	if (res)
+	if (res) {
+		EMSG("Failed to set OPP %ukHz",
+		     cpu_opp.dvfs[opp].freq_khz);
 		return res;
+	}
 
 #ifdef CFG_STM32MP13
 	if (cpu_opp.dvfs[opp].volt_uv <= PWR_MPU_RAM_LOW_SPEED_THRESHOLD)
@@ -162,6 +164,11 @@ static TEE_Result set_clock_then_voltage(unsigned int opp)
 
 	res = set_opp_voltage(opp);
 	if (res) {
+		EMSG("Failed to set OPP %uuV", cpu_opp.dvfs[opp].volt_uv);
+
+		if (cpu_opp.current_opp >= cpu_opp.opp_count)
+			panic();
+
 		/* Restore previous OPP */
 #ifdef CFG_STM32MP13
 		if (cpu_opp.dvfs[cpu_opp.current_opp].volt_uv >
@@ -171,7 +178,7 @@ static TEE_Result set_clock_then_voltage(unsigned int opp)
 #endif
 
 		if (set_opp_clk_rate(cpu_opp.current_opp))
-			panic();
+			panic("Failed to restore clock");
 
 		return res;
 	}
@@ -184,8 +191,10 @@ static TEE_Result set_voltage_then_clock(unsigned int opp)
 	TEE_Result res = TEE_ERROR_GENERIC;
 
 	res = set_opp_voltage(opp);
-	if (res)
+	if (res) {
+		EMSG("Failed to set OPP %uuV", cpu_opp.dvfs[opp].volt_uv);
 		return res;
+	}
 
 #ifdef CFG_STM32MP13
 	if (cpu_opp.dvfs[opp].volt_uv > PWR_MPU_RAM_LOW_SPEED_THRESHOLD)
@@ -195,6 +204,12 @@ static TEE_Result set_voltage_then_clock(unsigned int opp)
 
 	res = set_opp_clk_rate(opp);
 	if (res) {
+		EMSG("Failed to set OPP %ukHz",
+		     cpu_opp.dvfs[opp].freq_khz);
+
+		if (cpu_opp.current_opp >= cpu_opp.opp_count)
+			panic();
+
 		/* Restore previous OPP */
 #ifdef CFG_STM32MP13
 		if (cpu_opp.dvfs[cpu_opp.current_opp].volt_uv <=
@@ -204,7 +219,7 @@ static TEE_Result set_voltage_then_clock(unsigned int opp)
 #endif
 
 		if (set_opp_voltage(cpu_opp.current_opp))
-			panic();
+			panic("Failed to restore voltage");
 
 		return res;
 	}
@@ -212,9 +227,40 @@ static TEE_Result set_voltage_then_clock(unsigned int opp)
 	return TEE_SUCCESS;
 }
 
+static TEE_Result set_opp(unsigned int opp)
+{
+	unsigned long clk_cpu = clk_get_rate(cpu_opp.clock);
+	unsigned long clk_opp = cpu_opp.dvfs[opp].freq_khz * 1000U;
+	TEE_Result res = TEE_ERROR_GENERIC;
+
+	assert(clk_cpu);
+	if (clk_opp == clk_cpu)
+		res = TEE_SUCCESS;
+	else if (clk_opp >= clk_cpu)
+		res = set_voltage_then_clock(opp);
+	else
+		res = set_clock_then_voltage(opp);
+
+	return res;
+}
+#endif /* CFG_STM32MP13 || CFG_STM32MP15 */
+
+#ifdef CFG_SCMI_MSG_PERF_DOMAIN
+unsigned int stm32_cpu_opp_sustained_level(void)
+{
+	return cpu_opp.dvfs[cpu_opp.default_opp].freq_khz;
+}
+
+/* Perf level relates straight to CPU frequency in kHz */
+unsigned int stm32_cpu_opp_level(unsigned int opp)
+{
+	assert(opp < cpu_opp.opp_count);
+
+	return cpu_opp.dvfs[opp].freq_khz;
+}
+
 TEE_Result stm32_cpu_opp_set_level(unsigned int level)
 {
-	unsigned int current_level = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	unsigned int opp = 0;
 
@@ -225,13 +271,6 @@ TEE_Result stm32_cpu_opp_set_level(unsigned int level)
 
 	mutex_lock(&cpu_opp_mu);
 
-	current_level = stm32_cpu_opp_level(cpu_opp.current_opp);
-
-	if (level == current_level) {
-		mutex_unlock(&cpu_opp_mu);
-		return TEE_SUCCESS;
-	}
-
 	for (opp = 0; opp < cpu_opp.opp_count; opp++)
 		if (level == cpu_opp.dvfs[opp].freq_khz)
 			break;
@@ -241,14 +280,8 @@ TEE_Result stm32_cpu_opp_set_level(unsigned int level)
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
 
-	if (level < current_level)
-		res = set_clock_then_voltage(opp);
-	else
-		res = set_voltage_then_clock(opp);
-
-	if (res)
-		EMSG("Failed to set OPP to %ukHz", level);
-	else
+	res = set_opp(opp);
+	if (!res)
 		cpu_opp.current_opp = opp;
 
 	mutex_unlock(&cpu_opp_mu);
@@ -262,11 +295,19 @@ TEE_Result stm32_cpu_opp_read_level(unsigned int *level)
 		EMSG("No CPU OPP defined");
 		return TEE_ERROR_GENERIC;
 	}
+	if (cpu_opp.current_opp >= cpu_opp.opp_count)
+		return TEE_ERROR_BAD_STATE;
 
 	*level = stm32_cpu_opp_level(cpu_opp.current_opp);
 
+#ifdef CFG_STM32MP15
+	/* Assume that the dynamic part of the OPP driver is used */
+	cpu_opp.running = true;
+#endif
+
 	return TEE_SUCCESS;
 }
+#endif /*CFG_SCMI_MSG_PERF_DOMAIN*/
 
 static TEE_Result stm32_cpu_opp_is_supported(const void *fdt, int subnode)
 {
@@ -293,22 +334,40 @@ static TEE_Result cpu_opp_pm(enum pm_op op, unsigned int pm_hint,
 {
 	assert(op == PM_OP_SUSPEND || op == PM_OP_RESUME);
 
+#ifdef CFG_STM32MP15
+	/* nothing to do if OPP is managed by Linux and not by SCMI */
+	if (!cpu_opp.running)
+		return TEE_SUCCESS;
+#endif
+
 	/* nothing to do if RCC clock tree is not lost */
 	if (!PM_HINT_IS_STATE(pm_hint, CONTEXT))
 		return TEE_SUCCESS;
 
+	if (op == PM_OP_SUSPEND) {
+		/*
+		 * Force default OPP before suspend
+		 */
+		DMSG("Suspend to OPP %u", cpu_opp.default_opp);
+
+		if (cpu_opp.current_opp == cpu_opp.default_opp)
+			return TEE_SUCCESS;
+
+		return set_opp(cpu_opp.default_opp);
+	}
+
 	if (op == PM_OP_RESUME) {
-		unsigned long clk_cpu = 0;
-		unsigned int opp = cpu_opp.current_opp;
+		DMSG("Resume to OPP %u", cpu_opp.current_opp);
 
-		DMSG("Resume to OPP %u", opp);
+		/*
+		 * Optimize resume from Stop modes: do not reset
+		 * the OPP if we where on default before suspend.
+		 */
+		if (!PM_HINT_IS_STATE(pm_hint, CONTEXT) &&
+		    cpu_opp.current_opp == cpu_opp.default_opp)
+			return TEE_SUCCESS;
 
-		clk_cpu = clk_get_rate(cpu_opp.clock);
-		assert(clk_cpu);
-		if (cpu_opp.dvfs[opp].freq_khz * 1000 >= clk_cpu)
-			return set_voltage_then_clock(opp);
-		else
-			return set_clock_then_voltage(opp);
+		return set_opp(cpu_opp.current_opp);
 	}
 
 	return TEE_SUCCESS;
@@ -323,7 +382,6 @@ static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 	uint64_t freq_khz = 0;
 	uint64_t freq_khz_opp_def = 0;
 	uint32_t volt_uv = 0;
-	unsigned long clk_cpu = 0;
 	unsigned int i = 0;
 	int subnode = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
@@ -391,10 +449,10 @@ static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 		DMSG("Found OPP %u (%"PRIu64"kHz/%"PRIu32"uV) from DT",
 		     i, freq_khz, volt_uv);
 
-		/* Select the max "st,opp-default" node as current OPP */
+		/* Select the max "st,opp-default" node as default OPP */
 		if (fdt_getprop(fdt, subnode, "st,opp-default", NULL) &&
 		    freq_khz > freq_khz_opp_def) {
-			cpu_opp.current_opp = i;
+			cpu_opp.default_opp = i;
 			freq_khz_opp_def = freq_khz;
 		}
 
@@ -408,22 +466,20 @@ static TEE_Result stm32_cpu_opp_get_dt_subnode(const void *fdt, int node)
 		goto err;
 	}
 
-	/* Use the highest default OPP as sustained freq */
-	cpu_opp.sustained_freq_khz = freq_khz_opp_def;
-
-	/* Apply the current OPP */
-	DMSG("Set OPP to %"PRIu64"kHz", freq_khz_opp_def);
-	clk_cpu = clk_get_rate(cpu_opp.clock);
-	assert(clk_cpu);
-	if (freq_khz_opp_def * ULL(1000) > clk_cpu)
-		res = set_voltage_then_clock(cpu_opp.current_opp);
-	else
-		res = set_clock_then_voltage(cpu_opp.current_opp);
-
-	if (res) {
-		EMSG("Failed to set default OPP %u", cpu_opp.current_opp);
+	cpu_opp.opp_count = i;
+	if (cpu_opp.opp_count == 0) {
+		EMSG("No valid OPP found");
+		res = TEE_ERROR_GENERIC;
 		goto err;
 	}
+
+	/* Apply the default OPP */
+	DMSG("Set OPP to %"PRIu64"kHz", freq_khz_opp_def);
+	res = set_opp(cpu_opp.default_opp);
+	if (res)
+		goto err;
+
+	cpu_opp.current_opp = cpu_opp.default_opp;
 
 	register_pm_driver_cb(cpu_opp_pm, NULL, "cpu-opp");
 
@@ -475,8 +531,12 @@ stm32_cpu_init(const void *fdt, int node, const void *compat_data __unused)
 }
 
 static const struct dt_device_match stm32_cpu_match_table[] = {
+#if defined(CFG_STM32MP13) || defined(CFG_STM32MP15)
 	{ .compatible = "arm,cortex-a7" },
+#endif
+#if defined(CFG_STM32MP21) || defined(CFG_STM32MP23) || defined(CFG_STM32MP25)
 	{ .compatible = "arm,cortex-a35" },
+#endif
 	{ }
 };
 
@@ -493,8 +553,7 @@ static TEE_Result stm32_cpu_initcall(void)
 	int node = fdt_path_offset(fdt, "/cpus/cpu@0");
 
 	if (node < 0) {
-		EMSG("cannot find /cpus/cpu@0 node");
-		panic();
+		panic("cannot find /cpus/cpu@0 node");
 	}
 
 	res = dt_driver_maybe_add_probe_node(fdt, node);
