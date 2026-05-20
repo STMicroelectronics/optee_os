@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/soc/stm32/vivante,gc#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: STM32 GPU bindings
+
+maintainers:
+  - Pascal Paillet <p.paillet@foss.st.com>
+
+properties:
+  compatible:
+    const: "st,stm32-gpu"
+
+  "#address-cells":
+    const: 1
+
+  "#size-cells":
+    const: 1
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  gpu-supply:
+    description: "Power supply for the GPU"
+    $ref: "/schemas/regulator/regulator.yaml#"
+
+  operating-points-v2:
+    description: "Operating points for the GPU"
+    $ref: "/schemas/opp/opp-v2.yaml#"
+
+required:
+  - compatible
+  - clocks
+  - gpu-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/stm32mp25-clks.h>
+    gpu0: gpu@48280000 {
+      compatible = "vivante,gc";
+      gpu-supply = <&vddgpu>;
+      clocks = <&rcc CK_BUS_GPU>;
+      operating-points-v2 = <&gpu0_opp_table>;
+    };
+
+    gpu0_opp_table: gpu0-opp-table {
+      compatible = "operating-points-v2";
+
+      opp-800000000 {
+        opp-hz = /bits/ 64 <800000000>;
+        opp-microvolt = <800000>;
+        opp-supported-hw = <0x3>;
+        st,opp-default;
+      };
+
+      opp-900000000 {
+        opp-hz = /bits/ 64 <900000000>;
+        opp-microvolt = <1200000>;
+        opp-supported-hw = <0x2>;
+      };
+    };
+
+...
