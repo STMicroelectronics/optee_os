@@ -277,6 +277,8 @@ ifeq ($(CFG_TA_STM32MP_NVMEM),y)
 $(call force,CFG_STM32_BSEC_PTA,y,Mandated by CFG_TA_STM32MP_NVMEM)
 CFG_IN_TREE_EARLY_TAS += stm32mp_nvmem/1a8342cc-81a5-4512-99fe-9e2b3e37d626
 endif
+CFG_DRIVERS_NVMEM ?= y
+CFG_STM32_TAMP_NVRAM ?= y
 
 # Default enable PKCS11 TA to have PKCS11 tests built in OP-TEE Test
 CFG_PKCS11_TA ?= y
