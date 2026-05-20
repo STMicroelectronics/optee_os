@@ -955,6 +955,31 @@
 			#size-cells = <1>;
 			ranges;
 			st,backup-zones = <24 24 24 24 12 12 8>;
+
+			nvram: nvram@46010100 {
+				compatible = "st,stm32mp25-tamp-nvram";
+				#address-cells = <1>;
+				#size-cells = <1>;
+				reg = <0x46010100 0x200>;
+
+				boot_mode: tamp-bkp@180 {
+					reg = <0x180 0x4>;
+				};
+			};
+
+			reboot_mode: reboot-mode {
+				compatible = "nvmem-reboot-mode";
+				nvmem-cells = <&boot_mode>;
+				nvmem-cell-names = "reboot-mode";
+				mode-normal = <0x00>;
+				mode-fastboot = <0x01>;
+				mode-recovery = <0x02>;
+				mode-stm32cubeprogrammer = <0x03>;
+				mode-ums_mmc0 = <0x10>;
+				mode-ums_mmc1 = <0x11>;
+				mode-ums_mmc2 = <0x12>;
+				mode-romcode_serial = <0xff>;
+			};
 		};
 
 		pinctrl_z: pinctrl-z@46200000 {
