@@ -95,6 +95,7 @@ $(call force,CFG_STM32_PWR_REGUL,n)
 $(call force,CFG_STM32_TAMP,n)
 $(call force,CFG_STM32MP_PROVISIONING,n)
 $(call force,CFG_TA_STM32MP_NVMEM,n)
+$(call force,CFG_STM32MP2_CLK_CAL,n)
 $(call force,CFG_STM32_PSA_SERVICE,y)
 $(call force,CFG_STM32_DEBUG_ACCESS_PTA,n)
 endif
@@ -121,6 +122,12 @@ $(call force,CFG_STM32_STGEN,y)
 $(call force,CFG_STM32_PWR,y)
 CFG_STM32_PWR_REGUL ?= y
 $(call force,CFG_STM32MP_CLK_CORE,y)
+CFG_STM32MP2_CLK_CAL ?= y
+
+ifeq ($(CFG_STM32MP2_CLK_CAL),y)
+$(call force,CFG_STM32_CLKCALIB_PTA,y)
+endif
+
 $(call force,CFG_WITH_ARM_TRUSTED_FW,y)
 $(call force,CFG_WITH_LPAE,y)
 
