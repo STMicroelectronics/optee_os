@@ -200,6 +200,7 @@ $(call force,CFG_REGULATOR_FIXED,y)
 $(call force,CFG_SCMI_MSG_PERF_DOMAIN,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
+$(call force,CFG_STM32_HSE_MONITORING,y)
 $(call force,CFG_STM32_SHARED_IO,y)
 
 ifeq ($(CFG_STM32MP13),y)
@@ -355,6 +356,9 @@ ifeq ($(call cfg-one-enabled, CFG_STM32_CRYP \
 $(call force,CFG_STM32_CRYPTO_DRIVER,y)
 endif
 
+ifeq ($(CFG_STM32_HSE_MONITORING),y)
+$(call force,CFG_STM32_LPTIMER,y)
+endif
 
 ifeq ($(call cfg-one-enabled, CFG_STM32_LPTIMER CFG_STM32_TIM),y)
 $(call force,CFG_COUNTER_DRIVER,y)
