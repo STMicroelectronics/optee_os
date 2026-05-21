@@ -61,6 +61,8 @@
 	hse_monitor: hse-monitor {
 		compatible = "st,freq-monitor";
 		counter = <&lptimer3 1 1 0 0>;
+		clocks = <&rcc CK_HSE>, <&rcc CK_HSI>;
+		clock-names = "hse", "hsi";
 		status = "disabled";
 	};
 
