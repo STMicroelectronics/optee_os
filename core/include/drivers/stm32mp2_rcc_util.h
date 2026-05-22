@@ -19,4 +19,14 @@ struct clk *stm32mp_rcc_clock_id_to_clk(unsigned long clock_id);
 /* Return rstctrl instance related to RCC reset controller DT binding ID */
 struct rstctrl *stm32mp_rcc_reset_id_to_rstctrl(unsigned int binding_id);
 
+/* Return true if DDRPERFM debug is enabled */
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23)
+bool stm32_rcc_ddrperfm_is_enabled(void);
+#else
+static inline bool stm32_rcc_ddrperfm_is_enabled(void)
+{
+	return true;
+}
+#endif
+
 #endif /*__DRIVERS_STM32MP2_RCC_UTIL_H__*/

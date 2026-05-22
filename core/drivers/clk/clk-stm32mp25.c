@@ -874,6 +874,24 @@ static bool stm32_rcc_has_access_by_id(int id)
 	return true;
 }
 
+static bool stm32_rcc_is_secure_by_id(int id)
+{
+	struct clk_stm32_priv *priv = clk_stm32_get_priv();
+	uintptr_t rcc_base = priv->base;
+	unsigned int index = id / 32;
+
+	return io_read32(rcc_base + RCC_SECCFGR(index)) & BIT(id % 32);
+}
+
+/*
+ * Return true if DDRPERFM debug is enabled.
+ */
+bool stm32_rcc_ddrperfm_is_enabled(void)
+{
+	return stm32_rcc_has_access_by_id(RCC_RIF_DDR_PLL2) &&
+		!stm32_rcc_is_secure_by_id(RCC_RIF_DDR_PLL2);
+}
+
 static struct clk_oscillator_data *clk_oscillator_get_data(unsigned int osc_id)
 {
 	assert(osc_id < ARRAY_SIZE(stm32mp25_osc_data));
