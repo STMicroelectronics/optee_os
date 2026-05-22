@@ -41,4 +41,10 @@ int stm32mp1_round_opp_khz(uint32_t *freq_khz);
 void stm32mp1_clk_save_context_for_stop(void);
 void stm32mp1_clk_restore_context_for_stop(void);
 
+/* Return true if DDRPERFM debug is enabled */
+static inline bool stm32_rcc_ddrperfm_is_enabled(void)
+{
+	return true;
+}
+
 #endif /*__DRIVERS_STM32MP1_RCC_UTIL_H__*/
