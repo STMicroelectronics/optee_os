@@ -3,6 +3,7 @@
  * Copyright (C) 2026, STMicroelectronics - All Rights Reserved
  */
 
+#include <stm32_util.h>
 #include <drivers/stm32_bsec.h>
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
@@ -31,6 +32,10 @@ static TEE_Result pta_dbg_grant_dbg_access(uint32_t param_types,
 		break;
 	case PTA_STM32_DEBUG_PERIPHERAL_DBG_PROFILE:
 		if (!stm32_bsec_coresight_is_enabled())
+			return TEE_ERROR_ACCESS_DENIED;
+		break;
+	case PTA_STM32_DEBUG_DDRPERFM_DBG_PROFILE:
+		if (!stm32_rcc_ddrperfm_is_enabled())
 			return TEE_ERROR_ACCESS_DENIED;
 		break;
 	default:

@@ -15,6 +15,8 @@ enum stm32_pta_dbg_profile {
 	PTA_STM32_DEBUG_PERIPHERAL_DBG_PROFILE = 0,
 	/* Hardware Debug Port (HDP) support (internal signals observation) */
 	PTA_STM32_DEBUG_HDP_DBG_PROFILE = 1,
+	/* DDR Performance Monitoring (DDRPERFM) support */
+	PTA_STM32_DEBUG_DDRPERFM_DBG_PROFILE = 2,
 };
 
 /**
