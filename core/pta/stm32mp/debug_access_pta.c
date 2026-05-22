@@ -10,7 +10,7 @@
 
 #define PTA_NAME	"debug_access.pta"
 
-static_assert(IS_ENABLED(CFG_STM32_BSEC));
+static_assert(IS_ENABLED(CFG_STM32_BSEC) || IS_ENABLED(CFG_STM32_BSEC3));
 
 static TEE_Result pta_dbg_grant_dbg_access(uint32_t param_types,
 					   TEE_Param params[TEE_NUM_PARAMS])
