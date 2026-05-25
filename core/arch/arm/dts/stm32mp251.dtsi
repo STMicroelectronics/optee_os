@@ -152,6 +152,7 @@
 		ipcc1: mailbox@40490000 {
 			compatible = "st,stm32mp25-ipcc";
 			reg = <0x40490000 0x400>;
+			#mbox-cells = <1>;
 			interrupts = <GIC_SPI 173 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "rx";
 			clocks = <&rcc CK_BUS_IPCC1>;
