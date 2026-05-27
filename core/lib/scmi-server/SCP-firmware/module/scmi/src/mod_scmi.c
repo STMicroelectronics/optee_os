@@ -348,21 +348,40 @@ static int respond(fwk_id_t service_id, const void *payload, size_t size)
      * holds an SCMI status code. This is the case for all the SCMI commands
      * specified so far, but it is not explicitly stated (yet) in the
      * specification it should be like that for all commands.
+     *
+     * PROTOCOL_MESSAGE_ATTRIBUTES returning SCMI_NOT_FOUND is spec-compliant
+     * behaviour when an optional command is not supported: log at DEBUG level
+     * only to avoid misleading error output during feature probing.
      */
     if ((payload != NULL) && (*((int32_t *)payload) < SCMI_SUCCESS)) {
-#if FWK_LOG_LEVEL <= FWK_LOG_LEVEL_ERROR
-        FWK_LOG_ERR(
-            "[SCMI] %s: %s [%" PRIu16 " (0x%x:0x%x)] returned error (%d)",
-            service_name,
-            message_type_name,
-            ctx->scmi_token,
-            ctx->scmi_protocol_id,
-            ctx->scmi_message_id,
-            *((int *)payload));
-#else
-        (void)service_name;
-        (void)message_type_name;
+        if ((ctx->scmi_message_id == MOD_SCMI_PROTOCOL_MESSAGE_ATTRIBUTES) &&
+            (*((int32_t *)payload) == (int32_t)SCMI_NOT_FOUND)) {
+#if FWK_LOG_LEVEL <= FWK_LOG_LEVEL_DEBUG
+            FWK_LOG_DEBUG(
+                "[SCMI] %s: %s [%" PRIu16
+                " (0x%x:0x%x)] unsupported optional cmd (%d)",
+                service_name,
+                message_type_name,
+                ctx->scmi_token,
+                ctx->scmi_protocol_id,
+                ctx->scmi_message_id,
+                *((int *)payload));
 #endif
+        } else {
+#if FWK_LOG_LEVEL <= FWK_LOG_LEVEL_ERROR
+            FWK_LOG_ERR(
+                "[SCMI] %s: %s [%" PRIu16 " (0x%x:0x%x)] returned error (%d)",
+                service_name,
+                message_type_name,
+                ctx->scmi_token,
+                ctx->scmi_protocol_id,
+                ctx->scmi_message_id,
+                *((int *)payload));
+#else
+            (void)service_name;
+            (void)message_type_name;
+#endif
+        }
     } else {
 #if FWK_LOG_LEVEL <= FWK_LOG_LEVEL_DEBUG
         FWK_LOG_DEBUG(
