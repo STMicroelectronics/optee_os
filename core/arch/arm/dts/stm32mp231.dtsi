@@ -1115,6 +1115,7 @@
 			reg = <0x46240000 0x400>;
 			interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&rcc CK_BUS_HSEM>;
+			status = "disabled";
 		};
 
 		stgenc: stgen@48080000 {
