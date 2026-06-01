@@ -146,6 +146,14 @@
 	st,protreg = <TZPROT(15)>;
 };
 
+&gpiof {
+	st,protreg = <TZPROT(8)>;
+};
+
+&gpioi {
+	st,protreg = <(TZPROT(2) | TZPROT(3))>;
+};
+
 &hash {
 	status = "okay";
 };
