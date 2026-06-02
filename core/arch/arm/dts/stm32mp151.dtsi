@@ -211,6 +211,7 @@
 
 		pwr_irq: pwr@50001010 {
 			compatible = "st,stm32mp1-pwr-irq";
+			reg = <0x50001010 0x4>;
 			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
