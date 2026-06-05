@@ -347,6 +347,9 @@ void stm32_debug_suspend(unsigned long a0)
 	uint32_t dbgmcu_cr = U(0);
 	static bool info_displayed;
 
+	if (!stm32_bsec_self_hosted_debug_is_enabled())
+		return;
+
 	if (clk_enable(dbgmcu_clk))
 		return;
 
