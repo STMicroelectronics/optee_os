@@ -574,6 +574,7 @@ void abort_handler(uint32_t abort_type, struct thread_abort_regs *regs)
 		/* Allow platform-specific handling */
 		plat_external_abort_handler(&ai);
 #endif
+		panic("external abort");
 		break;
 #ifdef CFG_WITH_VFP
 	case FAULT_TYPE_USER_MODE_VFP:
