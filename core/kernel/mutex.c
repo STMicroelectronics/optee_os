@@ -356,19 +356,16 @@ void mutex_pm_aware_destroy(struct mutex_pm_aware *m)
 void mutex_pm_aware_lock(struct mutex_pm_aware *m)
 {
 	if (thread_is_for_pm()) {
-		if (!cpu_spin_trylock(&m->lock) || m->mutex.state)
-			panic();
+		cpu_spin_lock(&m->lock);
 	} else {
 		mutex_lock(&m->mutex);
-		if (!thread_spin_trylock(&m->lock))
-			panic();
+		thread_spin_lock(&m->lock);
 	}
 }
 
 void mutex_pm_aware_unlock(struct mutex_pm_aware *m)
 {
 	if (thread_is_for_pm()) {
-		assert(!m->mutex.state);
 		cpu_spin_unlock(&m->lock);
 	} else {
 		thread_spin_unlock(&m->lock);
