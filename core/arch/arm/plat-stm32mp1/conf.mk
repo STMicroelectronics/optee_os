@@ -191,6 +191,11 @@ CFG_EXTERNAL_DT ?= n
 
 include core/arch/arm/cpu/cortex-a7.mk
 
+# Disable DYN_CONFIG to avoid issues during low power sequences:
+# stm32mp_pm_call_bl2_lp_entry() needs the stack pointer to be mapped
+# 1 for 1 and not in a virtual space.
+$(call force,CFG_DYN_CONFIG,n)
+
 $(call force,CFG_ARM_GIC_PM,y)
 $(call force,CFG_DRIVERS_CLK,y)
 $(call force,CFG_DRIVERS_CLK_DT,y)
