@@ -4,6 +4,7 @@
  */
 
 #include <assert.h>
+#include <console.h>
 #include <drivers/i2c.h>
 #include <drivers/regulator.h>
 #include <drivers/stm32_i2c.h>
@@ -65,6 +66,7 @@ struct pmic_regulator_data {
 static struct i2c_handle_s *i2c_handle;
 static uint32_t pmic_i2c_addr;
 static int pmic_status = -1;
+bool stpmic1_system_power_controller;
 
 struct pmic_it_handle_s {
 	uint8_t pmic_reg;
@@ -268,8 +270,18 @@ static void stm32mp_pmic_apply_lp_config(unsigned int lp_state_id)
 				panic();
 		}
 	}
-	stm32mp_put_pmic();
 
+	if (lp_state_id == STM32_PM_SWITCH_OFF &&
+	    stpmic1_system_power_controller) {
+		IMSG("PMIC STPMIC1 software power off");
+		console_flush();
+		mdelay(10);
+		if (stpmic1_switch_off())
+			panic();
+		udelay(100);
+	}
+
+	stm32mp_put_pmic();
 }
 
 /* Return a libfdt compliant status value */
@@ -1002,6 +1014,8 @@ static TEE_Result stm32_pmic_probe(const void *fdt, int node,
 
 	stm32_i2c_dev = container_of(i2c_dev, struct stm32_i2c_dev, i2c_dev);
 	i2c_handle = stm32_i2c_dev->handle;
+	stpmic1_system_power_controller =
+		dt_have_prop(fdt, node, "system-power-controller");
 
 	res = initialize_pmic(fdt, node);
 	if (res) {
