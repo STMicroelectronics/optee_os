@@ -101,7 +101,7 @@ static const struct pwr_lp_config config_pwr[STM32_PM_MAX_SOC_MODE] = {
 	[STM32_PM_SHUTDOWN] = {
 		.pwr_cr1 = 0U,
 		.pwr_mpucr = 0U,
-		.regul_suspend_node_name = "standby-ddr-off",
+		.regul_suspend_node_name = NULL,
 	},
 };
 #else
@@ -144,7 +144,7 @@ static const struct pwr_lp_config config_pwr[STM32_PM_MAX_SOC_MODE] = {
 	[STM32_PM_SHUTDOWN] = {
 		.pwr_cr1 = 0U,
 		.pwr_mpucr = 0U,
-		.regul_suspend_node_name = "standby-ddr-off",
+		.regul_suspend_node_name = NULL,
 	},
 };
 #endif
@@ -161,7 +161,7 @@ static void restore_rcc_it_priority(uint8_t it_prio, uint8_t pmr)
 	(void)gic_set_pmr(pmr);
 }
 
-const char *stm32mp_pm_hint2mode_name(uint32_t pm_hint)
+static const char *stm32mp_pm_hint2mode_name(uint32_t pm_hint)
 {
 	assert(pm_hint < ARRAY_SIZE(config_pwr));
 
@@ -227,13 +227,6 @@ void stm32_enter_cstop(uint32_t mode)
 				    mode == STM32_PM_CSTOP_ALLOW_LPLV_STOP ||
 				    mode == STM32_PM_CSTANDBY_ALLOW_LPLV_STOP2))
 		pwr_cr1 |= PWR_CR1_LPCFG;
-
-	/* The PMIC2 applies it's low power config in a suspend call back */
-	if (stm32_stpmic1_is_present()) {
-		stm32mp_get_pmic();
-		stm32mp_pmic_apply_lp_config(config_pwr[mode].regul_suspend_node_name);
-		stm32mp_put_pmic();
-	}
 
 	if (mode == STM32_PM_CSTANDBY_ALLOW_LPLV_STOP2) {
 		struct clk *hsi_clk = stm32mp_rcc_clock_id_to_clk(CK_HSI);
@@ -383,28 +376,6 @@ void __noreturn stm32_enter_cstop_shutdown(uint32_t mode)
 			wfi();
 		break;
 	default:
-		break;
-	}
-
-	panic();
-}
-
-/*
- * stm32_enter_cstop_reset - Reset CPUs to target low power mode
- * @mode - Target low power mode
- */
-void __noreturn stm32_enter_cstop_reset(uint32_t mode)
-{
-	switch (mode) {
-	case STM32_PM_SHUTDOWN:
-		stm32_reset_system();
-		udelay(100);
-		break;
-	default:
-		IMSG("Forced system reset");
-		wait_console_flushed();
-		stm32_reset_system();
-		udelay(100);
 		break;
 	}
 

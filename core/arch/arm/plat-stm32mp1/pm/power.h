@@ -21,7 +21,6 @@ void stm32_enter_cstop(uint32_t mode);
 void stm32_exit_cstop(void);
 
 void stm32_enter_cstop_shutdown(uint32_t mode) __noreturn;
-void stm32_enter_cstop_reset(uint32_t mode) __noreturn;
 
 void stm32_pm_cpu_power_down_wfi(void) __noreturn;
 void stm32_pm_cpu_wfi(void);

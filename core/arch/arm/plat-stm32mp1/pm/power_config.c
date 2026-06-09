@@ -332,27 +332,6 @@ uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode)
 	return mode;
 }
 
-int stm32mp1_set_lp_deepest_soc_mode(uint32_t psci_mode, uint32_t soc_mode)
-{
-	if (soc_mode >= STM32_PM_MAX_SOC_MODE)
-		return -1;
-
-	if (psci_mode == PSCI_MODE_SYSTEM_SUSPEND) {
-		deepest_suspend_mode = soc_mode;
-
-#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
-		if (!stm32mp_supports_hw_cryp() &&
-		    deepest_suspend_mode == STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR)
-			deepest_suspend_mode = STM32_PM_CSTOP_ALLOW_LPLV_STOP;
-#endif
-	}
-
-	if (psci_mode == PSCI_MODE_SYSTEM_OFF)
-		system_off_mode = soc_mode;
-
-	return 0;
-}
-
 #ifdef CFG_EMBED_DTB
 static int dt_get_pwr_node(void *fdt)
 {
