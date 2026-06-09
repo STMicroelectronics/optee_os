@@ -510,7 +510,6 @@ static uint32_t get_pm_hint(unsigned int soc_mode)
 	default:
 	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR:
 	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF:
-	case STM32_PM_SHUTDOWN:
 		pm_hint = PM_HINT_CONTEXT_STATE;
 		break;
 	};

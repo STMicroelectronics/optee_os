@@ -362,7 +362,7 @@ uint32_t __weak __psci_system_suspend(uintptr_t entry,
 	if (!plat_can_suspend())
 		return PSCI_RET_DENIED;
 
-	soc_mode = stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_SUSPEND);
+	soc_mode = stm32mp1_get_lp_soc_mode();
 
 	DMSG("Soc mode requested is %"PRIu32, soc_mode);
 
@@ -440,11 +440,9 @@ int psci_system_suspend(uintptr_t entry, uint32_t context_id,
  */
 void __weak __noreturn __psci_system_off(void)
 {
-	uint32_t soc_mode = stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_OFF);
-
 	DMSG("core %u", get_core_pos());
 
-	stm32_enter_cstop_shutdown(soc_mode);
+	stm32_enter_cstop_shutdown(STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF);
 }
 
 void __noreturn psci_system_off(void)

@@ -21,7 +21,6 @@
 
 #define DT_PWR_COMPAT			"st,stm32mp1-pwr-reg"
 #define SYSTEM_SUSPEND_SUPPORTED_MODES	"system_suspend_supported_soc_modes"
-#define SYSTEM_OFF_MODE			"system_off_soc_mode"
 #define RETRAM_ENABLED			"st,retram-enabled-in-standby-ddr-sr"
 
 #define EXTI_BIT(exti_id) BIT((exti_id) % 32)
@@ -29,7 +28,6 @@
 	 GENMASK_32((exti_id_h) % 32, (exti_id_l) % 32)
 
 static uint32_t deepest_suspend_mode;
-static uint32_t system_off_mode;
 static bool retram_enabled;
 static uint8_t stm32mp1_supported_soc_modes[STM32_PM_MAX_SOC_MODE];
 
@@ -49,7 +47,6 @@ bool need_to_backup_cpu_context(unsigned int soc_mode)
 	case STM32_PM_CSTOP_ALLOW_LP_STOP:
 	case STM32_PM_CSTOP_ALLOW_LPLV_STOP:
 	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF:
-	case STM32_PM_SHUTDOWN:
 		return false;
 	default:
 		EMSG("Invalid mode 0x%x", soc_mode);
@@ -304,12 +301,9 @@ bool stm32mp1_lp_soc_mode_is_supported(uint32_t soc_mode)
 	return stm32mp1_supported_soc_modes[soc_mode] == 1;
 }
 
-uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode)
+uint32_t stm32mp1_get_lp_soc_mode(void)
 {
 	uint32_t mode = 0;
-
-	if (psci_mode == PSCI_MODE_SYSTEM_OFF)
-		return system_off_mode;
 
 	mode = deepest_suspend_mode;
 
@@ -354,7 +348,6 @@ static TEE_Result stm32mp1_init_lp_states(void)
 {
 	void *fdt = NULL;
 	int pwr_node = -1;
-	const fdt32_t *cuint = NULL;
 	TEE_Result __maybe_unused res = TEE_ERROR_GENERIC;
 
 	fdt = get_embedded_dt();
@@ -364,16 +357,12 @@ static TEE_Result stm32mp1_init_lp_states(void)
 	if (pwr_node >= 0) {
 		if (fdt_getprop(fdt, pwr_node, RETRAM_ENABLED, NULL))
 			retram_enabled = true;
-
-		cuint = fdt_getprop(fdt, pwr_node, SYSTEM_OFF_MODE, NULL);
 	}
 
-	if (!fdt || pwr_node < 0 || !cuint) {
+	if (!fdt || pwr_node < 0) {
 		DMSG("No power configuration found in DT");
 		return TEE_SUCCESS;
 	}
-
-	system_off_mode = fdt32_to_cpu(*cuint);
 
 	/* Initialize suspend support to the deepest possible mode */
 	deepest_suspend_mode = STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR;
@@ -385,9 +374,7 @@ static TEE_Result stm32mp1_init_lp_states(void)
 
 	save_supported_mode(fdt, pwr_node);
 
-	DMSG("Power configuration: shutdown to %u, suspend to %u",
-	     stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_OFF),
-	     stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_SUSPEND));
+	DMSG("Power configuration: suspend to %u", stm32mp1_get_lp_soc_mode());
 
 	return TEE_SUCCESS;
 }
@@ -401,11 +388,7 @@ static TEE_Result stm32mp1_init_lp_states(void)
 		deepest_suspend_mode = STM32_PM_CSTOP_ALLOW_LPLV_STOP;
 #endif
 
-	system_off_mode = STM32_PM_SHUTDOWN;
-
-	DMSG("Power configuration: shutdown to %u, suspend to %u",
-	     stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_OFF),
-	     stm32mp1_get_lp_soc_mode(PSCI_MODE_SYSTEM_SUSPEND));
+	DMSG("Power configuration: suspend to %u", stm32mp1_get_lp_soc_mode());
 
 	return TEE_SUCCESS;
 }

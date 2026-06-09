@@ -98,11 +98,6 @@ static const struct pwr_lp_config config_pwr[STM32_PM_MAX_SOC_MODE] = {
 			PWR_MPUCR_PDDS,
 		.regul_suspend_node_name = "standby-ddr-off",
 	},
-	[STM32_PM_SHUTDOWN] = {
-		.pwr_cr1 = 0U,
-		.pwr_mpucr = 0U,
-		.regul_suspend_node_name = NULL,
-	},
 };
 #else
 #define PWR_CR1_MASK	(PWR_CR1_LPDS | PWR_CR1_LPCFG | PWR_CR1_LVDS)
@@ -140,11 +135,6 @@ static const struct pwr_lp_config config_pwr[STM32_PM_MAX_SOC_MODE] = {
 		.pwr_mpucr = PWR_MPUCR_CSTDBYDIS | PWR_MPUCR_CSSF |
 			PWR_MPUCR_PDDS,
 		.regul_suspend_node_name = "standby-ddr-off",
-	},
-	[STM32_PM_SHUTDOWN] = {
-		.pwr_cr1 = 0U,
-		.pwr_mpucr = 0U,
-		.regul_suspend_node_name = NULL,
 	},
 };
 #endif
@@ -363,7 +353,6 @@ void __noreturn stm32_enter_cstop_shutdown(uint32_t mode)
 	stm32mp_pm_shutdown_context(mode);
 
 	switch (mode) {
-	case STM32_PM_SHUTDOWN:
 	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF:
 		stm32_enter_cstop(mode);
 #ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM

@@ -95,7 +95,7 @@ int stm32mp1_set_pm_domain_state(unsigned int domain, bool status);
 #endif
 
 bool stm32mp1_lp_soc_mode_is_supported(uint32_t soc_mode);
-uint32_t stm32mp1_get_lp_soc_mode(uint32_t psci_mode);
+uint32_t stm32mp1_get_lp_soc_mode(void);
 
 bool stm32mp1_is_retram_during_standby(void);
 
