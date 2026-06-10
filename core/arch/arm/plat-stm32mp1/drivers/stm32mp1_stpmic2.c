@@ -11,6 +11,7 @@
 #include <kernel/pm.h>
 #include <platform_config.h>
 #include <trace.h>
+#include <stm32mp_pm.h>
 
 #include "pm/power.h"
 

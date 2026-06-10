@@ -26,6 +26,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stm32_util.h>
+#include <stm32mp_pm.h>
 #include <trace.h>
 #include <util.h>
 
