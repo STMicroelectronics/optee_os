@@ -23,9 +23,9 @@ uint32_t pm_domain_scv_handler(uint32_t id, uint32_t enable)
 	DMSG("%sable PD %u", enable != 0 ? "En" : "Dis", pd);
 
 	switch (pd) {
-	case STM32MP1_PD_VSW:
-	case STM32MP1_PD_CORE_RET:
-	case STM32MP1_PD_CORE:
+	case STM32_SIP_PD_VSW:
+	case STM32_SIP_PD_CORE_RET:
+	case STM32_SIP_PD_CORE:
 		break;
 	default:
 		return STM32_SIP_SVC_INVALID_PARAMS;

@@ -91,7 +91,7 @@ TEE_Result stm32mp_pm_call_bl2_lp_entry(unsigned int soc_mode);
 #endif
 
 #ifdef CFG_STM32_LOWPOWER_SIP
-int stm32mp1_set_pm_domain_state(enum stm32mp1_pm_domain domain, bool status);
+int stm32mp1_set_pm_domain_state(unsigned int domain, bool status);
 #endif
 
 bool stm32mp1_lp_soc_mode_is_supported(uint32_t soc_mode);

@@ -70,6 +70,14 @@ bool need_to_backup_stop_context(unsigned int soc_mode)
 }
 
 #ifdef CFG_STM32_LOWPOWER_SIP
+#include <stm32mp1_smc.h>
+
+/* STM32MP1 power domain identifiers defined by SMC API */
+#define STM32MP1_PD_VSW			STM32_SIP_PD_VSW
+#define STM32MP1_PD_CORE_RET		STM32_SIP_PD_CORE_RET
+#define STM32MP1_PD_CORE		STM32_SIP_PD_CORE
+#define STM32MP1_PD_MAX_PM_DOMAIN	STM32_SIP_PD_MAX_PM_DOMAIN
+
 /* Boot with all domains ON, false means in use */
 static bool stm32mp1_pm_dom[STM32MP1_PD_MAX_PM_DOMAIN] = {
 	[STM32MP1_PD_VSW] = false,
@@ -80,7 +88,7 @@ static bool stm32mp1_pm_dom[STM32MP1_PD_MAX_PM_DOMAIN] = {
 static bool get_pm_domain_state(uint8_t mode)
 {
 	bool res = true;
-	enum stm32mp1_pm_domain id = STM32MP1_PD_MAX_PM_DOMAIN;
+	unsigned int id = STM32MP1_PD_MAX_PM_DOMAIN;
 
 	while (res && (id > mode)) {
 		id--;
@@ -90,7 +98,7 @@ static bool get_pm_domain_state(uint8_t mode)
 	return res;
 }
 
-int stm32mp1_set_pm_domain_state(enum stm32mp1_pm_domain domain, bool status)
+int stm32mp1_set_pm_domain_state(unsigned int domain, bool status)
 {
 	if (domain >= STM32MP1_PD_MAX_PM_DOMAIN)
 		return -1;
@@ -104,6 +112,10 @@ static void dump_pm_domain_state(uint8_t domain __unused)
 {
 }
 #else /* CFG_STM32_LOWPOWER_SIP */
+
+/* 2 power domains used for low power mode detection by EXTI */
+#define STM32MP1_PD_CORE_RET	0
+#define STM32MP1_PD_CORE	1
 
 #define EXTI_BANK_NR		3U
 #define EXTI_C1IMR(n)		(0x080U + (n) * 0x10U)
