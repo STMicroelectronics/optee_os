@@ -28,6 +28,7 @@
 #endif /* defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21) */
 #include <drivers/stm32mp_dt_bindings.h>
 #include <io.h>
+#include <kernel/boot.h>
 #include <kernel/dt.h>
 #include <kernel/dt_driver.h>
 #include <kernel/interrupt.h>
@@ -1102,7 +1103,7 @@ static enum itr_return stm32_tamp_it_handler(struct itr_handler *h __unused)
 				stm32_tamp_handle_lse_tamper();
 
 			if (ret & TAMP_CB_RESET)
-				do_reset("Internal tamper event detected");
+				plat_system_reset("Internal tamper event");
 		}
 		i++;
 	}
@@ -1127,7 +1128,7 @@ static enum itr_return stm32_tamp_it_handler(struct itr_handler *h __unused)
 					     _TAMP_SCR_ETAMP(id));
 
 			if (ret & TAMP_CB_RESET)
-				do_reset("External tamper event detected");
+				plat_system_reset("External tamper event");
 		}
 		i++;
 	}
