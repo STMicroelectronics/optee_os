@@ -123,6 +123,11 @@ __weak unsigned long plat_get_aslr_seed(void)
 	return 0;
 }
 
+/* May be overridden in plat-$(PLATFORM)/main.c */
+__weak void plat_system_reset(const char *str __unused)
+{
+}
+
 /*
  * This function is called as a guard after each smc call which is not
  * supposed to return.

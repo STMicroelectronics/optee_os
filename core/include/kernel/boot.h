@@ -73,6 +73,7 @@ void plat_cpu_reset_early(void);
 void plat_primary_init_early(void);
 unsigned long plat_get_aslr_seed(void);
 unsigned long plat_get_freq(void);
+void plat_system_reset(const char *str);
 #if defined(_CFG_CORE_STACK_PROTECTOR) || defined(CFG_WITH_STACK_CANARIES)
 /*
  * plat_get_random_stack_canaries() - Get random values for stack canaries.
