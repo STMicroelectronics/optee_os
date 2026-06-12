@@ -298,7 +298,7 @@ static bool stm32mp_supports_second_core(void)
 	return true;
 }
 
-void __noreturn do_reset(const char *str __maybe_unused)
+void __noreturn plat_system_reset(const char *str __maybe_unused)
 {
 	struct rstctrl *rstctrl = NULL;
 

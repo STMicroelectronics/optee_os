@@ -759,7 +759,7 @@ static void stm32mp_mask_timer(void)
 	write_cntv_ctl(read_cntv_ctl() | ARM_CNTXCTL_IMASK);
 }
 
-void __noreturn do_reset(const char *str __maybe_unused)
+void __noreturn plat_system_reset(const char *str __maybe_unused)
 {
 	stm32mp_mask_timer();
 
@@ -780,6 +780,8 @@ void __noreturn do_reset(const char *str __maybe_unused)
 	console_flush();
 	stm32_reset_system();
 	udelay(100);
+
+	/* Cannot occur */
 	panic();
 }
 
