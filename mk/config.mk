@@ -1243,6 +1243,10 @@ $(eval $(call cfg-depends-all,CFG_MULTI_CORE_HALTING,CFG_GIC))
 CFG_HALT_CORES_ON_PANIC ?= ${CFG_MULTI_CORE_HALTING}
 $(eval $(call cfg-depends-all,CFG_HALT_CORES_ON_PANIC,CFG_MULTI_CORE_HALTING))
 
+# CFG_RESET_SYSTEM_ON_PANIC, when enabled, call plat_system_reset() to
+# execute a system reset of the plateform.
+CFG_RESET_SYSTEM_ON_PANIC ?= n
+
 
 # Enable automatic discovery of maximal PA supported by the hardware and
 # use that. Provides easier configuration of virtual platforms where the

@@ -6,6 +6,7 @@
 
 #include <initcall.h>
 #include <keep.h>
+#include <kernel/boot.h>
 #include <kernel/cache_helpers.h>
 #include <kernel/interrupt.h>
 #include <kernel/misc.h>
@@ -88,6 +89,9 @@ void __do_panic(const char *file __maybe_unused,
 
 	if (IS_ENABLED(CFG_HALT_CORES_ON_PANIC) && CFG_TEE_CORE_NB_CORE > 1)
 		halt_other_cores();
+
+	if (IS_ENABLED(CFG_RESET_SYSTEM_ON_PANIC))
+		plat_system_reset("Panic");
 
 	/* abort current execution */
 	while (1)
