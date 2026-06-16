@@ -94,6 +94,8 @@
 };
 
 &dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	phy-dsi-supply = <&reg18>;
 	status = "disabled";
 
@@ -113,7 +115,7 @@
 		};
 	};
 
-	panel-dsi@0 {
+	panel_dsi: panel@0 {
 		compatible = "raydium,rm68200";
 		reg = <0>;
 		reset-gpios = <&gpiof 15 GPIO_ACTIVE_LOW>;

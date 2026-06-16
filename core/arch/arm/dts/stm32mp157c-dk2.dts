@@ -33,10 +33,14 @@
 };
 
 &dsi {
+	#address-cells = <1>;
+	#size-cells = <0>;
 	status = "disabled";
 	phy-dsi-supply = <&reg18>;
 
 	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
 		port@0 {
 			reg = <0>;
 			dsi_in: endpoint {
@@ -89,7 +93,6 @@
 		reg = <0x38>;
 		interrupts = <2 2>;
 		interrupt-parent = <&gpiof>;
-		interrupt-controller;
 		touchscreen-size-x = <480>;
 		touchscreen-size-y = <800>;
 		status = "okay";
@@ -100,6 +103,9 @@
 	status = "disabled";
 
 	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
 		ltdc_ep1_out: endpoint@1 {
 			reg = <1>;
 			remote-endpoint = <&dsi_in>;
