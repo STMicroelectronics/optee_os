@@ -85,7 +85,7 @@
 	#address-cells = <1>;
 	#size-cells = <0>;
 
-	pmic2: stpmic2@33 {
+	stpmic25: pmic@33 {
 		compatible = "st,stpmic2";
 		reg = <0x33>;
 		interrupts-extended = <&exti1 52 IRQ_TYPE_EDGE_FALLING>;

@@ -222,16 +222,6 @@
 	};
 };
 
-&i2c4 {
-	pmic: stpmic@33 {
-		regulators {
-			v1v8: ldo6 {
-				regulator-enable-ramp-delay = <300000>;
-			};
-		};
-	};
-};
-
 &i2c5 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c5_pins_a>;
@@ -402,4 +392,9 @@
 	st,tune-squelch-level = <3>;
 	st,tune-hs-rx-offset = <2>;
 	st,no-lsfs-sc;
+};
+
+/* Ramp-up delay 300ms to let enough time for wm8994 POR */
+&v1v8{
+	regulator-enable-ramp-delay = <300000>;
 };

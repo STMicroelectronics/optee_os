@@ -12,6 +12,9 @@ maintainers:
   - pascal Paillet <p.paillet@st.com>
 
 properties:
+  $nodename:
+    pattern: "^pmic@[0-9]$"
+
   compatible:
     enum:
       - st,stpmic1l
