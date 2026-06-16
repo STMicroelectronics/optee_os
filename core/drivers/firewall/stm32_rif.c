@@ -62,6 +62,7 @@ void stm32_rif_parse_cfg(uint32_t rif_conf, struct rif_conf_data *conf_data,
 			 unsigned int nb_channel)
 {
 	uint32_t channel_id = 0;
+	uint32_t channel_bit = 0;
 	unsigned int conf_index = 0;
 
 	/* Shift corresponding to the desired resources */
@@ -71,25 +72,26 @@ void stm32_rif_parse_cfg(uint32_t rif_conf, struct rif_conf_data *conf_data,
 
 	/* Some peripherals have more than 32 RIF channels */
 	conf_index = channel_id / 32;
+	channel_bit = channel_id % 32;
 
 	/* Privilege configuration */
 	if (rif_conf & BIT(RIF_PRIV_SHIFT))
-		conf_data->priv_conf[conf_index] |= BIT(channel_id);
+		conf_data->priv_conf[conf_index] |= BIT(channel_bit);
 
 	/* Security RIF configuration */
 	if (rif_conf & BIT(RIF_SEC_SHIFT))
-		conf_data->sec_conf[conf_index] |= BIT(channel_id);
+		conf_data->sec_conf[conf_index] |= BIT(channel_bit);
 
 	/* RIF configuration lock */
 	if (rif_conf & BIT(RIF_LOCK_SHIFT) && conf_data->lock_conf)
-		conf_data->lock_conf[conf_index] |= BIT(channel_id);
+		conf_data->lock_conf[conf_index] |= BIT(channel_bit);
 
 	/* CID configuration */
 	conf_data->cid_confs[channel_id] = (rif_conf & RIF_PERx_CID_MASK) >>
 					   RIF_PERx_CID_SHIFT;
 
 	/* Store that this RIF resource is to be configured */
-	conf_data->access_mask[conf_index] |= BIT(channel_id);
+	conf_data->access_mask[conf_index] |= BIT(channel_bit);
 }
 
 bool stm32_rif_semaphore_is_available(vaddr_t addr)
