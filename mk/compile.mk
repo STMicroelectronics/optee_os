@@ -274,7 +274,8 @@ dtb-cppflags-$2 := -Icore/include/ -I$(arch-dir)/dts -x assembler-with-cpp \
 		   -E -ffreestanding $$(CPPFLAGS) \
 		   -MD -MF $$(dtb-predep-$2) -MP -MT $$(dtb-predts-$2)
 
-dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg \
+dtb-dtcflags-$2	:= $$(DTC_FLAGS) -I dts -O dtb -Wno-unit_address_vs_reg  \
+		   -Wno-unique_unit_address -Wunique_unit_address_if_enabled \
 		   -d $$(dtb-dep-$2)
 
 -include $$(dtb-dep-$2)
