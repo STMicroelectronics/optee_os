@@ -97,12 +97,6 @@ static void stm32_stgen_pm_suspend(void)
 {
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	/*
-	 * Disable STGEN counter. At this point, it should be stopped by
-	 * software.
-	 */
-	io_clrbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
-
 	/* Save current time from the RTC */
 	res = rtc_get_time(stgen_d.calendar);
 	if (res)
@@ -111,9 +105,6 @@ static void stm32_stgen_pm_suspend(void)
 	/* Save current counter value */
 	reg_pair_from_64(stm32_stgen_get_counter_value(),
 			 &stgen_d.cnt_h, &stgen_d.cnt_l);
-
-	/* Re-enable STGEN as generic timer can be used later */
-	io_setbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 }
 
 static void stm32_stgen_pm_resume(void)
@@ -123,9 +114,6 @@ static void stm32_stgen_pm_resume(void)
 	struct optee_rtc_time cur_calendar = { };
 	signed long long nb_pm_count_ticks = 0;
 	TEE_Result res = TEE_ERROR_GENERIC;
-
-	/* Disable STGEN counter while we're updating its value */
-	io_clrbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
 	/* Read the current time from the RTC to update system counter */
 	res = rtc_get_time(&cur_calendar);
@@ -141,6 +129,9 @@ static void stm32_stgen_pm_resume(void)
 	/* Update the counter value with the number of pm ticks */
 	if (ADD_OVERFLOW(counter_val, nb_pm_count_ticks, &counter_val))
 		panic("STGEN counter overflow");
+
+	/* Disable STGEN counter while we're updating its value */
+	io_clrbits32(stgen_d.base + STGENC_CNTCR, STGENC_CNTCR_EN);
 
 	io_write32(stgen_d.base + STGENC_CNTFID0, clock_src_rate);
 	if (io_read32(stgen_d.base + STGENC_CNTFID0) != clock_src_rate)
