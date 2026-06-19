@@ -14,6 +14,7 @@
 #include <kernel/pseudo_ta.h>
 #include <kernel/user_ta.h>
 #include <remoteproc_pta.h>
+#include <stddef.h>
 #include <stdlib_ext.h>
 #include <string.h>
 #include <string_ext.h>
@@ -35,7 +36,6 @@
 #define PTA_ECC_X_SIZE   32
 #define PTA_ECC_Y_SIZE   32
 
-#define PTA_RSA_DER_SIZE 294
 #define PTA_RSA_MOD_SIZE 256
 #define PTA_RSA_E_SIZE   3
 
@@ -56,14 +56,10 @@ static const uint8_t der_ecc_pkey_header[] = {
 	0x42, 0x00, 0x04
 };
 
-static const uint8_t der_rsa256_pkey_header[] = {
-	0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09,
-	0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
-	0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00,
-	0x30, 0x82, 0x01, 0x0a, 0x02, 0x82, 0x01, 0x01
+static const uint8_t der_rsa_pkey_algo_id[] = {
+	0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
+	0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00
 };
-
-static const uint8_t der_rsa256_pkey_mod_header[] = { 0x02, 0x03 };
 
 /*
  * Firmware states
@@ -417,6 +413,66 @@ out:
 	return res;
 }
 
+/*
+ * Decode a DER/BER length field located at the beginning of @der.
+ *
+ * A DER length is encoded either in short or long form:
+ * - Short form: a single byte with bit 7 cleared, the 7 low bits directly
+ *   encode a length in the range [0, 127].
+ * - Long form: the first byte has bit 7 set, its 7 low bits give the number
+ *   of subsequent bytes (big-endian) that encode the actual length.
+ *
+ * On success @value_len returns the decoded length value and @length_len
+ * returns the number of bytes consumed by the length field itself (so the
+ * value bytes start at der + *length_len).
+ */
+static TEE_Result der_read_length(const uint8_t *der, size_t der_len,
+				  size_t *value_len,
+				  size_t *length_len)
+{
+	size_t val_len = 0;
+	size_t len = 0;
+	size_t i = 0;
+
+	if (!der_len)
+		return TEE_ERROR_BAD_FORMAT;
+
+	/* Short form: bit 7 cleared, value held in the low 7 bits */
+	if (!(der[0] & BIT(7))) {
+		*value_len = der[0];
+		*length_len = 1;
+		/* Ensure the decoded value fits in the remaining buffer */
+		if (*value_len > der_len - *length_len)
+			return TEE_ERROR_BAD_FORMAT;
+		return TEE_SUCCESS;
+	}
+
+	/* Long form: low 7 bits give the number of following length bytes */
+	len = der[0] & 0x7fU;
+	if (!len || len > sizeof(size_t) || len >= der_len)
+		return TEE_ERROR_BAD_FORMAT;
+
+	/* Accumulate the big-endian length, guarding against overflow */
+	val_len = 0;
+	for (i = 0; i < len; i++) {
+		if (val_len > (SIZE_MAX >> 8))
+			return TEE_ERROR_BAD_FORMAT;
+		val_len = (val_len << 8) | der[1 + i];
+	}
+
+	/* Account for the leading length-of-length byte */
+	len += 1;
+
+	/* Ensure the decoded value fits in the remaining buffer */
+	if (val_len > der_len - len)
+		return TEE_ERROR_BAD_FORMAT;
+
+	*value_len = val_len;
+	*length_len = len;
+
+	return TEE_SUCCESS;
+}
+
 static TEE_Result parse_der_ecc_public_key(uint8_t *der, size_t der_len,
 					   struct ecc_public_key *key,
 					   uint8_t *key_hash)
@@ -521,20 +577,28 @@ out:
 	return res;
 }
 
-static TEE_Result parse_der_rsa_public_key(uint8_t *der, size_t der_len,
-					   struct rsa_public_key *key,
-					   uint8_t *key_hash)
+static TEE_Result parse_der_rsa_public_key(const uint8_t *der, size_t der_len,
+					   const uint8_t **mod,
+					   size_t *mod_len,
+					   const uint8_t **exp,
+					   size_t *exp_len)
 {
-	size_t h_len = sizeof(der_rsa256_pkey_header);
-	uint8_t *mod = der + h_len + 1;
-	uint8_t *exp = mod + PTA_RSA_MOD_SIZE + 2;
 	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t offs = 0;
+	size_t len = 0;
+	size_t ll = 0;
+
+	if (!der || !mod || !mod_len || !exp || !exp_len)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	/*
-	 * We do not use the mbedtls lib that contains helper to parse the DER
-	 * key and extract the RSA key. A static approach is used supporting
-	 * only DER format for the RSA public key with the ECDSA P256 algorithm.
-	 * The expected DER format is starting with following header:
+	 * Parse a DER-encoded SubjectPublicKeyInfo and extract the modulus and
+	 * exponent from the nested RSAPublicKey structure. Each DER element is
+	 * a Tag-Length-Value (TLV) triplet, where the tag is a single byte, the
+	 * length is decoded by der_read_length(), and the value follows.
+	 *
+	 * For instance, the expected DER format for RSA 256 is starting with
+	 * the following header:
 	 * { 0x30, 0x82, 0x01, 0x22, 0x30, 0x0d, 0x06, 0x09,
 	 *   0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01,
 	 *   0x01, 0x05, 0x00, 0x03, 0x82, 0x01, 0x0f, 0x00,
@@ -544,38 +608,118 @@ static TEE_Result parse_der_rsa_public_key(uint8_t *der, size_t der_len,
 	 *
 	 * 30 82 01 22 # Sequence length 0x82 - 290 bytes long
 	 *    30 0d # Sequence length 0x0d - 13 bytes long
-	 *       06 09 2a864886f70d010101 # OID - 9 bytes long - rsa (PKCS #1)
-	 *       05 00 # Null Object
+	 *       06 09 2a 86 48 86 f7 0d 01 01 01 05 00 - 11 bytes long - rsa
 	 *    03 82 01 0f 00 # Bit stream - 271 bytes long
 	 *       30 82 01 0a: # Sequence length 0x10a - 266 bytes long
 	 *          02 82 01 01: #int modulus - 257 bytes long (0x00 + modulus)
 	 *          02 03 : #int exponent - 3 bytes long
+	 *
 	 */
 
-	if (der_len != PTA_RSA_DER_SIZE) {
-		EMSG("Invalid public key size");
-		return TEE_ERROR_BAD_FORMAT;
+	/* Beginning of the sequence (0x30) */
+	if (!der_len || der[offs++] != 0x30)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res)
+		goto bad_format;
+	offs += ll;
+
+	/* The sequence must span exactly the remaining buffer */
+	if (len != der_len - offs)
+		goto bad_format;
+
+	/* Algorithm identifier: match the fixed RSA OID blob */
+	if (len < sizeof(der_rsa_pkey_algo_id) ||
+	    consttime_memcmp(der + offs, der_rsa_pkey_algo_id,
+			     sizeof(der_rsa_pkey_algo_id)) != 0)
+		goto bad_format;
+	offs += sizeof(der_rsa_pkey_algo_id);
+
+	/* subject public key bit string (0x03) */
+	if (offs >= der_len || der[offs++] != 0x03)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res || !len)
+		goto bad_format;
+	offs += ll;
+
+	/*
+	 * A bit string (0x03) starts with an "unused bits" byte that must be
+	 * 0x00 here. Skip it and account for it in the remaining length.
+	 */
+	if (offs >= der_len || len > der_len - offs || der[offs] != 0x00)
+		goto bad_format;
+	offs++;
+	len--;
+
+	/* Inner RSA public key sequence (0x30) */
+	if (len < 2 || offs >= der_len || der[offs++] != 0x30)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res)
+		goto bad_format;
+	offs += ll;
+
+	/* The inner sequence must span exactly the remaining buffer */
+	if (len != der_len - offs)
+		goto bad_format;
+
+	/* modulus integer (0x02) */
+	if (offs >= der_len || der[offs++] != 0x02)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res || !len || len > der_len - offs - ll)
+		goto bad_format;
+	offs += ll;
+
+	/*
+	 * A DER integer is signed: a leading 0x00 byte is inserted when the
+	 * most significant bit is set to keep the value positive. Drop it so
+	 * the modulus is returned as a raw unsigned big-endian integer.
+	 */
+	if (offs < der_len && der[offs] == 0x00) {
+		offs++;
+		if (!--len)
+			goto bad_format;
 	}
 
-	if (consttime_memcmp(der, der_rsa256_pkey_header, h_len) != 0 ||
-	    consttime_memcmp(exp - 2, der_rsa256_pkey_mod_header,
-			     sizeof(der_rsa256_pkey_mod_header)) != 0) {
-		EMSG("Invalid public key format");
-		return TEE_ERROR_BAD_FORMAT;
+	*mod = der + offs;
+	*mod_len = len;
+	offs += len;
+
+	/* Public exponent integer (0x02) */
+	if (offs >= der_len || der[offs++] != 0x02)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res || !len || len > der_len - offs - ll)
+		goto bad_format;
+	offs += ll;
+
+	/* Drop the optional sign byte as done for the modulus above */
+	if (offs < der_len && der[offs] == 0x00) {
+		offs++;
+		if (!--len)
+			goto bad_format;
 	}
 
-	/* Extract the modulus and exponent */
-	res = crypto_bignum_bin2bn(mod, PTA_RSA_MOD_SIZE, key->n);
-	if (res)
-		return res;
+	*exp = der + offs;
+	*exp_len = len;
+	offs += len;
 
-	res = crypto_bignum_bin2bn(exp, PTA_RSA_E_SIZE, key->e);
-	if (res)
-		return res;
+	/* No trailing bytes are allowed after the exponent */
+	if (offs != der_len)
+		goto bad_format;
 
-	/* Compute the hash of the 256-bytes modulus + 3-bytes exponent */
-	return rproc_compute_hash(key_hash, mod, PTA_RSA_MOD_SIZE,
-				  exp, PTA_RSA_E_SIZE);
+	return TEE_SUCCESS;
+
+bad_format:
+	EMSG("Invalid public key format");
+	return TEE_ERROR_BAD_FORMAT;
 }
 
 static TEE_Result
@@ -590,17 +734,42 @@ rproc_pta_verify_rsa_signature(TEE_Param *hash, TEE_Param *sig,
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct rsa_public_key key = { };
 	uint32_t algo = keyinfo->algo;
+	const uint8_t *mod = NULL;
+	const uint8_t *exp = NULL;
 	uint8_t *key_hash = NULL;
-
-	res = crypto_acipher_alloc_rsa_public_key(&key, sig_size);
-	if (res)
-		return res;
+	size_t mod_len = 0;
+	size_t exp_len = 0;
 
 	if (IS_ENABLED(CFG_REMOTEPROC_PUB_KEY_VERIFY)) {
 		/* Use the public key provided with the image in keyinfo */
 		res = parse_der_rsa_public_key(keyinfo->info,
 					       keyinfo->info_size,
-					       &key, publickey_hash);
+					       &mod, &mod_len,
+					       &exp, &exp_len);
+		if (res)
+			goto out;
+
+		if (mod_len != PTA_RSA_MOD_SIZE || exp_len != PTA_RSA_E_SIZE) {
+			EMSG("Invalid RSA public key size");
+			res = TEE_ERROR_NOT_SUPPORTED;
+			goto out;
+		}
+
+		res = crypto_acipher_alloc_rsa_public_key(&key,
+							  mod_len * CHAR_BIT);
+		if (res)
+			goto out;
+
+		res = crypto_bignum_bin2bn(mod, mod_len, key.n);
+		if (res)
+			goto out;
+
+		res = crypto_bignum_bin2bn(exp, exp_len, key.e);
+		if (res)
+			goto out;
+
+		res = rproc_compute_hash(publickey_hash, mod, mod_len, exp,
+					 exp_len);
 		if (res)
 			goto out;
 
@@ -616,6 +785,11 @@ rproc_pta_verify_rsa_signature(TEE_Param *hash, TEE_Param *sig,
 			goto clean_key_hash;
 		}
 	} else {
+		res = crypto_acipher_alloc_rsa_public_key(&key,
+			rproc_pub_key_modulus_size * CHAR_BIT);
+		if (res)
+			goto out;
+
 		/* Use the public key embedded in OP-TEE */
 		res = crypto_bignum_bin2bn((uint8_t *)&e, sizeof(e), key.e);
 		if (res)
