@@ -90,6 +90,7 @@ __weak void psci_system_off(void)
 
 __weak void psci_system_reset(void)
 {
+	plat_system_reset("PSCI");
 }
 
 __weak int psci_features(uint32_t psci_fid __unused)
