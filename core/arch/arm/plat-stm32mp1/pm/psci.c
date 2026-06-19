@@ -30,7 +30,6 @@
 #include <sm/pm.h>
 #include <sm/psci.h>
 #include <sm/std_smc.h>
-#include <stm32_util.h>
 #include <stm32mp_pm.h>
 #include <string.h>
 #include <trace.h>
@@ -448,12 +447,6 @@ void __weak __noreturn __psci_system_off(void)
 void __noreturn psci_system_off(void)
 {
 	__psci_system_off();
-}
-
-/* Override default psci_system_reset() with platform specific sequence */
-void __noreturn psci_system_reset(void)
-{
-	do_reset("PSCI");
 }
 
 /* Override default psci_cpu_on() with platform supported features */
