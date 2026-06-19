@@ -36,8 +36,9 @@
 #define PTA_ECC_X_SIZE   32
 #define PTA_ECC_Y_SIZE   32
 
-#define PTA_RSA_MOD_SIZE 256
-#define PTA_RSA_E_SIZE   3
+#define PTA_RSA2048_MOD_SIZE 256
+#define PTA_RSA4096_MOD_SIZE 512
+#define PTA_RSA_E_SIZE       3
 
 /*
  * AES test key for decryption.
@@ -749,8 +750,11 @@ rproc_pta_verify_rsa_signature(TEE_Param *hash, TEE_Param *sig,
 		if (res)
 			goto out;
 
-		if (mod_len != PTA_RSA_MOD_SIZE || exp_len != PTA_RSA_E_SIZE) {
-			EMSG("Invalid RSA public key size");
+		if ((mod_len != PTA_RSA2048_MOD_SIZE &&
+		     mod_len != PTA_RSA4096_MOD_SIZE) ||
+		    exp_len != PTA_RSA_E_SIZE) {
+			EMSG("Unsupported RSA key size %zu",
+			     mod_len * CHAR_BIT);
 			res = TEE_ERROR_NOT_SUPPORTED;
 			goto out;
 		}
