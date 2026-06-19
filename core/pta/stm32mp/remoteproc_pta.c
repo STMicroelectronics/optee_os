@@ -32,7 +32,6 @@
 	{ 0x80a4c275, 0x0a47, 0x4905, \
 		{ 0x82, 0x85, 0x14, 0x86, 0xa9, 0x77, 0x1a, 0x08} }
 
-#define PTA_ECC_DER_SIZE 91
 #define PTA_ECC_X_SIZE   32
 #define PTA_ECC_Y_SIZE   32
 
@@ -50,11 +49,10 @@ static uint8_t aes_test_key[TEE_AES_MAX_KEY_SIZE] = {
 	0x4F, 0xF6, 0x36, 0x23, 0x33, 0x3E, 0xFB, 0x3D
 };
 
-static const uint8_t der_ecc_pkey_header[] = {
-	0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
-	0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
-	0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
-	0x42, 0x00, 0x04
+static const uint8_t der_ecc_pkey_algo_id[] = {
+	0x30, 0x13, 0x06, 0x07, 0x2a, 0x86, 0x48, 0xce,
+	0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a, 0x86, 0x48,
+	0xce, 0x3d, 0x03, 0x01, 0x07
 };
 
 static const uint8_t der_rsa_pkey_algo_id[] = {
@@ -478,53 +476,105 @@ static TEE_Result parse_der_ecc_public_key(uint8_t *der, size_t der_len,
 					   struct ecc_public_key *key,
 					   uint8_t *key_hash)
 {
-	size_t h_len = sizeof(der_ecc_pkey_header);
 	TEE_Result res = TEE_ERROR_GENERIC;
+	size_t len = 0;
+	size_t ll = 0;
+	size_t offs = 0;
+
+	if (!der || !key || !key_hash)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	/*
-	 * We does not use the mbedtls lib that contains helper to parse the DER
-	 * key and extract the ECC key. A static approach is used supporting
-	 * only DER format for the ECC public key with the ECDSA P256 algorithm.
-	 * The expected DER format is starting with following header:
-	 * { 0x30, 0x59, 0x30, 0x13, 0x06, 0x07, 0x2a, 0x86,
-	 *   0x48, 0xce, 0x3d, 0x02, 0x01, 0x06, 0x08, 0x2a,
-	 *   0x86, 0x48, 0xce, 0x3d, 0x03, 0x01, 0x07, 0x03,
-	 *   0x42, 0x00, 0x04 }
+	 * Parse a DER-encoded SubjectPublicKeyInfo and extract the ECC public
+	 * point. Each DER element is a Tag-Length-Value (TLV) triplet, where
+	 * the tag is a single byte, the length is decoded by der_read_length(),
+	 * and the value follows. Only the NIST P-256 (prime256v1) named curve
+	 * is supported.
+	 * The expected DER layout is:
 	 *
-	 * 30 59 # Sequence length 0x59 - 91 bytes long
-	 *    30 13 # Sequence length 0x13 - 21 bytes long
-	 *       06 07 2a8648ce3d0201  # OID - 7 bytes long - ECC
-	 *       06 08 2a8648ce3d030107 # OID - 8 bytes long -
-	 *				ECDSA P256 curve
-	 *    03 42 # Bit stream - 0x42 (66 bytes long)
-	 *       0004 # Identifies public key
-	 * The last 64 bytes contain the X (32 bytes) and Y (32 bytes) key
-	 * coordinates.
+	 * 30 59 # sequence length 0x59 - 89 bytes long
+	 *    30 13 # sequence length 0x13 - 19 bytes long (AlgorithmIdentifier)
+	 *       06 07 2a8648ce3d0201   # OID - ecPublicKey
+	 *       06 08 2a8648ce3d030107 # OID - prime256v1 (P-256) curve
+	 *    03 42 # BIT STRING - 0x42 (66 bytes long)
+	 *       00   # unused bits
+	 *       04   # uncompressed point marker
+	 *       <32 bytes X> <32 bytes Y>
+	 *
+	 * SubjectPublicKeyInfo ::= sequence {		-- tag 0x30
+	 *     algorithm        AlgorithmIdentifier,	-- der_ecc_pkey_algo_id
+	 *     subjectPublicKey BIT STRING		-- tag 0x03
+	 * }
 	 */
-	if (der_len != PTA_ECC_DER_SIZE) {
-		EMSG("Invalid public key size");
-		return TEE_ERROR_BAD_FORMAT;
-	}
 
-	if (consttime_memcmp(der, der_ecc_pkey_header, h_len != 0)) {
-		EMSG("Invalid public key format");
-		return TEE_ERROR_BAD_FORMAT;
-	}
+	/* Outer subject public key info sequence (0x30) */
+	if (!der_len || der[offs++] != 0x30)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res)
+		goto bad_format;
+	offs += ll;
+
+	/* The sequence must span exactly the remaining buffer */
+	if (len != der_len - offs)
+		goto bad_format;
+
+	/* Algorithm identifier: match the fixed ecPublicKey + P-256 OID blob */
+	if (len < sizeof(der_ecc_pkey_algo_id) ||
+	    consttime_memcmp(der + offs, der_ecc_pkey_algo_id,
+			     sizeof(der_ecc_pkey_algo_id)) != 0)
+		goto bad_format;
+	offs += sizeof(der_ecc_pkey_algo_id);
+
+	/* subject public key bit string (0x03) */
+	if (offs >= der_len || der[offs++] != 0x03)
+		goto bad_format;
+
+	res = der_read_length(der + offs, der_len - offs, &len, &ll);
+	if (res || !len)
+		goto bad_format;
+	offs += ll;
+
+	/* The bit string must span exactly the remaining buffer */
+	if (len != der_len - offs)
+		goto bad_format;
+
+	/* A bit string starts with an "unused bits" byte that must be 0x00 */
+	if (der[offs] != 0x00)
+		goto bad_format;
+	offs++;
+	len--;
+
+	/* The EC point must be in uncompressed form, flagged by a 0x04 byte */
+	if (!len || der[offs] != 0x04)
+		goto bad_format;
+	offs++;
+	len--;
+
+	/* The remaining bytes are the raw X || Y affine coordinates */
+	if (len != PTA_ECC_X_SIZE + PTA_ECC_Y_SIZE)
+		goto bad_format;
 
 	key->curve = TEE_ECC_CURVE_NIST_P256;
 
 	/* Extract x and y coordinates */
-	res = crypto_bignum_bin2bn(der + h_len, PTA_ECC_X_SIZE, key->x);
+	res = crypto_bignum_bin2bn(der + offs, PTA_ECC_X_SIZE, key->x);
 	if (res)
 		return res;
 
-	res = crypto_bignum_bin2bn(der + h_len + PTA_ECC_X_SIZE, PTA_ECC_Y_SIZE,
+	res = crypto_bignum_bin2bn(der + offs + PTA_ECC_X_SIZE, PTA_ECC_Y_SIZE,
 				   key->y);
 	if (res)
 		return res;
 
-	return rproc_compute_hash(key_hash, der + h_len, PTA_ECC_X_SIZE,
-				  der + h_len + PTA_ECC_X_SIZE, PTA_ECC_Y_SIZE);
+	/* Hash the raw X || Y coordinates for the OTP fingerprint comparison */
+	return rproc_compute_hash(key_hash, der + offs, PTA_ECC_X_SIZE,
+				  der + offs + PTA_ECC_X_SIZE, PTA_ECC_Y_SIZE);
+
+bad_format:
+	EMSG("Invalid public key format");
+	return TEE_ERROR_BAD_FORMAT;
 }
 
 static TEE_Result
