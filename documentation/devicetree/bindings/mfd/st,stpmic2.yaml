@@ -31,6 +31,12 @@ properties:
   interrupts:
     maxItems: 1
 
+  system-power-controller:
+    type: boolean
+    description: This indicates that STPMIC is the power supply master of the
+      system. With this flag, the driver will initiate an software switch OFF
+      for system poweroff.
+
   st,pmic-it-id:
     description: PMIC interruptions ids to forward to the non-secure world
       in the form of OPTEE notifications described by st,notif-it-id.
