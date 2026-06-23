@@ -186,6 +186,7 @@
 		status = "okay";
 		interrupts-extended = <&exti 55 IRQ_TYPE_EDGE_FALLING>;
 		wakeup-source;
+		system-power-controller;
 		st,pmic-it-id = <IT_PONKEY_F IT_PONKEY_R>;
 		st,notif-it-id = <0 2>;
 
