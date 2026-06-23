@@ -188,6 +188,9 @@ enum {
 #define MAJOR_VERSION_MASK	GENMASK_32(7, 4)
 #define MAJOR_VERSION_SHIFT	4
 
+/* MAIN_CR bits definition */
+#define MAIN_CR_SWOFF		BIT(0)
+
 /* BUCKS_MRST_CR bits definition */
 #define BUCK1_MRST		BIT(0)
 #define BUCK2_MRST		BIT(1)
@@ -327,6 +330,7 @@ struct stpmic2 {
 	SLIST_HEAD(, pmic_it_handle_s) it_list;
 #endif
 	uint8_t ref_id;
+	bool system_power_controller;
 };
 
 TEE_Result stpmic2_regulator_get_id(const char *regu_name, uint8_t *id);
@@ -360,6 +364,7 @@ void stpmic2_dump_regulators(struct stpmic2 *pmic);
 TEE_Result stpmic2_get_version(struct stpmic2 *pmic, uint8_t *val);
 TEE_Result stpmic2_get_product_id(struct stpmic2 *pmic, uint8_t *val);
 TEE_Result stpmic2_is_buck1_high_voltage(struct stpmic2 *pmic, bool *high);
+TEE_Result stpmic2_switch_off(struct stpmic2 *pmic);
 
 /* Low Power handling */
 TEE_Result stpmic2_lp_set_state(struct stpmic2 *pmic, uint8_t id, bool enable);

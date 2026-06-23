@@ -4,11 +4,13 @@
  */
 
 #include <config.h>
+#include <console.h>
 #include <drivers/regulator.h>
 #include <drivers/stm32_i2c.h>
 #include <drivers/stpmic2.h>
 #include <keep.h>
 #include <kernel/boot.h>
+#include <kernel/delay.h>
 #include <kernel/dt.h>
 #include <kernel/interrupt.h>
 #include <kernel/notif.h>
@@ -862,6 +864,27 @@ static TEE_Result initialize_pmic2_irq(const void *fdt, int node,
 }
 #endif
 
+static TEE_Result stpmic2_pm(enum pm_op op, uint32_t pm_hint,
+			     const struct pm_callback_handle *pm_handle)
+{
+	struct stpmic2 *pmic = pm_handle->handle;
+	unsigned int pwrlvl = PM_HINT_PLATFORM_STATE(pm_hint);
+	TEE_Result res = TEE_SUCCESS;
+
+	if (op == PM_OP_SUSPEND) {
+		if (pwrlvl == STM32_PM_SWITCH_OFF &&
+		    pmic->system_power_controller) {
+			IMSG("PMIC STPMIC2 software power off");
+			console_flush();
+			mdelay(10);
+			res = stpmic2_switch_off(pmic);
+			udelay(100);
+		}
+	}
+
+	return res;
+}
+
 static void initialize_pmic2_i2c(const void *fdt, int node,
 				 struct stpmic2 *pmic, struct i2c_handle_s *i2c)
 {
@@ -937,6 +960,8 @@ static TEE_Result stm32_pmic2_probe(const void *fdt, int node,
 		panic();
 
 	pmic->compat_data = compat_data;
+	pmic->system_power_controller = dt_have_prop(fdt, node,
+						     "system-power-controller");
 
 	initialize_pmic2(fdt, node, pmic, stm32_i2c_dev->handle);
 
@@ -951,6 +976,8 @@ static TEE_Result stm32_pmic2_probe(const void *fdt, int node,
 	res = parse_regulator_fdt_nodes(fdt, node, pmic);
 	if (res)
 		panic();
+
+	register_pm_core_service_cb(stpmic2_pm, pmic, "stpmic2");
 
 	stm32_pmic2 = true;
 

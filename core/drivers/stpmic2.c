@@ -650,6 +650,13 @@ TEE_Result stpmic2_lp_set_voltage(struct stpmic2 *pmic, uint8_t id, uint16_t mv)
 				       mask << regul->volt_shift);
 }
 
+/* STPMIC2 Software switch-OFF */
+TEE_Result stpmic2_switch_off(struct stpmic2 *pmic)
+{
+	return stpmic2_register_update(pmic, MAIN_CR, MAIN_CR_SWOFF,
+				       MAIN_CR_SWOFF);
+}
+
 /*
  *
  * Interrupt handling
