@@ -351,7 +351,6 @@
 		STM32_PM_CSTOP_ALLOW_LPLV_STOP
 		STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR
 	>;
-	system_off_soc_mode = <STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF>;
 	vdd-supply = <&vdd>;
 	vdd_3v3_usbfs-supply = <&vdd_usb>;
 };
