@@ -33,15 +33,8 @@ properties:
         STM32_PM_CSTOP_ALLOW_LPLV_STOP : cstop allowing lplv-stop
         STM32_PM_CSTANDBY_ALLOW_LPLV_STOP2 : cstandby allowing lp-stop2 for STM32MP13
         STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR : cstandby allowing standby with DDR in self-refresh
-    $ref: "/schemas/types.yaml#/definitions/uint32"
-
-  system_off_soc_mode:
-    description: |
-      Mode used for shutdown. The possible values are
-        STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF: standby with DDR off
-        STM32_PM_SHUTDOWN: pmic swith off
     minItems: 1
-    maxItems: 8
+    maxItems: 6
     $ref: "/schemas/types.yaml#/definitions/uint32"
 
   vdd-supply:
@@ -97,7 +90,6 @@ examples:
         STM32_PM_CSTOP_ALLOW_LP_STOP
         STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR
       >;
-      system_off_soc_mode = <STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF>;
       vdd-supply = <&vdd>;
       vdd_3v3_usbfs-supply = <&vdd_usb>;
     };
