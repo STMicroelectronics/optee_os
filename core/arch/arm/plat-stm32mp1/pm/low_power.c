@@ -354,26 +354,22 @@ void __noreturn stm32_enter_cstop_shutdown(uint32_t mode)
 
 		interrupt_raise_sgi(itr_chip, CFG_HALT_CORES_SGI,
 				    TARGET_CPU1_GIC_MASK);
+
+		/* wait than other core is halted */
+		mdelay(1);
 	}
 #endif
+	IMSG("Shutdown");
 	stm32mp_pm_shutdown_context(mode);
 
 	switch (mode) {
 	case STM32_PM_SHUTDOWN:
-		/* The PMIC2 driver does not implement switch off function */
-		if (stm32_stpmic1_is_present()) {
-			wait_console_flushed();
-			stm32mp_get_pmic();
-			stpmic1_switch_off();
-			udelay(100);
-		}
-		break;
 	case STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_OFF:
 		stm32_enter_cstop(mode);
-		dsb();
-		isb();
-		for ( ; ; )
-			wfi();
+#ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
+		stm32mp_pm_call_bl2_lp_entry(mode);
+#endif
+		stm32_pm_cpu_power_down_wfi();
 		break;
 	default:
 		break;
