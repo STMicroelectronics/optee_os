@@ -273,6 +273,7 @@
 			vtt_ddr: ldo3 {
 				regulator-name = "vtt_ddr";
 				regulator-always-on;
+				st,regulator-sink-source;
 				st,pwrctrl-sel = <1>;
 				st,pwrctrl-enable;
 
