@@ -445,9 +445,12 @@ static TEE_Result cryp_prepare_key(struct stm32_cryp_context *ctx)
 
 static TEE_Result save_context(struct stm32_cryp_context *ctx)
 {
+	TEE_Result res = TEE_ERROR_GENERIC;
+
 	/* Device should not be in a processing phase */
-	if (io_read32(ctx->base + _CRYP_SR) & _CRYP_SR_BUSY)
-		return TEE_ERROR_BAD_STATE;
+	res = wait_end_busy(ctx->base);
+	if (res)
+		return res;
 
 	/* Disable the CRYP peripheral */
 	io_clrbits32(ctx->base + _CRYP_CR, _CRYP_CR_CRYPEN);
