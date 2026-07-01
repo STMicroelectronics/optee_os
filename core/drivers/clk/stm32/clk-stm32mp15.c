@@ -1939,8 +1939,6 @@ struct stm32_clk_opp_cfg {
 
 struct stm32_clk_opp_dt_cfg {
 	struct stm32_clk_opp_cfg mpu_opp[MAX_OPP];
-	struct stm32_clk_opp_cfg axi_opp[MAX_OPP];
-	struct stm32_clk_opp_cfg mcu_opp[MAX_OPP];
 };
 
 struct stm32_clk_platdata {
@@ -2569,8 +2567,6 @@ static void clk_stm32_debug_display_opp_dt_cfg(struct clk_stm32_priv *priv)
 	struct stm32_clk_opp_dt_cfg *opp = pdata->opp;
 
 	clk_stm32_debug_display_opp_cfg("st,ck_mpu", opp->mpu_opp);
-	clk_stm32_debug_display_opp_cfg("st,ck_axi", pdata->opp->axi_opp);
-	clk_stm32_debug_display_opp_cfg("st,ck_mcu", pdata->opp->mcu_opp);
 }
 
 static void clk_stm32_debug_display_pll_dt_cfg(struct clk_stm32_priv *priv)
@@ -2873,14 +2869,6 @@ static int fdt_stm32_clk_parse_all_opp(const void *fdt, int node,
 		return node;
 
 	ret = fdt_stm32_clk_parse_opp(fdt, node, "st,ck_mpu", opp->mpu_opp);
-	if (ret)
-		return ret;
-
-	ret = fdt_stm32_clk_parse_opp(fdt, node, "st,ck_axi", opp->axi_opp);
-	if (ret)
-		return ret;
-
-	ret = fdt_stm32_clk_parse_opp(fdt, node, "st,ck_mcu", opp->mcu_opp);
 	if (ret)
 		return ret;
 

@@ -252,10 +252,10 @@ then:
       Each node will contain a list of operating point configurations (cfg_1, cfg_2...)
     type: object
     patternProperties:
-      '^st,ck_[a-z]*$':
+      '^st,ck_mpu$':
         type: object
         description: |
-          three kind of operating points: st,ck_mpu, st,ck_axi, st,ck_mlahbs.
+          define mpu operating points with st,ck_mpu node
         patternProperties:
           'cfg_[0-9]*$':
             type: object
@@ -460,36 +460,6 @@ examples:
                             cfg_5 {
                                     hz = <24000000>;
                                     st,clksrc = < CLK_MPU_HSE >;
-                            };
-                    };
-
-                    st,ck_axi {
-                            cfg_1 {
-                                    hz = <266500000>;
-                                    st,clksrc  = < CLK_AXI_PLL2P >;
-                                    st,clkdiv = < DIV(DIV_AXI, 0) >;
-                                    st,pll = < &pll2_cfg1 >;
-                             };
-
-                             cfg_2 {
-                                     hz = <64000000>;
-                                    st,clksrc  = < CLK_AXI_HSI>;
-                                     st,clkdiv = < DIV(DIV_AXI, 0) >;
-                             };
-                    };
-
-                    st,ck_mlahbs {
-                            cfg_1 {
-                                    hz = <208877930>;
-                                    st,clksrc  = < CLK_MLAHBS_PLL3 >;
-                                    st,clkdiv = < DIV(DIV_MLAHB, 0) >;
-                                    st,pll = < &pll3_cfg1 >;
-                            };
-
-                            cfg_2 {
-                                    hz = <12000000>;
-                                    st,clksrc  = < CLK_MLAHBS_HSE>;
-                                    st,clkdiv = < DIV(DIV_MLAHB, 1) >;
                             };
                     };
             };

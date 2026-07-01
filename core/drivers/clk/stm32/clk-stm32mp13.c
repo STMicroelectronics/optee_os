@@ -86,8 +86,6 @@ struct stm32_clk_opp_cfg {
 
 struct stm32_clk_opp_dt_cfg {
 	struct stm32_clk_opp_cfg mpu_opp[MAX_OPP];
-	struct stm32_clk_opp_cfg axi_opp[MAX_OPP];
-	struct stm32_clk_opp_cfg mlahbs_opp[MAX_OPP];
 };
 
 struct stm32_clk_platdata {
@@ -1498,8 +1496,6 @@ static void clk_stm32_debug_display_opp_dt_cfg(struct clk_stm32_priv *priv)
 	struct stm32_clk_opp_dt_cfg *opp = pdata->opp;
 
 	clk_stm32_debug_display_opp_cfg("st,ck_mpu", opp->mpu_opp);
-	clk_stm32_debug_display_opp_cfg("st,ck_axi", pdata->opp->axi_opp);
-	clk_stm32_debug_display_opp_cfg("st,ck_mlahbs", pdata->opp->mlahbs_opp);
 }
 
 static void clk_stm32_debug_display_pll_dt_cfg(struct clk_stm32_priv *priv)
@@ -1807,15 +1803,6 @@ static int stm32_clk_parse_fdt_all_opp(const void *fdt, int node,
 		return node;
 
 	ret = stm32_clk_parse_fdt_opp(fdt, node, "st,ck_mpu", opp->mpu_opp);
-	if (ret)
-		return ret;
-
-	ret = stm32_clk_parse_fdt_opp(fdt, node, "st,ck_axi", opp->axi_opp);
-	if (ret)
-		return ret;
-
-	ret = stm32_clk_parse_fdt_opp(fdt, node, "st,ck_mlahbs",
-				      opp->mlahbs_opp);
 	if (ret)
 		return ret;
 
@@ -2177,65 +2164,13 @@ static const struct clk_ops clk_stm32_mpu_ops = {
 	.set_parent	= clk_stm32_composite_set_parent,
 };
 
-static TEE_Result clk_stm32_axi_determine_rate(struct clk *clk,
-					       struct clk_rate_request *req)
-{
-	struct clk_stm32_priv *priv = clk_stm32_get_priv();
-	struct stm32_clk_platdata *pdata = priv->pdata;
-	struct stm32_clk_opp_cfg *opp = NULL;
-	unsigned long rate = req->rate;
-	struct clk *parent = NULL;
-	int index = 0;
-
-	opp = clk_stm32_get_opp_config(pdata->opp->axi_opp, rate);
-	if (!opp)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	index = (opp->src & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
-	parent = clk_get_parent_by_index(clk, index);
-
-	req->best_parent = parent;
-	req->best_parent_rate = parent->rate;
-
-	return TEE_SUCCESS;
-}
-
 static const struct clk_ops clk_stm32_axi_ops = {
-	.determine_rate = clk_stm32_axi_determine_rate,
 	.get_parent	= clk_stm32_composite_get_parent,
-	.set_parent	= clk_stm32_composite_set_parent,
-	.set_rate	= clk_stm32_composite_set_rate,
 	.get_rate	= clk_stm32_composite_get_rate,
 };
 
-static TEE_Result clk_stm32_mlahb_determine_rate(struct clk *clk,
-						 struct clk_rate_request *req)
-{
-	struct clk_stm32_priv *priv = clk_stm32_get_priv();
-	struct stm32_clk_platdata *pdata = priv->pdata;
-	struct stm32_clk_opp_cfg *opp = NULL;
-	unsigned long rate = req->rate;
-	struct clk *parent = NULL;
-	int index = 0;
-
-	opp = clk_stm32_get_opp_config(pdata->opp->mlahbs_opp, rate);
-	if (!opp)
-		return TEE_ERROR_ITEM_NOT_FOUND;
-
-	index = (opp->src & MUX_SEL_MASK) >> MUX_SEL_SHIFT;
-	parent = clk_get_parent_by_index(clk, index);
-
-	req->best_parent = parent;
-	req->best_parent_rate = parent->rate;
-
-	return TEE_SUCCESS;
-}
-
 const struct clk_ops clk_stm32_mlahb_ops = {
-	.determine_rate = clk_stm32_mlahb_determine_rate,
 	.get_parent	= clk_stm32_composite_get_parent,
-	.set_parent	= clk_stm32_composite_set_parent,
-	.set_rate	= clk_stm32_composite_set_rate,
 	.get_rate	= clk_stm32_composite_get_rate,
 };
 
@@ -2485,7 +2420,7 @@ static struct clk ck_axi = {
 		.div_id	= DIV_AXI,
 	},
 	.name		= "ck_axi",
-	.flags		= CLK_SET_PARENT_PRE_ENABLE | CLK_IS_CRITICAL,
+	.flags		= CLK_IS_CRITICAL,
 	.num_parents	= 3,
 	.parents	= { &ck_hsi, &ck_hse, &ck_pll2p },
 };
@@ -2497,7 +2432,7 @@ static struct clk ck_mlahb = {
 		.div_id	= DIV_MLAHB,
 	},
 	.name		= "ck_mlahb",
-	.flags		= CLK_SET_PARENT_PRE_ENABLE | CLK_IS_CRITICAL,
+	.flags		= CLK_IS_CRITICAL,
 	.num_parents	= 4,
 	.parents	= { &ck_hsi, &ck_hse, &ck_csi, &ck_pll3p },
 };
