@@ -272,15 +272,6 @@ struct stm32mp1_pll {
 	uint8_t refclk_max;
 };
 
-/* Compact structure of 32bit cells, copied raw when suspending */
-struct stm32mp1_pll_settings {
-	uint32_t valid_id;
-	uint32_t freq[MAX_OPP];
-	uint32_t volt[MAX_OPP];
-	uint32_t cfg[MAX_OPP][PLLCFG_NB];
-	uint32_t frac[MAX_OPP];
-};
-
 #define N_S	0	/* Non-secure can access RCC interface */
 #define SEC	1	/* RCC[TZEN] protects RCC interface */
 
@@ -637,7 +628,15 @@ static const char __maybe_unused *const stm32mp1_clk_parent_name[_PARENT_NB] = {
 };
 
 #ifdef CFG_STM32_CPU_OPP
-/* Storage of the precomputed SoC settings for PLL1 various OPPs */
+struct stm32mp1_pll_settings {
+	uint32_t valid_id;
+	uint32_t freq[MAX_OPP];
+	uint32_t volt[MAX_OPP];
+	uint32_t cfg[MAX_OPP][PLLCFG_NB];
+	uint32_t frac[MAX_OPP];
+};
+
+/* Storage of the SoC settings for PLL1 various OPP */
 static struct stm32mp1_pll_settings pll1_settings;
 static uint32_t current_opp_khz;
 #endif
@@ -1604,21 +1603,6 @@ int stm32mp1_clk_compute_all_pll1_settings(const void *fdt, int node,
 	pll1_settings.valid_id = PLL1_SETTINGS_VALID_ID;
 
 	return 0;
-}
-
-void stm32mp1_clk_lp_save_opp_pll1_settings(uint8_t *data, size_t size)
-{
-	assert(size == sizeof(pll1_settings));
-
-	if (stm32mp1_clk_pll1_settings_are_valid())
-		memcpy(data, &pll1_settings, size);
-	else
-		memset(data, 0, size);
-}
-#else
-void stm32mp1_clk_lp_save_opp_pll1_settings(uint8_t *data, size_t size)
-{
-	memset(data, 0, size);
 }
 #endif /* CFG_STM32_CPU_OPP */
 

@@ -60,6 +60,10 @@
 #define MAGIC_VERSION(magic)		((magic) >> 16)
 #define MAGIC_AREA_SIZE(magic)		((magic) & GENMASK_32(15, 0))
 
+/* Fixed Value used by previous version of context, no more used */
+#define PLAT_MAX_OPP_NB			U(2)
+#define PLAT_MAX_PLLCFG_NB		U(6)
+
 /* pll_settings structure size definitions (reference to clock driver) */
 #define PLL1_SETTINGS_SIZE		(((PLAT_MAX_OPP_NB * \
 					  (PLAT_MAX_PLLCFG_NB + 3)) + 1) * \
@@ -114,6 +118,7 @@ static struct pm_clocks pm_clocks;
  * @magic: magic value read by early boot stage for consistency
  * @zq0cr0_zdata: DDRPHY configuration to be restored.
  * @ddr_training_backup: DDR area saved at suspend and backed up at resume
+ * @pll1_settings: no more used as PLL1 setting are defined in DT
  * @size: struct size, used for CRC32 check
  * @crc_32: CRC32 of this struct, computed on @size with @crc_32 = 0
  */
@@ -295,23 +300,6 @@ __maybe_unused static void save_ddr_training_area(void)
 	memcpy(&mailbox->ddr_training_backup[0], va, size);
 }
 
-/*
- * When returning from STANDBY, warm boot boot stage needs to access to PLL1
- * settings. This avoids to re-compute them and optimizes performances. This
- * structure must then be saved before going to STANDBY in the PM mailbox
- * shared with the warm boot boot stage.
- */
-#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
-static void save_pll1_settings(void)
-{
-	struct pm_mailbox *mailbox = get_pm_mailbox();
-	size_t size = sizeof(mailbox->pll1_settings);
-	uint8_t *data = &mailbox->pll1_settings[0];
-
-	stm32mp1_clk_lp_save_opp_pll1_settings(data, size);
-}
-#endif /* CFG_STM32MP1_OPTEE_IN_SYSRAM */
-
 static void load_earlyboot_pm_mailbox(void)
 {
 	struct pm_mailbox *mailbox __maybe_unused = get_pm_mailbox();
@@ -325,8 +313,6 @@ static void load_earlyboot_pm_mailbox(void)
 	memset(mailbox, 0, sizeof(*mailbox));
 
 	mailbox->zq0cr0_zdata = get_ddrphy_calibration();
-
-	save_pll1_settings();
 #endif /* CFG_STM32MP1_OPTEE_IN_SYSRAM */
 
 	if (MAGIC_VERSION(optee_magic) >= 4)

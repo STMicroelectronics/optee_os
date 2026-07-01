@@ -394,8 +394,4 @@
 
 #define STM32MP1_CHIP_DEFAULT_VERSION	U(0)
 
-/* OPP */
-#define PLAT_MAX_OPP_NB			2U
-#define PLAT_MAX_PLLCFG_NB		6U
-
 #endif /*PLATFORM_CONFIG_H*/
