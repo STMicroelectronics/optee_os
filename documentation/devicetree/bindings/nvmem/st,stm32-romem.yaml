@@ -42,6 +42,21 @@ patternProperties:
           This property explicits a factory programmed area that both secure
           and non-secure worlds can access. It is needed when, by default, the
           related area can only be reached by the secure world.
+          It requires to be 32 bits word aligned to allow non-secure sharing.
+          Not supported by stm32mp25.
+        type: boolean
+      st,non-secure-otp-provisioning:
+        description: |
+          This property explicits a factory programmed area that allows a non-secure
+          read and write until the first programmed value. Once the provisioning of
+          the specified area is done, access from non-secure is forbidden.
+          It is needed when, by default, the related area is empty and must be provisioned.
+        type: boolean
+      st,secure-otp:
+        description: |
+          This property explicits a factory programmed area that secure
+          worlds of main processor can access.
+          Only supported by stm32mp25.
         type: boolean
 
 required:
@@ -67,6 +82,11 @@ examples:
       mac_addr@e4 {
         reg = <0xe4 0x8>;
         st,non-secure-otp;
+      };
+
+      oem_enc_key@170 {
+        reg = <0x170 0x10>;
+        st,non-secure-otp-provisioning;
       };
     };
 
