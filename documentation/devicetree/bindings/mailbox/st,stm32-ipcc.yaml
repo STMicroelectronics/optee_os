@@ -18,7 +18,9 @@ maintainers:
 
 properties:
   compatible:
-    const: st,stm32mp1-ipcc
+    enum:
+      - st,stm32mp1-ipcc
+      - st,stm32mp25-ipcc
 
   reg:
     maxItems: 1
@@ -45,6 +47,63 @@ properties:
     description: Processor id using the mailbox (0 or 1)
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1]
+
+  st,protreg:
+    minItems: 1
+    maxItems: 16
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    description:
+      Describes the firewall hardware configuration to apply for a given
+      channel.
+
+      RIFPROT(ipcc_chan_id, sem_list, lock, sec, priv, scid, sem_en, cfen)
+
+      When a field isn't effective, it should be filled with RIF_UNUSED.
+
+        "ipcc_chan_id" The tamp channel number.
+
+        "sem_list" This peripheral does not support semaphores.
+                  This field must be set to RIF_UNUSED.
+
+        "lock" This peripheral does not support configuration locking.
+              This field must be set to RIF_UNUSED.
+
+        "sec" Configures secure-only access to the channel.
+          RIF_SEC, only secure access is granted to the channel
+          RIF_NSEC, secure/non-secure access is granted to the
+                    channel
+
+        "priv" Configures the privilege level needed to access this
+              channel.
+          RIF_PRIV, only privileged access is granted to the channel
+          RIF_NPRIV, privileged/Unprivileged access is granted to the
+                    channel
+
+        "scid" Configures the static CID that is allowed to access the
+              channel. Note that the static CID configuration is
+              ineffective if the semaphore mode is enabled. Mandates CID
+              filtering enabled to be effective.
+          RIF_CID1 allows CID 1 to access the channel
+          RIF_CID2 allows CID 2 to access the channel ...
+
+        "sem_en" This peripheral does not support semaphores.
+                This field must be set to RIF_UNUSED.
+
+        "cfen" Enable/disable the CID filtering for this channel.
+          RIF_CFEN, enables the CID filtering
+          RIF_CFDIS, disables the CID filtering
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: st,stm32mp25-ipcc
+
+    then:
+      properties:
+        st,protreg: false
 
 required:
   - compatible
