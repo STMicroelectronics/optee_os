@@ -54,11 +54,80 @@ properties:
     minItems: 1
     maxItems: 2
 
+  st,protreg:
+    minItems: 1
+    maxItems: 6
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    description: |
+      Describes the firewall hardware configuration to apply for a
+      given controller.
+
+      RIFPROT(fmc_ctl_id, sem_list, lock, sec, priv, scid, sem_en, cfen)
+
+      When a field isn't effective, it should be filled with RIF_UNUSED.
+
+        "fmc_ctl_id" The FMC controller number.
+
+        "sem_list" Contains the CID grantlist that can access the controller
+                   (multiple choice allowed) when the controller is configured
+                   in semaphore mode. Mandates CID filtering and semaphore
+                   enabled to be effective.
+          RIF_CID1_BF | RIF_CID4_BF, allows both CID (Compartment ID) 1/4 to
+                                     access the controller according to the RIF
+                                     semaphore rules
+
+        "lock" Specifies whether the RIF configuration is locked until next
+               platform reset for this controller.
+          RIF_UNLOCK, the RIF configuration will not be locked for this
+                      controller
+          RIF_LOCK, the RIF configuration will be locked and will not be
+                    editable until next platform reset for this
+                    controller
+
+        "sec" Configures secure-only access to the controller.
+          RIF_SEC, only secure access is granted to the controller
+          RIF_NSEC, secure/non-secure access is granted to the
+                    controller
+
+        "priv" Configures the privilege level needed to access this
+                controller.
+          RIF_PRIV, only privileged access is granted to the controller
+          RIF_NPRIV, privileged/Unprivileged access is granted to the
+                      controller
+
+        "scid" Configures the static CID that is allowed to access the
+               controller. Note that the static CID configuration is
+               ineffective if the semaphore mode is enabled. Mandates CID
+               filtering enabled to be effective.
+          RIF_CID1 allows CID 1 to access the controller
+          RIF_CID2 allows CID 2 to access the controller ...
+
+        "sem_en" Enable/disable the semaphore mode for this controller.
+                  It mandates CID filtering enabled to be effective.
+          RIF_SEM_EN, semaphore mode enabled
+          RIF_SEM_DIS, semaphore mode disabled
+
+        "cfen" Enable/disable the CID filtering for this controller.
+          RIF_CFEN, enables the CID filtering
+          RIF_CFDIS, disables the CID filtering
+
 patternProperties:
   "^.*@[0-4],[a-f0-9]+$":
     additionalProperties: true
     type: object
     $ref: mc-peripheral-props.yaml#
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - st,stm32mp25-fmc2-ebi
+    then:
+      properties:
+       st,protreg: false
 
 required:
   - "#address-cells"
