@@ -19,6 +19,8 @@ allOf:
               - st,stm32f7-i2c
               - st,stm32mp13-i2c
               - st,stm32mp15-i2c
+              # This compatible allows I2C to be probed as non-secure by OP-TEE
+              - st,stm32mp15-i2c-non-secure
               - st,stm32mp25-i2c
     then:
       properties:
@@ -73,6 +75,8 @@ properties:
       - st,stm32f7-i2c
       - st,stm32mp13-i2c
       - st,stm32mp15-i2c
+      # This compatible allows I2C to be probed as non-secure by OP-TEE
+      - st,stm32mp15-i2c-non-secure
       - st,stm32mp25-i2c
 
   reg:
