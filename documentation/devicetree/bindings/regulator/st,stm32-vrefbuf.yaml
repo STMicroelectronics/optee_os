@@ -19,7 +19,10 @@ allOf:
 
 properties:
   compatible:
-    const: st,stm32-vrefbuf
+    enum:
+      - st,stm32-vrefbuf
+      - st,stm32mp13-vrefbuf
+      - st,stm32mp25-vrefbuf
 
   reg:
     maxItems: 1
