@@ -63,6 +63,57 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0x1, 0x2, 0x4, 0x8, 0x100, 0x400, 0x800]
 
+  st,protreg:
+    minItems: 1
+    maxItems: 16
+    $ref: "/schemas/types.yaml#/definitions/uint32-array"
+    description:
+      Describes the firewall hardware configuration to apply for a given pin.
+
+      RIFPROT(pin_id, sem_list, lock, sec, priv, scid, sem_en, cfen)
+
+      When a field isn't effective, it should be filled with RIF_UNUSED.
+
+        "pin_id" The GPIO pin number.
+
+        "sem_list" Contains the CID grantlist that can access the pin (multiple
+                   choice allowed) when the pin is configured in semaphore mode.
+                   Mandates CID filtering and semaphore enabled to be effective.
+          RIF_CID1_BF | RIF_CID4_BF, allows both CID (Compartment ID)
+                                      1/4 to access the pin
+                                      according to the RIF semaphore
+                                      rules
+
+        "lock" Specifies whether the RIF configuration is locked until next
+               platform reset for this pin.
+          RIF_UNLOCK, the RIF configuration will not be locked for this pin
+          RIF_LOCK, the RIF configuration will be locked and will not be
+                    editable until next platform reset for this pin
+
+        "sec" Configures secure-only access to the pin.
+          RIF_SEC, only secure access is granted to the pin
+          RIF_NSEC, secure/non-secure access is granted to the pin
+
+        "priv" Configures the privilege level needed to access this pin.
+          RIF_PRIV, only privileged access is granted to the pin
+          RIF_NPRIV, privileged/Unprivileged access is granted to the
+                      pin
+
+        "scid" Configures the static CID that is allowed to access the pin. Note
+               that the static CID configuration is ineffective if the semaphore
+               mode is enabled. Mandates CID filtering enabled to be effective.
+          RIF_CID1 allows CID 1 to access the pin
+          RIF_CID2 allows CID 2 to access the pin ...
+
+        "sem_en" Enable/disable the semaphore mode for this pin.
+                 It mandates CID filtering enabled to be effective.
+          RIF_SEM_EN, semaphore mode enabled
+          RIF_SEM_DIS, semaphore mode disabled
+
+        "cfen" Enable/disable the CID filtering for this pin.
+          RIF_CFEN, enables the CID filtering
+          RIF_CFDIS, disables the CID filtering
+
 patternProperties:
   '^gpio@[0-9a-f]*$':
     type: object
@@ -136,6 +187,19 @@ patternProperties:
       - reg
       - clocks
       - st,bank-name
+
+    allOf:
+      - if:
+          not:
+            properties:
+              compatible:
+                contains:
+                  enum:
+                    - st,stm32mp257-pinctrl
+                    - st,stm32mp257-z-pinctrl
+        then:
+          properties:
+            st,protreg: false
 
   '-[0-9]*$':
     type: object
