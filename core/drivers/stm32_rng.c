@@ -623,12 +623,12 @@ static TEE_Result stm32_rng_parse_fdt(const void *fdt, int node)
 		return res;
 
 	if (stm32_rng->ddata->nb_clock > 1) {
-		res = clk_dt_get_by_name(fdt, node, "rng_clk",
+		res = clk_dt_get_by_name(fdt, node, "core",
 					 &stm32_rng->clock);
 		if (res)
 			return res;
 
-		res = clk_dt_get_by_name(fdt, node, "rng_hclk",
+		res = clk_dt_get_by_name(fdt, node, "bus",
 					 &stm32_rng->bus_clock);
 		if (res)
 			return res;

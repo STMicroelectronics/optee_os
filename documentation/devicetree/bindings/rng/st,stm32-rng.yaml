@@ -81,11 +81,6 @@ allOf:
         clocks:
           minItems: 2
 
-        clock-names:
-          items:
-            - const: rng_clk  # RNG kernel clock
-            - const: rng_hclk # RNG bus clock
-
       required:
         - clock-names
 
