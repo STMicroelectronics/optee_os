@@ -32,6 +32,14 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	eth1-mdint {
+		compatible = "st,stm32-irq-notifier";
+		interrupts-extended = <&exti 56 IRQ_TYPE_EDGE_FALLING>;
+		st,notif-it-id = <3>;
+		wakeup-source;
+		status = "okay";
+	};
+
 	memory@c0000000 {
 		device_type = "memory";
 		reg = <0xc0000000 0x20000000>;
