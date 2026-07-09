@@ -118,6 +118,7 @@ $(call force,CFG_DT,y)
 $(call force,CFG_GIC,y)
 $(call force,CFG_HALT_CORES_SGI,15)
 $(call force,CFG_INIT_CNTVOFF,y)
+CFG_RESET_SYSTEM_ON_PANIC ?= y
 $(call force,CFG_SCMI_SCPFW_PRODUCT,stm32mp2)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_STM32_HSE_MONITORING,y)
