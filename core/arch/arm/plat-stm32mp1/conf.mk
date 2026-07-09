@@ -208,6 +208,7 @@ $(call force,CFG_INIT_CNTVOFF,y)
 $(call force,CFG_PM_ARM32,y)
 $(call force,CFG_PSCI_ARM32,y)
 $(call force,CFG_REGULATOR_FIXED,y)
+CFG_RESET_SYSTEM_ON_PANIC ?= y
 $(call force,CFG_SCMI_MSG_PERF_DOMAIN,y)
 $(call force,CFG_SECURE_TIME_SOURCE_CNTPCT,y)
 $(call force,CFG_SM_PLATFORM_HANDLER,y)
