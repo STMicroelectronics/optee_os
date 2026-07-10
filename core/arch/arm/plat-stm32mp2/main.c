@@ -76,9 +76,7 @@ register_phys_mem(MEM_AREA_RAM_SEC, SRAM1_BASE, SIZE_4K);
 
 static TEE_Result platform_banner(void)
 {
-	IMSG("Platform stm32mp2: flavor %s - DT %s", ID2STR(PLATFORM_FLAVOR),
-	     ID2STR(CFG_EMBED_DTB_SOURCE_FILE));
-
+	IMSG("Platform stm32mp2: DT %s", ID2STR(CFG_EMBED_DTB_SOURCE_FILE));
 	IMSG("OP-TEE ST profile: %s", TO_STR(CFG_STM32MP_PROFILE));
 
 	return TEE_SUCCESS;
