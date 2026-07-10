@@ -21,7 +21,7 @@
 
 #include <stdbool.h>
 
-#define MOD_NAME "[SCMI RESET] "
+#define MOD_NAME "[TFM RESET] "
 
 #define TIMEOUT_US_1MS 1000
 
@@ -64,14 +64,14 @@ static int reset_set_state(fwk_id_t dev_id, enum mod_reset_domain_mode mode,
 
     /* Whatever the reset_state set, we consider a unique context loss mode */
     if (reset_state) {
-        FWK_LOG_INFO(MOD_NAME "Override requested SCMI reset state %#"PRIx32,
+        FWK_LOG_INFO(MOD_NAME "Override requested SCMI reset state %d",
             reset_state);
     }
 
     switch (mode) {
     case MOD_RESET_DOMAIN_MODE_EXPLICIT_ASSERT:
         FWK_LOG_DEBUG(
-            MOD_NAME "SCMI reset %u: assert(%s%d)",
+            MOD_NAME "(%u/%s %d) assert",
             fwk_id_get_element_idx(dev_id),
             ctx->rstctrl->dev->name, ctx->rstctrl->id);
 
@@ -81,7 +81,7 @@ static int reset_set_state(fwk_id_t dev_id, enum mod_reset_domain_mode mode,
         break;
     case MOD_RESET_DOMAIN_MODE_EXPLICIT_DEASSERT:
         FWK_LOG_DEBUG(
-            MOD_NAME "SCMI reset %u: deassert(%s%d)",
+            MOD_NAME "(%u/%s %d) deassert",
             fwk_id_get_element_idx(dev_id),
             ctx->rstctrl->dev->name, ctx->rstctrl->id);
 
@@ -91,7 +91,7 @@ static int reset_set_state(fwk_id_t dev_id, enum mod_reset_domain_mode mode,
         break;
     case MOD_RESET_DOMAIN_AUTO_RESET:
         FWK_LOG_DEBUG(
-            MOD_NAME "SCMI reset %u: cycle(%s%d)",
+            MOD_NAME "(%u/%s %d) cycle",
             fwk_id_get_element_idx(dev_id),
             ctx->rstctrl->dev->name, ctx->rstctrl->id);
 

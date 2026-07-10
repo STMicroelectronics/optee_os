@@ -23,7 +23,7 @@
 #include <inttypes.h>
 
 
-#define MOD_NAME "[SCMI CLOCK] "
+#define MOD_NAME "[TFM CLOCK] "
 
 /* Clock device context */
 struct tfm_clock_dev_ctx {
@@ -72,9 +72,8 @@ static int get_rate(fwk_id_t dev_id, uint64_t *rate)
     *rate = clk_get_rate(ctx->clk);
 
     FWK_LOG_DEBUG(
-        MOD_NAME "SCMI tfm_clock (%u/\"%s\"): clk_get_rate() = %" PRIu64,
-        fwk_id_get_element_idx(dev_id),
-        clk_get_name(ctx->clk),
+        MOD_NAME "(%u/%s) rate: %ul",
+        fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk),
         *rate);
 
     return FWK_SUCCESS;
@@ -107,24 +106,21 @@ static int set_state(fwk_id_t dev_id, enum mod_clock_state state)
     if (state == MOD_CLOCK_STATE_STOPPED) {
         if (ctx->enabled) {
             FWK_LOG_DEBUG(
-                MOD_NAME "SCMI tfm_clock (%u/\"%s\") disable",
-                fwk_id_get_element_idx(dev_id),
-                clk_get_name(ctx->clk));
+                MOD_NAME "(%u/%s) disable",
+                fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk));
 
             clk_disable(ctx->clk);
             ctx->enabled = false;
         } else {
             FWK_LOG_DEBUG(
-                MOD_NAME "SCMI tfm_clock (%u/\"%s\") is already OFF",
-                fwk_id_get_element_idx(dev_id),
-                clk_get_name(ctx->clk));
+                MOD_NAME "(%u/%s) is already OFF",
+                fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk));
         }
     } else {
         if (!ctx->enabled) {
             FWK_LOG_DEBUG(
-                MOD_NAME "SCMI tfm_clock (%u/\"%s\") enable",
-                fwk_id_get_element_idx(dev_id),
-                clk_get_name(ctx->clk));
+                MOD_NAME "(%u/%s) enable",
+                fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk));
 
             if (clk_enable(ctx->clk)) {
                 return FWK_E_PARAM;
@@ -133,9 +129,8 @@ static int set_state(fwk_id_t dev_id, enum mod_clock_state state)
             ctx->enabled = true;
         } else {
             FWK_LOG_DEBUG(
-                MOD_NAME "SCMI tfm_clock (%u/\"%s\") is already ON",
-                fwk_id_get_element_idx(dev_id),
-                clk_get_name(ctx->clk));
+                MOD_NAME "(%u/%s) is already ON",
+                fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk));
         }
     }
 
@@ -162,10 +157,9 @@ static int get_state(fwk_id_t dev_id, enum mod_clock_state *state)
     }
 
     FWK_LOG_DEBUG(
-        MOD_NAME "SCMI tfm_clock (%u/\"%s\") is %s",
-        fwk_id_get_element_idx(dev_id),
-        clk_get_name(ctx->clk),
-        *state == MOD_CLOCK_STATE_STOPPED ? "off" : "on");
+        MOD_NAME "(%u/%s) is %s",
+        fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk),
+        *state == MOD_CLOCK_STATE_STOPPED ? "OFF" : "ON");
 
     return FWK_SUCCESS;
 }
@@ -257,10 +251,8 @@ static int set_rate(fwk_id_t dev_id, uint64_t rate,
     }
 
     FWK_LOG_DEBUG(
-        MOD_NAME "SCMI tfm_clock (%u/\"%s\"): rate = %" PRIu64,
-        fwk_id_get_element_idx(dev_id),
-        clk_get_name(ctx->clk),
-        rate);
+        MOD_NAME "(%u/%s) rate= %lu",
+        fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk), rate);
 
     return FWK_SUCCESS;
 }
@@ -305,11 +297,9 @@ static int get_rate_from_index(
     *rate = rate_ul;
 
     FWK_LOG_DEBUG(
-        MOD_NAME "SCMI tfm_clock (%u/\"%s\"): rate(index %u) = %lu",
-        fwk_id_get_element_idx(dev_id),
-        clk_get_name(ctx->clk),
-        rate_index,
-        rate_ul);
+        MOD_NAME "(%u/%s) rate(index %u): %lu",
+        fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk),
+        rate_index, rate_ul);
 
     return FWK_SUCCESS;
 }
@@ -333,12 +323,6 @@ static int get_duty_cycle(fwk_id_t dev_id, uint32_t *num, uint32_t *den)
 
     res = clk_get_duty_cycle(ctx->clk, &duty);
 
-    FWK_LOG_DEBUG(
-        MOD_NAME "SCMI tfm_clock (%u/\"%s\"): %" PRIx32,
-        fwk_id_get_element_idx(dev_id),
-        clk_get_name(ctx->clk),
-        res);
-
     if (res) {
         /* Assume a 50% duty cycle */
         duty = (struct clk_duty){ .num = 1, .den = 2 };
@@ -346,6 +330,11 @@ static int get_duty_cycle(fwk_id_t dev_id, uint32_t *num, uint32_t *den)
 
     *num = duty.num;
     *den = duty.den;
+
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) duty_cycle: %d/%d (res:%d)",
+        fwk_id_get_element_idx(dev_id), clk_get_name(ctx->clk),
+        duty.num, duty.den, res);
 
     return FWK_SUCCESS;
 }

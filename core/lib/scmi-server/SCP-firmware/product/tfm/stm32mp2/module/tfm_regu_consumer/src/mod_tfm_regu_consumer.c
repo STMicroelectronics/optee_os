@@ -18,7 +18,7 @@
 #include <inttypes.h>
 #include <stdio.h>
 
-#define MOD_NAME "[TFM SCMI VOLTD] "
+#define MOD_NAME "[TFM VOLTD] "
 
 /* Device context */
 struct tfm_regu_consumer_dev_ctx {
@@ -81,9 +81,10 @@ static int tfm_regu_consumer_get_config(fwk_id_t dev_id, uint8_t *mode_type,
     else
         *mode_id = MOD_VOLTD_MODE_ID_OFF;
 
-    FWK_LOG_INFO("SCMI voltd %u: get config PMIC %s = %#"PRIx8", %#"PRIx8,
-              fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), *mode_type,
-              *mode_id);
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) config: type %d / mode %d",
+        fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), *mode_type,
+        *mode_id);
 
     return FWK_SUCCESS;
 }
@@ -125,9 +126,10 @@ static int tfm_regu_consumer_set_config(fwk_id_t dev_id, uint8_t mode_type,
         return FWK_E_PARAM;
     }
 
-    FWK_LOG_INFO("SCMI voltd %u: set config PMIC %s to type %#"PRIx8" / mode %#"PRIx8,
-              fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), mode_type,
-              mode_id);
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) config = type %d / mode %d",
+        fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), mode_type,
+        mode_id);
 
     return FWK_SUCCESS;
 }
@@ -150,8 +152,9 @@ static int tfm_regu_consumer_get_level(fwk_id_t dev_id, int32_t *level_uv)
     if (regulator_get_voltage(ctx->dev, level_uv))
         return FWK_E_PANIC;
 
-    FWK_LOG_INFO("SCMI voltd %u: get level PMIC %s = %ld",
-              fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), *level_uv);
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) level: %ld",
+        fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), *level_uv);
 
     return FWK_SUCCESS;
 }
@@ -171,8 +174,9 @@ static int tfm_regu_consumer_set_level(fwk_id_t dev_id, int32_t level_uv)
     if (regulator_set_voltage(ctx->dev, level_uv, level_uv))
         return FWK_E_DEVICE;
 
-    FWK_LOG_INFO("SCMI voltd %u: set level PMIC %s to %ld",
-              fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), level_uv);
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) level= %ld",
+        fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), level_uv);
 
     return FWK_SUCCESS;
 }
@@ -224,9 +228,10 @@ static int tfm_regu_consumer_get_info(fwk_id_t dev_id,
     info->level_range.min_uv = volt_uv[0];
     info->level_range.max_uv = volt_uv[1];
 
-    FWK_LOG_INFO("SCMI voltd %u: get_info PMIC %s, range [%ld %ld]",
-              fwk_id_get_element_idx(dev_id), regu_name(ctx->dev),
-              info->level_range.min_uv, info->level_range.max_uv);
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) info: range [%ld %ld]",
+        fwk_id_get_element_idx(dev_id), regu_name(ctx->dev),
+        info->level_range.min_uv, info->level_range.max_uv);
 
     return FWK_SUCCESS;
 }
@@ -266,10 +271,9 @@ static int tfm_voltd_regulator_level_from_index(fwk_id_t dev_id,
     }
     *level_uv = volt_uv;
 
-    FWK_LOG_DEBUG(MOD_NAME
-                  "Get level from index for %u/%s: index %u, level %"PRId32"uV",
-                  fwk_id_get_element_idx(dev_id), regu_name(ctx->dev),
-                  index, *level_uv);
+    FWK_LOG_DEBUG(
+        MOD_NAME "(%u/%s) level(index %u): %d uV",
+        fwk_id_get_element_idx(dev_id), regu_name(ctx->dev), index, *level_uv);
 
     return FWK_SUCCESS;
 }
