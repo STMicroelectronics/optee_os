@@ -83,6 +83,7 @@ CFG_STM32_CM33TDCID ?= n
 ifeq ($(CFG_STM32_CM33TDCID),y)
 $(call force,CFG_HWRNG_PTA,n)
 CFG_WITH_SOFTWARE_PRNG ?= y
+$(call force,CFG_RESET_SYSTEM_ON_PANIC,n)
 $(call force,CFG_SCMI_CORTEXM_AGENT,n)
 $(call force,CFG_SCMI_MSG_DRIVERS,n)
 $(call force,CFG_SCMI_PTA,n)
