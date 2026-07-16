@@ -63,7 +63,7 @@
 #define UART_REG_CR1_FIFOEN		BIT(29)
 
 #define UART_MAX_PRESC			256
-#define UART_REG_BRR_M_SHIFT		4
+#define UART_REG_BRR_OVER8_MASK		GENMASK_32(3, 0)
 #define UART_REG_BRR_MASK		GENMASK_32(15, 0)
 
 static bool loc_chip_clk_is_enabled(struct serial_chip *chip)
@@ -154,11 +154,8 @@ static TEE_Result stm32_uart_update_baudrate(struct stm32_uart_pdata *pd,
 	uint64_t clk_rate = 0;
 	uint32_t brr = 0;
 	uint32_t baudrate = 0;
-	uint32_t mantissa = 0;
 	uint32_t uartdiv = 0;
-	uint32_t fraction = 0;
 	unsigned int i = 0;
-	int oversampling = 0;
 	uint32_t over8 = 0;
 	vaddr_t uart_base = io_pa_or_va(&pd->base, 1);
 	uint32_t presc[] = { 1, 2, 6, 8, 10, 12, 16, 32, 64, 128, 256 };
@@ -171,20 +168,19 @@ static TEE_Result stm32_uart_update_baudrate(struct stm32_uart_pdata *pd,
 
 	for (i = 0; i < ARRAY_SIZE(presc); i++) {
 		uartdiv = UDIV_ROUND_NEAREST(clk_rate, baudrate * presc[i]);
+
 		if (uartdiv < 16) {
-			oversampling = 8;
-			uartdiv = uartdiv * 2;
+			uartdiv *= 2;
 			over8 = UART_REG_CR1_OVER8;
+			brr = (uartdiv & ~UART_REG_BRR_OVER8_MASK) |
+			      ((uartdiv & UART_REG_BRR_OVER8_MASK) >> 1);
 		} else {
-			oversampling = 16;
+			brr = uartdiv;
 		}
-		mantissa = SHIFT_U32(uartdiv / oversampling,
-				     UART_REG_BRR_M_SHIFT);
-		fraction = uartdiv % oversampling;
-		brr = mantissa | fraction;
+
 		if (brr <= UART_REG_BRR_MASK)
 			break;
-		if (i == ARRAY_SIZE(presc))
+		if (i == ARRAY_SIZE(presc) - 1)
 			return TEE_ERROR_GENERIC;
 	}
 	io_write32(uart_base + UART_REG_BRR, brr);
