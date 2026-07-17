@@ -12,8 +12,11 @@
 #include "stm32mp15-pinctrl.dtsi"
 #include "stm32mp15xxaa-pinctrl.dtsi"
 #include <dt-bindings/clock/stm32mp1-clksrc.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/gpio/stm32mp_gpio.h>
 #include <dt-bindings/mfd/st,stpmic1.h>
 #include <dt-bindings/power/stm32mp1-power.h>
+#include <dt-bindings/regulator/st,stm32mp15-regulator.h>
 #include <dt-bindings/soc/stm32mp-provisioning.h>
 
 / {
@@ -31,6 +34,79 @@
 
 	aliases {
 		serial0 = &uart4;
+	};
+
+	scmi_regu: scmi-regu {
+		compatible = "st,scmi-regulator-consumer";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		scmi-channel-id = <0>;
+
+		voltd@0 {
+			reg = <VOLTD_SCMI_REG11>;
+			voltd-supply = <&reg11>;
+		};
+
+		voltd@1 {
+			reg = <VOLTD_SCMI_REG18>;
+			voltd-supply = <&reg18>;
+		};
+
+		voltd@2 {
+			reg = <VOLTD_SCMI_USB33>;
+			voltd-supply = <&usb33>;
+		};
+
+		voltd@3 {
+			reg = <VOLTD_SCMI_STPMIC1_BUCK1>;
+			voltd-supply = <&vddcore>;
+		};
+
+		voltd@5 {
+			reg = <VOLTD_SCMI_STPMIC1_BUCK3>;
+			voltd-supply = <&vdd>;
+		};
+
+		voltd@6 {
+			reg = <VOLTD_SCMI_STPMIC1_BUCK4>;
+			voltd-supply = <&v3v3>;
+		};
+
+		voltd@7 {
+			reg = <VOLTD_SCMI_STPMIC1_LDO1>;
+			voltd-supply = <&vdda>;
+		};
+
+		voltd@8 {
+			reg = <VOLTD_SCMI_STPMIC1_LDO2>;
+			voltd-supply = <&v2v8>;
+		};
+
+		voltd@a {
+			reg = <VOLTD_SCMI_STPMIC1_LDO4>;
+			voltd-supply = <&vdd_usb>;
+		};
+
+		voltd@b {
+			reg = <VOLTD_SCMI_STPMIC1_LDO5>;
+			voltd-supply = <&vdd_sd>;
+		};
+
+		voltd@c {
+			reg = <VOLTD_SCMI_STPMIC1_LDO6>;
+			voltd-supply = <&v1v8>;
+		};
+
+		voltd@f {
+			reg = <VOLTD_SCMI_STPMIC1_PWR_SW1>;
+			voltd-supply = <&vbus_otg>;
+		};
+
+		voltd@10 {
+			reg = <VOLTD_SCMI_STPMIC1_PWR_SW2>;
+			voltd-supply = <&vbus_sw>;
+		};
 	};
 
 	shadow-prov {
@@ -78,7 +154,7 @@
 	st,decprot = <
 		DECPROT(STM32MP1_ETZPC_USART1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 		DECPROT(STM32MP1_ETZPC_SPI6_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
-		DECPROT(STM32MP1_ETZPC_I2C4_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
+		DECPROT(STM32MP1_ETZPC_I2C4_ID, DECPROT_S_RW, DECPROT_LOCK)
 		DECPROT(STM32MP1_ETZPC_I2C6_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
 		DECPROT(STM32MP1_ETZPC_RNG1_ID, DECPROT_S_RW, DECPROT_UNLOCK)
 		DECPROT(STM32MP1_ETZPC_HASH1_ID, DECPROT_NS_RW, DECPROT_UNLOCK)
@@ -91,16 +167,28 @@
 	>;
 };
 
+&exti {
+	status = "okay";
+};
+
+&gpioa {
+	status = "okay";
+};
+
+&gpioz {
+	st,protreg = <(TZPROT(4) | TZPROT(5))>;
+};
+
 &iwdg1 {
 	timeout-sec = <32>;
 	status = "okay";
 };
 
 &i2c4 {
-	compatible = "st,stm32mp15-i2c-non-secure";
+	compatible = "st,stm32mp15-i2c";
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&i2c4_pins_a>;
-	pinctrl-1 = <&i2c4_sleep_pins_a>;
+	pinctrl-0 = <&i2c4_secure_pins_a>;
+	pinctrl-1 = <&i2c4_secure_sleep_pins_a>;
 	i2c-scl-rising-time-ns = <185>;
 	i2c-scl-falling-time-ns = <20>;
 	clock-frequency = <400000>;
@@ -109,6 +197,12 @@
 	stpmic1: pmic@33 {
 		compatible = "st,stpmic1";
 		reg = <0x33>;
+		interrupts-extended = <&exti 55 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		wakeup-source;
+		st,pmic-it-id = <IT_PONKEY_F IT_PONKEY_R>;
+		st,notif-it-id = <0 2>;
 		status = "okay";
 
 		regulators {
@@ -345,6 +439,12 @@
 	};
 };
 
+&pwr_irq {
+	wakeup-gpios = <&gpioa 0 (GPIO_STM32_NSEC | GPIO_ACTIVE_LOW | GPIO_PULL_UP)>,
+		       <0>, <0>, <0>, <0>, <0>;
+	status = "okay";
+};
+
 &pwr_regulators {
 	system_suspend_supported_soc_modes = <
 		STM32_PM_CSLEEP_RUN
@@ -400,7 +500,7 @@
 		CLK_RNG2_LSI
 		CLK_LPTIM1_PCLK1
 		CLK_LPTIM23_PCLK3
-		CLK_LPTIM45_LSE
+		CLK_LPTIM45_LSI
 	>;
 
 	st,clkdiv = <
