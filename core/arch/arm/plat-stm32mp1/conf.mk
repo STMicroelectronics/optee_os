@@ -178,9 +178,9 @@ $(call force,CFG_STM32_SAES,n)
 CFG_WITH_SOFTWARE_PRNG ?= y
 endif
 
-ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP1-PWR-OSTL)),)
-$(call force,CFG_STM32_LOWPOWER_SIP,n)
-$(call force,CFG_STM32_PWR_SIP,n)
+ifneq ($(filter $(CFG_EMBED_DTB_SOURCE_FILE),$(flavorlist-MP1-RCC-SCMI)),)
+$(call force,CFG_STM32_LOWPOWER_SIP,y)
+$(call force,CFG_STM32_PWR_SIP,y)
 endif
 
 # Force this mode to keep performance on RSA key operations
@@ -411,8 +411,8 @@ $(eval $(call cfg-depends-all,CFG_STM32_IWDG,CFG_WDT_SM_HANDLER CFG_WDT))
 CFG_STM32MP_PANIC_ON_TZC_PERM_VIOLATION ?= y
 
 # SiP/OEM service for non-secure world
-CFG_STM32_LOWPOWER_SIP ?= y
-CFG_STM32_PWR_SIP ?= y
+CFG_STM32_LOWPOWER_SIP ?= n
+CFG_STM32_PWR_SIP ?= n
 
 # Support or not PSCI CPU_SUSPEND command.
 CFG_STM32_PSCI_OSI ?= y
