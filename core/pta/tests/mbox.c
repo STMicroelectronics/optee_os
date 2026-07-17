@@ -528,8 +528,10 @@ static TEE_Result ipcc_mailbox_test(void)
 		return TEE_SUCCESS;
 	res = mbox_dt_register_chan(receive_callback, NULL, NULL, fdt, node,
 				    &handle_receive_send);
-	if (res != TEE_SUCCESS)
+	if (res != TEE_SUCCESS) {
 		EMSG("chan handle_receive_send %x", res);
+		return res;
+	}
 
 	notif_register_driver(&mbox_notif);
 
