@@ -1366,7 +1366,7 @@ static int get_all_opp_freqvolt_from_dt(const void *fdt, int node,
 	return 0;
 }
 
-static int clk_compute_pll1_settings(unsigned long input_freq, int idx)
+static int clk_compute_pll1_settings(unsigned long input_freq, unsigned int idx)
 {
 	unsigned long post_divm = 0;
 	unsigned long long output_freq = 0;
@@ -1379,6 +1379,9 @@ static int clk_compute_pll1_settings(unsigned long input_freq, int idx)
 	int i = 0;
 	unsigned int diff = 0;
 	unsigned int best_diff = UINT_MAX;
+
+	if (idx >= MAX_OPP)
+		return -1;
 
 	output_freq = (unsigned long long)pll1_settings.freq[idx] * 1000U;
 
@@ -1453,7 +1456,7 @@ static int clk_compute_pll1_settings(unsigned long input_freq, int idx)
 	return 0;
 }
 
-static int clk_get_pll1_settings(uint32_t clksrc, int index)
+static int clk_get_pll1_settings(uint32_t clksrc, unsigned int index)
 {
 	unsigned long input_freq = 0;
 	unsigned int i = 0;
@@ -1630,8 +1633,19 @@ static unsigned long clk_to_clock_id(struct clk *clk)
 	int gate_index = clk - stm32mp1_clk;
 	int on_index = gate_index - CLK_ON_INDEX_OFFSET;
 
-	if (clk_is_gate(clk))
+	if (gate_index < 0 || gate_index >= (int)ARRAY_SIZE(stm32mp1_clk))
+		panic();
+
+	/* Negative on_index means clk is a gate */
+	if (on_index < 0) {
+		if (gate_index >= (int)ARRAY_SIZE(stm32mp1_clk_gate))
+			panic("clk_to_clock_id: gate_index overlow");
+
 		return stm32mp1_clk_gate[gate_index].clock_id;
+	}
+
+	if (on_index >= (int)ARRAY_SIZE(stm32mp1_clk_on))
+		panic("clk_to_clock_id: on_index overlow");
 
 	return stm32mp1_clk_on[on_index];
 }
@@ -1640,7 +1654,8 @@ static const struct stm32mp1_clk_gate *clk_to_gate_ref(struct clk *clk)
 {
 	int gate_index = clk - stm32mp1_clk;
 
-	assert(clk_is_gate(clk));
+	if (gate_index < 0 || gate_index >= (int)ARRAY_SIZE(stm32mp1_clk_gate))
+		panic("clk_to_gate_ref: gate_index overlow");
 
 	return stm32mp1_clk_gate + gate_index;
 }
