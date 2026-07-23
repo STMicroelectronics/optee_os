@@ -348,6 +348,9 @@ void stm32_debug_suspend(unsigned long a0)
 	if (!stm32_bsec_self_hosted_debug_is_enabled())
 		return;
 
+	if (!dbgmcu_clk)
+		return;
+
 	if (clk_enable(dbgmcu_clk))
 		return;
 
