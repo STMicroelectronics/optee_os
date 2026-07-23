@@ -511,7 +511,8 @@ static void init_pager_runtime(unsigned long pageable_part)
 	hashes = malloc(hash_size);
 	IMSG_RAW("\n");
 	IMSG("Pager is enabled. Hashes: %zu bytes", hash_size);
-	assert(hashes);
+	if (!hashes)
+		panic();
 	asan_memcpy_unchecked(hashes, tmp_hashes, hash_size);
 
 	/*
@@ -523,7 +524,8 @@ static void init_pager_runtime(unsigned long pageable_part)
 	carve_out_asan_mem();
 
 	mm = nex_phys_mem_ta_alloc(pageable_size);
-	assert(mm);
+	if (!mm)
+		panic();
 	paged_store = phys_to_virt(tee_mm_get_smem(mm),
 				   MEM_AREA_SEC_RAM_OVERALL, pageable_size);
 	/*
@@ -582,7 +584,8 @@ static void init_pager_runtime(unsigned long pageable_part)
 			   (vaddr_t)core_virt_mem_pool.lo +
 			   core_virt_mem_pool.size - TZSRAM_SIZE,
 			   TZSRAM_SIZE);
-	assert(mm);
+	if (!mm)
+		panic();
 	tee_pager_set_alias_area(mm);
 
 	/*
@@ -591,7 +594,8 @@ static void init_pager_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&core_virt_mem_pool, VCORE_UNPG_RX_PA,
 			   (vaddr_t)(__pageable_start - VCORE_UNPG_RX_PA));
-	assert(mm);
+	if (!mm)
+		panic();
 
 	/*
 	 * Allocate virtual memory for the pageable area and let the pager
@@ -599,7 +603,8 @@ static void init_pager_runtime(unsigned long pageable_part)
 	 */
 	mm = tee_mm_alloc2(&core_virt_mem_pool, (vaddr_t)__pageable_start,
 			   pageable_size);
-	assert(mm);
+	if (!mm)
+		panic();
 	fobj = ro_paged_alloc(mm, hashes, paged_store);
 	assert(fobj);
 	tee_pager_add_core_region(tee_mm_get_smem(mm), PAGED_REGION_TYPE_RO,
