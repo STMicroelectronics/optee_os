@@ -172,6 +172,9 @@ static unsigned long clk_stm32_clock_frequency_calculator_get_ref(void)
 		break;
 	}
 
+	if (!clk)
+		panic();
+
 	return clk_get_rate(clk);
 }
 
@@ -645,6 +648,9 @@ static TEE_Result stm32mp2_clk_init_hsi_cal(struct stm32_calib_pdata *pdata)
 	struct stm32_calib *data = calib_tab[HSI_CAL];
 	TEE_Result res = TEE_ERROR_GENERIC;
 
+	if (!hsi_clk)
+		panic();
+
 	data->ref_freq = clk_get_rate(hsi_clk);
 	data->cal_ref = stm32mp2_clk_hsi_get_cal();
 
@@ -689,6 +695,9 @@ stm32mp2_clk_init_msi_cal(struct stm32_calib_pdata *pdata __unused)
 {
 	struct clk *msi_clk = stm32mp_rcc_clock_id_to_clk(MSI_CK);
 	struct stm32_calib *data = calib_tab[MSI_CAL];
+
+	if (!msi_clk)
+		panic();
 
 	data->ref_freq = clk_get_rate(msi_clk);
 	data->cal_ref = stm32mp2_clk_msi_get_cal();
