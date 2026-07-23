@@ -271,7 +271,8 @@ static void stm32_exti_set_tz(struct stm32_exti_pdata *exti,
 static struct itr_desc *
 stm32_exti_get_parent_itr(struct stm32_exti_pdata *exti, size_t it)
 {
-	if (!exti || it >= stm32_exti_nbevents(exti) || !exti->hierarchy[it])
+	if (!exti || it >= stm32_exti_nbevents(exti) ||
+	    it >= ARRAY_SIZE(exti->hierarchy) || !exti->hierarchy[it])
 		panic();
 
 	return &exti->hierarchy[it]->parent;
@@ -704,7 +705,8 @@ stm32_exti_dt_get_chip_cb(struct dt_pargs *pargs, void *priv_data,
 	itr_desc->chip = &exti->chip;
 	itr_desc->itr_num = exti_line;
 
-	if (exti_line >= stm32_exti_nbevents(exti))
+	if (exti_line >= stm32_exti_nbevents(exti) ||
+	    exti_line >= ARRAY_SIZE(exti->hierarchy))
 		return TEE_ERROR_GENERIC;
 
 	/* With RIF, check the permission */
