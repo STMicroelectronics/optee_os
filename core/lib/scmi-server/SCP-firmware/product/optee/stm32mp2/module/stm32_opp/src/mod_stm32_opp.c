@@ -241,6 +241,10 @@ static int stm32_opp_element_init(fwk_id_t element_id, unsigned int dev_count,
     struct stm32_opp_dev_ctx *ctx = elt_id_to_ctx(element_id);
     const struct mod_stm32_opp_config *config = data;
 
+    if (ctx == NULL) {
+        return FWK_E_PARAM;
+    }
+
     ctx->opp_id = config->opp_id;
 
     return FWK_SUCCESS;
