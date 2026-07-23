@@ -306,7 +306,8 @@ static void add_protocol(uint8_t protocol_id)
 	plat_protocol_list = realloc(plat_protocol_list,
 				     plat_protocol_list_count *
 				     sizeof(*plat_protocol_list));
-	assert(plat_protocol_list);
+	if (!plat_protocol_list)
+		panic();
 
 	plat_protocol_list[plat_protocol_list_count - 1] = protocol_id;
 }
