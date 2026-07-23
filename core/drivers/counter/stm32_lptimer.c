@@ -674,6 +674,9 @@ static TEE_Result probe_lpt_device(struct lptimer_device *lpt_dev)
 
 	if (lpt_dev->pdata.mode & LPTIMER_MODE_COUNTER) {
 		lpt_dev->counter_dev = counter_dev_alloc();
+		if (!lpt_dev->counter_dev)
+			return TEE_ERROR_OUT_OF_MEMORY;
+
 		lpt_dev->counter_dev->ops = &stm32_lpt_counter_ops;
 		lpt_dev->counter_dev->max_ticks = _LPTIM_CNT_MASK;
 		/*
@@ -708,8 +711,10 @@ static TEE_Result stm32_lptimer_probe(const void *fdt, int node,
 	lpt_dev->cdata = compat_data;
 	res = probe_lpt_device(lpt_dev);
 
-	if (res)
+	if (res) {
 		stm32_lptimer_free(lpt_dev);
+		return res;
+	}
 
 	if (clk_enable(lpt_dev->pdata.clock))
 		panic();
