@@ -397,6 +397,7 @@ static TEE_Result set_opp(unsigned int opp)
 	unsigned int opp_freq_khz = cpu_opp.dvfs[opp].freq_khz;
 	int opp_volt_uv = cpu_opp.dvfs[opp].volt_uv;
 	int res = TEE_ERROR_GENERIC;
+	struct clk *bypass_parent = NULL;
 
 	if (opp_freq_khz == clk_get_rate(cpu_opp.clock))
 		return TEE_SUCCESS;
@@ -406,8 +407,17 @@ static TEE_Result set_opp(unsigned int opp)
 		overdrive = true;
 
 	/* switch to bypass and disable PLL1 */
-	clk_set_parent(cpu_opp.clock,
-		       clk_get_parent_by_index(cpu_opp.clock, 1));
+	bypass_parent = clk_get_parent_by_index(cpu_opp.clock, 1);
+	if (!bypass_parent) {
+		EMSG("Failed to get bypass clock for OPP %ukHz, %uuV", opp_freq_khz, opp_volt_uv);
+		return res;
+	}
+
+	res = clk_set_parent(cpu_opp.clock, bypass_parent);
+	if (res) {
+		EMSG("Failed to switch to bypass clock for OPP %ukHz, %uuV", opp_freq_khz, opp_volt_uv);
+		return res;
+	}
 
 	/* Change OPP/RM(nominal) when moving OPP Overdrive to Nominal */
 	if (!overdrive)
