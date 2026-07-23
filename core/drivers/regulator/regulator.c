@@ -497,6 +497,8 @@ static void __maybe_unused print_regulator(struct regulator *regulator,
 	} else {
 		/* Root supply indentation */
 		msg = add_msg(msg, msg_end, "o- ");
+		if (!msg)
+			goto out;
 	}
 
 	regulator_get_range(regulator, &level_min, &level_max);
@@ -529,7 +531,7 @@ static void __maybe_unused print_regulator(struct regulator *regulator,
 
 out:
 	if (!msg)
-		snprintf(msg_end - 4, 4, "...");
+		(void)snprintf(msg_end - 4, 4, "...");
 
 	IMSG("%s", msg_buf);
 }
