@@ -83,6 +83,10 @@ static int find_opp_for_level(
     opp_table = domain_ctx->opp_table;
     limit_max = domain_ctx->level_limits.maximum;
 
+    if (opp_table->opp_count == 0) {
+        return FWK_E_RANGE;
+    }
+
     for (i = 0; i < opp_table->opp_count; i++) {
         opp_level = opp_table->opps[i].level;
 
