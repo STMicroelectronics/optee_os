@@ -143,6 +143,7 @@ const struct fwk_element *create_power_domain_element_table(
         cluster_state_table_size);
 
     if (status != FWK_SUCCESS) {
+        fwk_mm_free(element_table);
         return NULL;
     }
 
