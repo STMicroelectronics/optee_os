@@ -1005,6 +1005,9 @@ static int dvfs_start(fwk_id_t id)
     status = dvfs_get_sustained_opp(id, &sustained_opp);
     if (status == FWK_SUCCESS) {
         ctx = get_domain_ctx(id);
+        if (ctx == NULL) {
+            return FWK_E_PARAM;
+        }
         ctx->request.set_source_id = true;
         status = dvfs_set_level_start(ctx, 0, &sustained_opp, true, 0);
     }
@@ -1033,6 +1036,10 @@ static int dvfs_element_init(
 {
     struct mod_dvfs_domain_ctx *ctx = get_domain_ctx(domain_id);
 
+    if (ctx == NULL) {
+        return FWK_E_PARAM;
+    }
+
     fwk_assert(sub_element_count == 0);
 
     ctx->domain_id = domain_id;
@@ -1052,6 +1059,10 @@ static int dvfs_bind_element(fwk_id_t domain_id, unsigned int round)
 {
     int status;
     const struct mod_dvfs_domain_ctx *ctx = get_domain_ctx(domain_id);
+
+    if (ctx == NULL) {
+        return FWK_E_PARAM;
+    }
 
     /* Bind to the power supply module */
     status = fwk_module_bind(
@@ -1140,6 +1151,10 @@ static int dvfs_process_bind_request(
     case MOD_DVFS_API_IDX_CNTRL_DRV:
         *api = &dvfs_driver_api;
         domain_ctx = get_domain_ctx(target_id);
+        if (domain_ctx == NULL) {
+            return FWK_E_PARAM;
+        }
+
         domain_ctx->bound_id = source_id;
         status = FWK_SUCCESS;
         break;
