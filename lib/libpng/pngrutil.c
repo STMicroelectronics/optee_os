@@ -1816,7 +1816,7 @@ png_handle_sPLT(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
 void /* PRIVATE */
 png_handle_tRNS(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
 {
-   png_byte readbuf[PNG_MAX_PALETTE_LENGTH];
+   png_byte readbuf[PNG_MAX_PALETTE_LENGTH] = {0};
 
    png_debug(1, "in png_handle_tRNS");
 
@@ -2683,7 +2683,15 @@ png_handle_zTXt(png_structrp png_ptr, png_inforp info_ptr, png_uint_32 length)
              * it isn't necessarily '\0' terminated.
              */
             buffer = png_ptr->read_buffer;
-            buffer[uncompressed_length+(keyword_length+2)] = 0;
+            /* Bound against the actual allocation (read_buffer_size), not
+             * 'length', since read_buffer was resized by
+             * png_decompress_chunk(); this is the real overflow check.
+             */
+            if (uncompressed_length + (keyword_length+2) <
+                png_ptr->read_buffer_size)
+               buffer[uncompressed_length+(keyword_length+2)] = 0;
+            else
+               errmsg = "internal error: read buffer too small";
 
             text.compression = PNG_TEXT_COMPRESSION_zTXt;
             text.key = (png_charp)buffer;
