@@ -78,10 +78,6 @@ static TEE_Result stm32_hse_monitoring(void)
 	int node = -1;
 	TEE_Result res = TEE_ERROR_GENERIC;
 
-	priv = calloc(1, sizeof(*priv));
-	if (!priv)
-		return TEE_ERROR_OUT_OF_MEMORY;
-
 	fdt = get_embedded_dt();
 	if (!fdt)
 		panic();
@@ -119,6 +115,10 @@ static TEE_Result stm32_hse_monitoring(void)
 
 	counter = fdt_counter_get(fdt, node, &config);
 	assert(counter && config);
+
+	priv = calloc(1, sizeof(*priv));
+	if (!priv)
+		return TEE_ERROR_OUT_OF_MEMORY;
 
 	priv->counter = counter;
 	priv->config = config;
