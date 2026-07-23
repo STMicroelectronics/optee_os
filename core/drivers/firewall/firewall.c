@@ -111,7 +111,8 @@ TEE_Result firewall_dt_get_alternate_conf(const void *fdt, int node,
 	if (!prop_name)
 		return TEE_ERROR_OUT_OF_MEMORY;
 
-	snprintf(prop_name, max_len, "access-controllers-conf-%s", conf_name);
+	(void)snprintf(prop_name, max_len, "access-controllers-conf-%s",
+		       conf_name);
 	res = dt_driver_count_devices(prop_name, fdt, node, DT_DRIVER_FIREWALL,
 				      &nb_element);
 	if (res) {
