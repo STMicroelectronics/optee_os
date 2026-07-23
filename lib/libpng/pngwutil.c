@@ -505,6 +505,12 @@ png_text_compress(png_structrp png_ptr, png_uint_32 chunk_name,
    if (ret != Z_OK)
       return ret;
 
+   /* NULL input with a length of 0 is valid (no data to compress); any
+    * other combination is an internal inconsistency.
+    */
+   if ((comp->input == NULL) != (comp->input_len == 0))
+      return Z_STREAM_ERROR;
+
    /* Set up the compression buffers, we need a loop here to avoid overflowing a
     * uInt.  Use ZLIB_IO_MAX to limit the input.  The output is always limited
     * by the output buffer size, so there is no need to check that.  Since this
@@ -963,6 +969,11 @@ png_compress_IDAT(png_structrp png_ptr, png_const_bytep input,
     * terminates the operation.  The _out values are maintained across calls to
     * this function, but the input must be reset each time.
     */
+   /* NULL input with a length of 0 is valid (no data to compress); any
+    * other combination is an internal inconsistency.
+    */
+   if ((input == NULL) != (input_len == 0))
+      return;
    png_ptr->zstream.next_in = PNGZ_INPUT_CAST(input);
    png_ptr->zstream.avail_in = 0; /* set below */
    for (;;)
@@ -2106,7 +2117,7 @@ png_do_write_interlace(png_row_infop row_info, png_bytep row, int pass)
    png_debug(1, "in png_do_write_interlace");
 
    /* We don't have to do anything on the last pass (6) */
-   if (pass < 6)
+   if (pass >= 0 && pass < 6)
    {
       /* Each pixel depth is handled separately */
       switch (row_info->pixel_depth)
