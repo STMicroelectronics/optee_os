@@ -410,6 +410,10 @@ static int optee_clock_element_init(
     const struct mod_optee_clock_config *config = data;
     TEE_Result res;
 
+    if (ctx == NULL) {
+        return FWK_E_PARAM;
+    }
+
     ctx->clk = config->clk;
     if (ctx->clk) {
         ctx->enabled = config->default_enabled;
