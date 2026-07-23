@@ -364,7 +364,7 @@ static bool is_tui_keyboard(struct tui_widget *tw)
 TEE_Result __tui_keyboard_create(struct tui_widget_head *twh, size_t *ypos,
 				 size_t scr_width)
 {
-	TEE_Result res;
+	TEE_Result res = TEE_SUCCESS;
 	struct tui_keyboard *tkb;
 	size_t row;
 	size_t col;
