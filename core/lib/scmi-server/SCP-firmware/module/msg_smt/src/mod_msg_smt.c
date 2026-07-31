@@ -43,9 +43,6 @@ struct smt_channel_ctx {
     /* Message processing in progrees flag */
     volatile bool locked;
 
-    /* Maximum payload size of the channel */
-    size_t max_payload_size;
-
     /* Driver entity identifier */
     fwk_id_t driver_id;
 
@@ -88,6 +85,28 @@ static int smt_get_secure(fwk_id_t channel_id, bool *secure)
     return FWK_SUCCESS;
 }
 
+/*
+ * Compute the maximum SCMI payload size for the message being processed.
+ *
+ * The MSG shared memory buffer is provided by the agent on a per-message basis,
+ * so its size (out_len) may be smaller than the mailbox size declared in the
+ * channel configuration. Honor the size actually provided by the agent, capped
+ * by the configured mailbox size, so the SCMI server never emits a response
+ * larger than the buffer the agent will read back (and never overflows it).
+ */
+static size_t smt_get_effective_max_payload(struct smt_channel_ctx *channel_ctx)
+{
+    size_t buf_size = channel_ctx->out_len;
+
+    fwk_assert(buf_size >= sizeof(struct mod_msg_smt_memory));
+
+    if (buf_size > channel_ctx->config->mailbox_size) {
+        buf_size = channel_ctx->config->mailbox_size;
+    }
+
+    return buf_size - sizeof(struct mod_msg_smt_memory);
+}
+
 static int smt_get_max_payload_size(fwk_id_t channel_id, size_t *size)
 {
     struct smt_channel_ctx *channel_ctx;
@@ -100,7 +119,7 @@ static int smt_get_max_payload_size(fwk_id_t channel_id, size_t *size)
     channel_ctx =
         &smt_ctx.channel_ctx_table[fwk_id_get_element_idx(channel_id)];
 
-    *size = channel_ctx->max_payload_size;
+    *size = smt_get_effective_max_payload(channel_ctx);
 
     return FWK_SUCCESS;
 }
@@ -159,14 +178,17 @@ static int smt_write_payload(fwk_id_t channel_id,
                              size_t size)
 {
     struct smt_channel_ctx *channel_ctx;
+    size_t max_payload_size;
 
     channel_ctx =
         &smt_ctx.channel_ctx_table[fwk_id_get_element_idx(channel_id)];
 
-    if ((payload == NULL)                         ||
-        (offset  > channel_ctx->max_payload_size) ||
-        (size > channel_ctx->max_payload_size)    ||
-        ((offset + size) > channel_ctx->max_payload_size)) {
+    max_payload_size = smt_get_effective_max_payload(channel_ctx);
+
+    if ((payload == NULL)                ||
+        (offset  > max_payload_size)     ||
+        (size > max_payload_size)        ||
+        ((offset + size) > max_payload_size)) {
 
         fwk_assert(false);
         return FWK_E_PARAM;
@@ -359,9 +381,6 @@ static int msg_channel_init(fwk_id_t channel_id, unsigned int slot_count,
     channel_ctx->in_len = 0;
     channel_ctx->out = NULL;
     channel_ctx->out_len = 0;
-
-    channel_ctx->max_payload_size = channel_ctx->config->mailbox_size -
-        sizeof(struct mod_msg_smt_memory);
 
     channel_ctx->msg_smt_mailbox_ready = true;
 
