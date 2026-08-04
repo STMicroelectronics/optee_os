@@ -168,7 +168,8 @@ static TEE_Result stm32_ltdc_init(void *device)
 	if (ldev->pinctrl) {
 		ret = pinctrl_apply_state(ldev->pinctrl);
 		if (ret) {
-			firewall_set_alternate_conf(ldev->nsec_conf);
+			if (firewall_set_alternate_conf(ldev->nsec_conf))
+				panic("Firewall: Cannot set ltdc to no secure");
 			goto err;
 		}
 	}
