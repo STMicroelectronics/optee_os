@@ -283,7 +283,7 @@ static TEE_Result rproc_pta_set_memory(uint32_t pt,
 	void *dst = NULL;
 	paddr_t da = params[1].value.a;
 	size_t size = params[2].value.a;
-	uint8_t value = params[3].value.a && 0xFF;
+	uint8_t value = params[3].value.a & 0xFF;
 
 	if (pt != exp_pt)
 		return TEE_ERROR_BAD_PARAMETERS;
