@@ -256,14 +256,20 @@ static TEE_Result regulator_limit_levels(struct regulator *regulator,
 				start = i;
 				break;
 			}
-		/* Last level lower than maximum */
+		/* First level higher than the maximum, if any */
 		for (; i  <= last ; i++)
-			if ((*levels)[i] > regulator->max_uv) {
-				end = i - 1;
+			if ((*levels)[i] > regulator->max_uv)
 				break;
-			}
+
+		/* No supported level fits both constraints */
+		if (i == start)
+			return TEE_ERROR_NOT_SUPPORTED;
+
+		/* Last level lower than maximum */
+		if (i <= last)
+			end = i - 1;
+
 		/* Expose only a subset of supported voltages by the supply */
-		assert(end >= start);
 		if (start > 0 && end != last) {
 			*levels = *levels + start;
 			(*desc)->num_levels = end - start + 1;
