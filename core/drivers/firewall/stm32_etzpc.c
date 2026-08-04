@@ -581,19 +581,14 @@ static TEE_Result stm32_etzpc_configure_memory(struct firewall_query *firewall,
 		paddr_t ram_base = 0;
 		size_t ram_size = 0;
 
-		switch (id) {
-		case ETZPC_TZMA0_ID:
+		if (id == ETZPC_TZMA0_ID) {
 			ram_base = ROM_BASE;
 			ram_size = ROM_SIZE;
 			tzma_id = 0;
-			break;
-		case ETZPC_TZMA1_ID:
+		} else {
 			ram_base = SYSRAM_BASE;
 			ram_size = SYSRAM_SIZE;
 			tzma_id = 1;
-			break;
-		default:
-			return TEE_ERROR_BAD_PARAMETERS;
 		}
 
 		/* TZMA configuration supports only page aligned sizes */
