@@ -396,7 +396,7 @@ static TEE_Result set_opp(unsigned int opp)
 	unsigned int def_freq_khz = cpu_opp.dvfs[cpu_opp.default_opp].freq_khz;
 	unsigned int opp_freq_khz = cpu_opp.dvfs[opp].freq_khz;
 	int opp_volt_uv = cpu_opp.dvfs[opp].volt_uv;
-	int res = TEE_ERROR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	struct clk *bypass_parent = NULL;
 
 	if (opp_freq_khz == clk_get_rate(cpu_opp.clock))
@@ -698,6 +698,7 @@ static TEE_Result cpu_opp_pm(enum pm_op op, unsigned int pm_hint,
 	if (op == PM_OP_RESUME) {
 		DMSG("Resume to OPP %u", cpu_opp.current_opp);
 
+#if defined(CFG_STM32MP25) || defined(CFG_STM32MP23) || defined(CFG_STM32MP21)
 		/*
 		 * Optimize resume from Stop modes: do not reset
 		 * the OPP if we where on default before suspend.
@@ -705,6 +706,7 @@ static TEE_Result cpu_opp_pm(enum pm_op op, unsigned int pm_hint,
 		if (!PM_HINT_IS_STATE(pm_hint, CONTEXT) &&
 		    cpu_opp.current_opp == cpu_opp.default_opp)
 			return TEE_SUCCESS;
+#endif
 
 		return set_opp(cpu_opp.current_opp);
 	}
