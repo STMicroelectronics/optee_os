@@ -312,9 +312,14 @@ TEE_Result stpmic2_regulator_set_state(struct stpmic2 *pmic, uint8_t id,
 TEE_Result stpmic2_regulator_get_state(struct stpmic2 *pmic,
 				       uint8_t id, bool *enabled)
 {
-	const struct regul_struct *regul = regul_table + id;
+	const struct regul_struct *regul = NULL;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	uint8_t val = 0;
+
+	if (id >= ARRAY_SIZE(regul_table))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	regul = regul_table + id;
 
 	res = stpmic2_register_read(pmic, regul->en_cr, &val);
 	if (res)
@@ -329,10 +334,12 @@ TEE_Result stpmic2_regulator_levels_mv(struct stpmic2 *pmic __unused,
 				       uint8_t id, const uint16_t **levels,
 				       size_t *levels_count)
 {
-	const struct regul_struct *regul = regul_table + id;
+	const struct regul_struct *regul = NULL;
 
-	if (!regul)
+	if (id >= ARRAY_SIZE(regul_table))
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	regul = regul_table + id;
 
 	if (levels_count)
 		*levels_count = regul->volt_table_size;
@@ -345,9 +352,14 @@ TEE_Result stpmic2_regulator_levels_mv(struct stpmic2 *pmic __unused,
 TEE_Result stpmic2_regulator_get_voltage(struct stpmic2 *pmic, uint8_t id,
 					 uint16_t *val)
 {
-	const struct regul_struct *regul = regul_table + id;
+	const struct regul_struct *regul = NULL;
 	uint8_t value = 0;
 	uint8_t mask = 0;
+
+	if (id >= ARRAY_SIZE(regul_table))
+		return TEE_ERROR_BAD_PARAMETERS;
+
+	regul = regul_table + id;
 
 	if (!regul->volt_table_size)
 		return TEE_ERROR_GENERIC;
