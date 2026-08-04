@@ -524,13 +524,17 @@ static TEE_Result stm32_rifsc_parse_fdt(const void *fdt, int node,
 static TEE_Result stm32_risup_cfg(struct rifsc_platdata *pdata,
 				  struct risup_cfg *risup)
 {
-	uintptr_t offset = sizeof(uint32_t) * (risup->id / _PERIPH_IDS_PER_REG);
-	uintptr_t cidcfgr_offset = _OFFSET_PERX_CIDCFGR * risup->id;
 	struct rifsc_driver_data *drv_data = pdata->drv_data;
-	uint32_t shift = risup->id % _PERIPH_IDS_PER_REG;
+	uintptr_t cidcfgr_offset = 0;
+	uintptr_t offset = 0;
+	uint32_t shift = 0;
 
 	if (!risup || risup->id >= drv_data->nb_risup)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	offset = sizeof(uint32_t) * (risup->id / _PERIPH_IDS_PER_REG);
+	cidcfgr_offset = _OFFSET_PERX_CIDCFGR * risup->id;
+	shift = risup->id % _PERIPH_IDS_PER_REG;
 
 	if (drv_data->sec_en)
 		io_clrsetbits32_stm32shregs(pdata->base + _RIFSC_RISC_SECCFGR0 +
@@ -657,11 +661,13 @@ static void stm32_rimu_errata_ahbrisab(struct rifsc_platdata *pdata,
 static TEE_Result stm32_rimu_cfg(struct rifsc_platdata *pdata,
 				 struct rimu_cfg *rimu)
 {
-	uintptr_t offset =  _RIFSC_RIMC_ATTR0 + (sizeof(uint32_t) * rimu->id);
 	struct rifsc_driver_data *drv_data = pdata->drv_data;
+	uintptr_t offset = 0;
 
 	if (!rimu || rimu->id >= drv_data->nb_rimu)
 		return TEE_ERROR_BAD_PARAMETERS;
+
+	offset = _RIFSC_RIMC_ATTR0 + (sizeof(uint32_t) * rimu->id);
 
 	stm32_rimu_errata_ahbrisab(pdata, rimu);
 
