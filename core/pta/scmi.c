@@ -164,9 +164,6 @@ static TEE_Result cmd_process_msg_channel(uint32_t ptypes,
 	}
 
 	if (IS_ENABLED(CFG_SCMI_SCPFW)) {
-		if (!in_buf || !out_buf)
-			return TEE_ERROR_BAD_PARAMETERS;
-
 		res = scmi_server_msg_process_thread(channel_id, in_buf,
 						     in_size, out_buf,
 						     &out_size);
