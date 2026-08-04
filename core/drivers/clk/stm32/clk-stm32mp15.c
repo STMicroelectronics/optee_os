@@ -1225,14 +1225,14 @@ static long get_timer_rate(long parent_rate, unsigned int apb_bus)
 
 static unsigned long _stm32_clock_get_rate(unsigned long id)
 {
-	enum stm32mp1_parent_id p = _UNKNOWN_ID;
 	unsigned long rate = 0;
+	int p = 0;
 
 	p = stm32mp1_clk_get_parent(id);
 	if (p < 0)
 		return 0;
 
-	rate = get_clock_rate(p);
+	rate = get_clock_rate((enum stm32mp1_parent_id)p);
 
 	if ((id >= TIM2_K) && (id <= TIM14_K))
 		rate = get_timer_rate(rate, 1);
