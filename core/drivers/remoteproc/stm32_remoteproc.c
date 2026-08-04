@@ -219,7 +219,7 @@ static TEE_Result stm32mp2_rproc_start(struct stm32_rproc_instance *rproc)
 	struct stm32_rproc_mem *mems = NULL;
 	unsigned int i = 0;
 	bool boot_addr_valid = false;
-	int res = TEE_ERROR_GENERIC;
+	TEE_Result res = TEE_ERROR_GENERIC;
 	paddr_t boot_pa = 0;
 
 	if (!rproc->boot_addr)
