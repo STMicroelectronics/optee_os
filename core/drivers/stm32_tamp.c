@@ -674,6 +674,16 @@ static vaddr_t get_base(void)
 
 static void apply_rif_config(void)
 {
+	static const uint32_t sec_mask[TAMP_RIF_RESOURCES] = {
+		_TAMP_SECCFGR_TAMPSEC,
+		_TAMP_SECCFGR_CNT1SEC,
+		_TAMP_SECCFGR_CNT2SEC,
+	};
+	static const uint32_t priv_mask[TAMP_RIF_RESOURCES] = {
+		_TAMP_PRIVCFG_TAMPPRIV,
+		_TAMP_PRIVCFG_CNT1PRIV | _TAMP_PRIVCFG_BKPRWPRIV,
+		_TAMP_PRIVCFG_CNT2PRIV | _TAMP_PRIVCFG_BKPWPRIV,
+	};
 	struct rif_conf_data *rif_conf = stm32_tamp_dev->pdata.conf_data;
 	uint32_t access_mask_priv_reg = 0;
 	uint32_t access_mask_sec_reg = 0;
@@ -688,24 +698,8 @@ static void apply_rif_config(void)
 	/* Build access masks for _TAMP_PRIVCFGR and _TAMP_SECCFGR */
 	for (i = 0; i < TAMP_RIF_RESOURCES; i++) {
 		if (BIT(i) & rif_conf->access_mask[0]) {
-			switch (i) {
-			case 0:
-				access_mask_sec_reg |= _TAMP_SECCFGR_TAMPSEC;
-				access_mask_priv_reg |= _TAMP_PRIVCFG_TAMPPRIV;
-				break;
-			case 1:
-				access_mask_sec_reg |= _TAMP_SECCFGR_CNT1SEC;
-				access_mask_priv_reg |= _TAMP_PRIVCFG_CNT1PRIV;
-				access_mask_priv_reg |= _TAMP_PRIVCFG_BKPRWPRIV;
-				break;
-			case 2:
-				access_mask_sec_reg |= _TAMP_SECCFGR_CNT2SEC;
-				access_mask_priv_reg |= _TAMP_PRIVCFG_CNT2PRIV;
-				access_mask_priv_reg |= _TAMP_PRIVCFG_BKPWPRIV;
-				break;
-			default:
-				panic();
-			}
+			access_mask_sec_reg |= sec_mask[i];
+			access_mask_priv_reg |= priv_mask[i];
 		}
 	}
 
