@@ -553,7 +553,9 @@ static void stm32_exti_rif_save(struct stm32_exti_pdata *exti)
 			io_read32(exti->base + _EXTI_SECCFGR(i));
 	}
 
-	stm32_rifsc_check_tdcid(&is_tdcid);
+	if (stm32_rifsc_check_tdcid(&is_tdcid))
+		panic();
+
 	if (!is_tdcid)
 		return;
 
