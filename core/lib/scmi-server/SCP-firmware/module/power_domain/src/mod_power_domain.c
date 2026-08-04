@@ -99,9 +99,6 @@ static int connect_pd_tree(void)
         }
 
         parent = pd->parent = &mod_pd_ctx.pd_ctx_table[pd->config->parent_idx];
-        if (parent == NULL) {
-            return FWK_E_DATA;
-        }
         fwk_list_push_tail(&parent->children_list, &pd->child_node);
     }
 
@@ -252,10 +249,17 @@ static void process_set_state_request(
              * next power domain to process as well as its level.
              */
             pd = lowest_pd;
-            for (level = lowest_level; level < (highest_level - pd_index);
+            for (level = lowest_level;
+                 (level < (highest_level - pd_index)) && (pd != NULL);
                  level++) {
                 pd = pd->parent;
             }
+        }
+
+        /* The tree is shallower than the requested level */
+        if (pd == NULL) {
+            status = FWK_E_PARAM;
+            break;
         }
 
         if (composite_state_operation) {
