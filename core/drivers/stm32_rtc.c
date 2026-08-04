@@ -963,7 +963,7 @@ static TEE_Result stm32_rtc_set_alarm(struct rtc *rtc,
 	alrmar |= ((alarm_time->tm_sec % 10) << RTC_ALRMXR_SEC_UNITS_SHIFT) &
 		  RTC_ALRMXR_SEC_UNITS_MASK;
 
-	if ((alrmar & !RTC_ALRMXR_SEC_MASK) && prediv_s < 3) {
+	if (!(alrmar & RTC_ALRMXR_SEC_MASK) && prediv_s < 3) {
 		EMSG("RTC Alarm conditions not met");
 		return TEE_ERROR_BAD_STATE;
 	}
