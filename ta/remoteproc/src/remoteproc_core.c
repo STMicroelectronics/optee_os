@@ -963,7 +963,7 @@ static TEE_Result get_enc_seg_info(struct remoteproc_context *ctx, uint8_t *src,
 	return TEE_ERROR_NO_DATA;
 }
 
-static int remoteproc_clean_resources(struct remoteproc_context *ctx)
+static TEE_Result remoteproc_clean_resources(struct remoteproc_context *ctx)
 {
 	uint32_t param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INPUT,
 					       TEE_PARAM_TYPE_NONE,
@@ -1205,8 +1205,8 @@ static TEE_Result remoteproc_load_elf(struct remoteproc_context *ctx)
 
 out:
 	/* Clean the resources in case of fail */
-	if (res)
-		remoteproc_clean_resources(ctx);
+	if (res && remoteproc_clean_resources(ctx))
+		EMSG("Failed to release the remoteproc resources");
 	TEE_Free(ctx->hash_table);
 	ctx->hash_table = NULL;
 	TEE_Free(ctx->enc_table);
@@ -1271,7 +1271,8 @@ static TEE_Result remoteproc_load_fw(uint32_t pt,
 put_mems:
 	res2 = remoteproc_release_mems(ctx);
 	if (res2 && ctx->state == REMOTEPROC_LOADED) {
-		remoteproc_clean_resources(ctx);
+		if (remoteproc_clean_resources(ctx))
+			EMSG("Failed to release the remoteproc resources");
 		ctx->state = REMOTEPROC_OFF;
 		res = res2;
 	}
@@ -1319,8 +1320,8 @@ static TEE_Result remoteproc_start_fw(uint32_t pt,
 					  pt, params, NULL);
 		if (res == TEE_SUCCESS)
 			ctx->state = REMOTEPROC_STARTED;
-		else
-			remoteproc_clean_resources(ctx);
+		else if (remoteproc_clean_resources(ctx))
+			EMSG("Failed to release the remoteproc resources");
 		break;
 	default:
 		res = TEE_ERROR_BAD_STATE;
@@ -1349,7 +1350,8 @@ static TEE_Result remoteproc_stop_fw(uint32_t pt,
 
 	switch (ctx->state) {
 	case REMOTEPROC_LOADED:
-		remoteproc_clean_resources(ctx);
+		if (remoteproc_clean_resources(ctx))
+			EMSG("Failed to release the remoteproc resources");
 		ctx->state = REMOTEPROC_OFF;
 		res = TEE_ERROR_BAD_STATE;
 		break;
@@ -1361,7 +1363,7 @@ static TEE_Result remoteproc_stop_fw(uint32_t pt,
 					  PTA_RPROC_FIRMWARE_STOP,
 					  pt, params, NULL);
 		if (res == TEE_SUCCESS) {
-			remoteproc_clean_resources(ctx);
+			res = remoteproc_clean_resources(ctx);
 			ctx->state = REMOTEPROC_OFF;
 		}
 		break;
