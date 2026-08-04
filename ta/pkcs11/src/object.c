@@ -115,8 +115,11 @@ void cleanup_persistent_object(struct pkcs11_object *obj,
 				       obj->uuid, sizeof(TEE_UUID),
 				       TEE_DATA_FLAG_ACCESS_WRITE_META,
 				       &obj->attribs_hdl);
-	if (!res)
-		TEE_CloseAndDeletePersistentObject1(obj->attribs_hdl);
+	if (!res) {
+		res = TEE_CloseAndDeletePersistentObject1(obj->attribs_hdl);
+		if (res)
+			TEE_Panic(res);
+	}
 
 	obj->attribs_hdl = TEE_HANDLE_NULL;
 	destroy_object_uuid(token, obj);
@@ -1250,7 +1253,6 @@ enum pkcs11_rc entry_copy_object(struct pkcs11_client *client, uint32_t ptypes,
 			if (rc)
 				goto out;
 		}
-		rc = PKCS11_CKR_OK;
 	}
 
 	/*
