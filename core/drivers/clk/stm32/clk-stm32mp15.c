@@ -1380,7 +1380,7 @@ static int clk_compute_pll1_settings(unsigned long input_freq, unsigned int idx)
 	unsigned int diff = 0;
 	unsigned int best_diff = UINT_MAX;
 
-	if (idx >= MAX_OPP)
+	if (!input_freq || idx >= MAX_OPP)
 		return -1;
 
 	output_freq = (unsigned long long)pll1_settings.freq[idx] * 1000U;
