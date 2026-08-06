@@ -75,8 +75,10 @@ static int stm32_pd_set_state_gpu(fwk_id_t pd_id, unsigned int state)
             if (clk != NULL) {
                 res = clk_enable(clk);
                 if (res != TEE_SUCCESS) {
-                    if (regu != NULL) {
-                        regulator_disable(regu);
+                    if (regu != NULL &&
+                        regulator_disable(regu) != TEE_SUCCESS) {
+                        FWK_LOG_ERR("Failed to disable regulator on power domain %s",
+                                    fwk_module_get_element_name(pd_id));
                     }
                     return scmi_tee_result_to_fwk_status(res);
                 }
@@ -89,8 +91,9 @@ static int stm32_pd_set_state_gpu(fwk_id_t pd_id, unsigned int state)
             if (regu != NULL) {
                 res = regulator_disable(regu);
                 if (res != TEE_SUCCESS) {
-                    if (clk != NULL) {
-                        clk_enable(clk);
+                    if (clk != NULL && clk_enable(clk) != TEE_SUCCESS) {
+                        FWK_LOG_ERR("Failed to enable clock on power domain %s",
+                                    fwk_module_get_element_name(pd_id));
                     }
                     return scmi_tee_result_to_fwk_status(res);
                 }
