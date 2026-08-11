@@ -456,7 +456,7 @@ TEE_Result stm32_cpu_opp_set_rate(unsigned int rate)
 		if (cpu_opp.dvfs[opp].freq_khz == rate_khz)
 			break;
 
-	if (opp > cpu_opp.opp_count)
+	if (opp >= cpu_opp.opp_count)
 		return TEE_ERROR_BAD_PARAMETERS;
 
 	/* set OPP: configure clock and voltage with SoC function */
