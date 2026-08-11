@@ -395,11 +395,14 @@ static TEE_Result set_opp(unsigned int opp)
 	bool overdrive = false;
 	unsigned int def_freq_khz = cpu_opp.dvfs[cpu_opp.default_opp].freq_khz;
 	unsigned int opp_freq_khz = cpu_opp.dvfs[opp].freq_khz;
+	unsigned int cur_freq_khz = clk_get_rate(cpu_opp.clock);
 	int opp_volt_uv = cpu_opp.dvfs[opp].volt_uv;
 	TEE_Result res = TEE_ERROR_GENERIC;
 	struct clk *bypass_parent = NULL;
+	struct cpu_dvfs *prev = NULL;
+	bool prev_overdrive = false;
 
-	if (opp_freq_khz == clk_get_rate(cpu_opp.clock))
+	if (opp_freq_khz == cur_freq_khz)
 		return TEE_SUCCESS;
 
 	/* The default OPP is the OPP with nominal frequency */
@@ -427,7 +430,7 @@ static TEE_Result set_opp(unsigned int opp)
 	res = regulator_set_voltage(cpu_opp.regul, opp_volt_uv);
 	if (res) {
 		EMSG("Failed to set OPP %uuV", opp_volt_uv);
-		return res;
+		goto restore;
 	}
 
 	/* Change OPP/RM(overdrive) when moving OPP Nominal to Overdrive */
@@ -435,12 +438,40 @@ static TEE_Result set_opp(unsigned int opp)
 		ca35ss_configure_opp(true);
 
 	/* Configure and start PLL1 */
-	if (clk_set_rate(cpu_opp.clock, opp_freq_khz * 1000UL)) {
+	res = clk_set_rate(cpu_opp.clock, opp_freq_khz * 1000UL);
+	if (res) {
 		EMSG("Failed to set OPP %ukHz", opp_freq_khz);
-		return TEE_ERROR_GENERIC;
+		goto restore;
 	}
 
 	return TEE_SUCCESS;
+
+restore:
+	for (opp = 0U; opp < cpu_opp.opp_count; opp++) {
+		if (cpu_opp.dvfs[opp].freq_khz == cur_freq_khz) {
+			prev = &cpu_opp.dvfs[opp];
+			break;
+		}
+	}
+	if (!prev)
+		panic("Failed to restore OPP");
+
+	prev_overdrive = prev->freq_khz > def_freq_khz;
+
+	if (!prev_overdrive)
+		ca35ss_configure_opp(false);
+
+	/* Restore previous OPP */
+	if (regulator_set_voltage(cpu_opp.regul, prev->volt_uv))
+		panic("Failed to restore voltage");
+
+	if (prev_overdrive)
+		ca35ss_configure_opp(true);
+
+	if (clk_set_rate(cpu_opp.clock, prev->freq_khz * 1000UL))
+		panic("Failed to restore clock");
+
+	return res;
 }
 #endif /* CFG_STM32MP21 || CFG_STM32MP23 || CFG_STM32MP25*/
 
