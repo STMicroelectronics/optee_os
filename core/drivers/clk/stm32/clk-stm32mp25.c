@@ -3894,8 +3894,8 @@ static RIF_GATE(ck_icn_p_gpioz_am, &ck_icn_p_gpioz, 0, GATE_GPIOZAM,
 		RCC_RIF_GPIOZ);
 static RIF_GATE(ck_icn_p_rtc, &ck_icn_ls_mcu, CLK_IS_CRITICAL_TDCID, GATE_RTC,
 		RCC_RIF_RTC_TAMP);
-static RIF_GATE(ck_icn_p_rtc_am, &ck_icn_p_rtc, 0, GATE_RTCAM,
-		RCC_RIF_RTC_TAMP);
+static RIF_GATE(ck_icn_p_rtc_am, &ck_icn_p_rtc, CLK_IS_CRITICAL_TDCID,
+		GATE_RTCAM, RCC_RIF_RTC_TAMP);
 static RIF_COMPOSITE(ck_rtc, 4, PARENT(&ck_off, &ck_lse, &ck_lsi, &ck_hse_rtc),
 		     0, GATE_RTCCK, NO_DIV, MUX_RTC, RCC_RIF_RTC_TAMP);
 static RIF_GATE(ck_icn_p_bsec, &ck_icn_apb3, CLK_IS_CRITICAL_TDCID, GATE_BSEC,
