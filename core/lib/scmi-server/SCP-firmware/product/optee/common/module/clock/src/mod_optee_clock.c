@@ -179,6 +179,8 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
     struct optee_clock_dev_ctx *ctx = elt_id_to_ctx(dev_id);
     size_t rate_count;
     size_t count;
+    unsigned long min_rate = 0;
+    unsigned long max_rate = 0;
     TEE_Result res;
 
     if ((ctx == NULL) || (range == NULL)) {
@@ -227,12 +229,14 @@ static int get_range(fwk_id_t dev_id, struct mod_clock_range *range)
     range->max = 0;
 
     count = 1;
-    res = clk_get_rates_array(ctx->clk, 0, &range->min, &count);
+    res = clk_get_rates_array(ctx->clk, 0, &min_rate, &count);
     fwk_assert(!res && count == 1);
+    range->min = min_rate;
 
     count = 1;
-    res = clk_get_rates_array(ctx->clk, rate_count - 1, &range->max, &count);
+    res = clk_get_rates_array(ctx->clk, rate_count - 1, &max_rate, &count);
     fwk_assert(!res && count == 1);
+    range->max = max_rate;
 
     return FWK_SUCCESS;
 }
