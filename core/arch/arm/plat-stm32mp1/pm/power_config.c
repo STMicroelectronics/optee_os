@@ -335,6 +335,18 @@ uint32_t stm32mp1_get_lp_soc_mode(void)
 	    !stm32mp1_lp_soc_mode_is_supported(mode))
 		mode = STM32_PM_CSLEEP_RUN;
 
+#ifndef CFG_STM32_LOWPOWER_SIP
+	/* Trace to debug low power mode restriction (no Standby) */
+	if (mode != STM32_PM_CSTANDBY_ALLOW_STANDBY_DDR_SR) {
+		IMSG("EXTI C1IMR1=%x C1IMR2=%x C1IMR3=%x\n",
+		     exti_read_imr(0), exti_read_imr(1), exti_read_imr(2));
+		IMSG("mode=%x for power domain: CORE=%d CORE_RET=%d\n",
+		     mode,
+		     get_pm_domain_state(STM32MP1_PD_CORE),
+		     get_pm_domain_state(STM32MP1_PD_CORE_RET));
+	}
+#endif
+
 	return mode;
 }
 
