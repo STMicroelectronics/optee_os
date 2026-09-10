@@ -38,7 +38,7 @@
 
 struct io_pa_va syscfg_base[SYSCON_NB_BANKS] = {
 	{ .pa = SYSCFG_BASE },
-	{ .pa = A35SSC_BASE }
+	{ .pa = CA35SS_BASE }
 };
 
 /* IO compensation CCR registers bit definition */
