@@ -165,6 +165,8 @@ static TEE_Result stm32_uart_update_baudrate(struct stm32_uart_pdata *pd,
 		panic();
 
 	baudrate = strtoul(params, NULL, 10);
+	if (!baudrate)
+		return TEE_ERROR_BAD_PARAMETERS;
 
 	for (i = 0; i < ARRAY_SIZE(presc); i++) {
 		uartdiv = UDIV_ROUND_NEAREST(clk_rate, baudrate * presc[i]);
@@ -180,9 +182,11 @@ static TEE_Result stm32_uart_update_baudrate(struct stm32_uart_pdata *pd,
 
 		if (brr <= UART_REG_BRR_MASK)
 			break;
-		if (i == ARRAY_SIZE(presc) - 1)
-			return TEE_ERROR_GENERIC;
 	}
+
+	if (i == ARRAY_SIZE(presc))
+		return TEE_ERROR_GENERIC;
+
 	io_write32(uart_base + UART_REG_BRR, brr);
 	io_write32(uart_base + UART_REG_PRESC, presc[i]);
 	io_write32(uart_base + UART_REG_CR1, UART_REG_CR1_UE |
