@@ -449,19 +449,31 @@ static void count_resources(struct scpfw_config *cfg)
             struct scpfw_channel_config *channel_cfg =
                 agent_cfg->channel_config + j;
 
+#ifdef CFG_SCPFW_MOD_CLOCK
             /* Clocks for scmi_clock optee/clock and for DVFS */
             scpfw_resource_counter.clock_count += channel_cfg->clock_count;
-            scpfw_resource_counter.clock_count += channel_cfg->perfd_count;
             scpfw_resource_counter.optee_clock_count += channel_cfg->clock_count;
+#ifdef CFG_SCPFW_MOD_DVFS
+            scpfw_resource_counter.clock_count += channel_cfg->perfd_count;
+#endif
+#endif
+#ifdef CFG_SCPFW_MOD_RESET_DOMAIN
             /* Reset for scmi_reset only */
             scpfw_resource_counter.reset_count += channel_cfg->reset_count;
+#endif
+#ifdef CFG_SCPFW_MOD_VOLTAGE_DOMAIN
             /* Regulators for smci_voltage_domain only */
             scpfw_resource_counter.regu_count += channel_cfg->voltd_count;
+#endif
+#ifdef CFG_SCPFW_MOD_DVFS
             /* DVFS and PSU DVFS only */
             scpfw_resource_counter.dvfs_count += channel_cfg->perfd_count;
             scpfw_resource_counter.psu_count += channel_cfg->perfd_count;
+#endif
+#ifdef CFG_SCPFW_MOD_POWER_DOMAIN
             /* Power domains */
             scpfw_resource_counter.pd_count += channel_cfg->pd_count;
+#endif
         }
     }
 
@@ -702,7 +714,9 @@ static void set_scmi_comm_resources(struct scpfw_config *cfg)
             assert(agent_index < SCMI_AGENT_ID_COUNT);
 
             /* Make sure mailbox_idx stored in OPTEE is the same than SCP */
+#if defined(CFG_SCPFW_MOD_OPTEE_SMT)
             assert(channel_index == channel_cfg->mailbox_idx);
+#endif
 
             switch (module_idx_smt_table[agent_index]) {
 #if defined(CFG_SCPFW_MOD_MSG_SMT)
