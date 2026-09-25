@@ -143,6 +143,17 @@ struct pm_mailbox {
 
 uint32_t optee_magic;
 
+#ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
+/* Preserve for BKPSRAM corruption the DDR setting provided by BL2 */
+uint32_t bl2_zq0cr0_zdata;
+void *bl2_low_power_ep;
+#endif
+
+#ifdef CFG_STM32MP13
+uint8_t mce_mkey[MCE_KEY_SIZE_IN_BYTES];
+struct stm32_mce_region_s mce_regions[MCE_IP_MAX_REGION_NB];
+#endif
+
 static tee_mm_entry_t *teeram_bkp_mm;
 
 /*
@@ -228,16 +239,13 @@ static void restore_time(void)
 	print_ccm_decryption_duration();
 }
 
-/* Clear the content of the PM mailbox */
-void stm32mp_pm_wipe_context(void)
+/* Init OP-TEE with BL2 information present in mailbox */
+static void stm32mp_pm_init_mailbox(void)
 {
-	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
 	struct pm_mailbox *mailbox = get_pm_mailbox();
 	unsigned int version = 0;
 
 	clk_enable(pm_clocks.bkpsram);
-
-	memset(ctx, 0xa5, sizeof(*ctx));
 
 	/* BL2 set the supported MAGIC in mailbox since V3 */
 	version = MIN(MAGIC_VERSION(mailbox->magic),
@@ -249,9 +257,30 @@ void stm32mp_pm_wipe_context(void)
 
 	optee_magic = STANDBY_CONTEXT_MAGIC(version);
 
-#ifdef CFG_STM32MP1_OPTEE_IN_SYSRAM
-	memset(mailbox, 0xa5, sizeof(*mailbox));
+	FMSG("BL2 low_power_ep %#"PRIx32, mailbox->low_power_ep);
+
+#ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
+	bl2_zq0cr0_zdata = mailbox->zq0cr0_zdata;
+	bl2_low_power_ep = (void *)mailbox->low_power_ep;
 #endif
+#ifdef CFG_STM32MP13
+	memcpy(mce_mkey, mailbox->mce_mkey, MCE_KEY_SIZE_IN_BYTES);
+	memcpy(mce_regions, mailbox->mce_regions, sizeof(mce_regions));
+#endif
+
+	clk_disable(pm_clocks.bkpsram);
+}
+
+/* Clear the content of the PM mailbox */
+void stm32mp_pm_wipe_context(void)
+{
+	struct retram_resume_ctx *ctx = get_retram_resume_ctx();
+	struct pm_mailbox *mailbox = get_pm_mailbox();
+
+	clk_enable(pm_clocks.bkpsram);
+
+	memset(ctx, 0xa5, sizeof(*ctx));
+	memset(mailbox, 0xa5, sizeof(*mailbox));
 
 	clk_disable(pm_clocks.bkpsram);
 }
@@ -313,7 +342,13 @@ static void load_earlyboot_pm_mailbox(void)
 	memset(mailbox, 0, sizeof(*mailbox));
 
 	mailbox->zq0cr0_zdata = get_ddrphy_calibration();
+#else
+	mailbox->zq0cr0_zdata = bl2_zq0cr0_zdata;
 #endif /* CFG_STM32MP1_OPTEE_IN_SYSRAM */
+#ifdef CFG_STM32MP13
+	memcpy(mailbox->mce_mkey, mce_mkey, MCE_KEY_SIZE_IN_BYTES);
+	memcpy(mailbox->mce_regions, mce_regions, sizeof(mce_regions));
+#endif /* CFG_STM32MP13 */
 
 	if (MAGIC_VERSION(optee_magic) >= 4)
 		mailbox->size = sizeof(*mailbox);
@@ -569,17 +604,12 @@ void stm32mp_pm_shutdown_context(unsigned int soc_mode)
 #ifndef CFG_STM32MP1_OPTEE_IN_SYSRAM
 TEE_Result stm32mp_pm_call_bl2_lp_entry(unsigned int soc_mode)
 {
-	struct pm_mailbox *mailbox = NULL;
 	int (*stm32_pwr_down_wfi)(bool is_cstop, unsigned int soc_mode) = NULL;
 	int ret = PM_MAILBOX_LOW_POWER_EP_ERROR;
 
 	clk_enable(pm_clocks.bkpsram);
 
-	mailbox = get_pm_mailbox();
-
-	FMSG("BL2 low_power_ep %#"PRIx32, mailbox->low_power_ep);
-
-	stm32_pwr_down_wfi = (void *)mailbox->low_power_ep;
+	stm32_pwr_down_wfi = bl2_low_power_ep;
 
 	dcache_op_all(DCACHE_OP_CLEAN_INV);
 
@@ -622,6 +652,7 @@ static TEE_Result init_pm_support(void)
 
 	init_retram_resume_resources();
 
+	stm32mp_pm_init_mailbox();
 	stm32mp_pm_wipe_context();
 
 	return TEE_SUCCESS;
