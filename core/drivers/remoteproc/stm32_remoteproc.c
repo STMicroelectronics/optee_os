@@ -709,6 +709,7 @@ TEE_Result stm32_rproc_release_mem(uint32_t rproc_id)
 static void stm32_rproc_cleanup(struct stm32_rproc_instance *rproc)
 {
 	stm32_rproc_free_regions(rproc);
+	free(rproc->dma_ranges);
 	free(rproc);
 }
 
@@ -915,8 +916,7 @@ static TEE_Result stm32_rproc_probe(const void *fdt, int node,
 
 	stm32_rproc_a35ss_cfg(rproc);
 
-	if (!rproc->cdata->ns_loading)
-		SLIST_INSERT_HEAD(&rproc_list, rproc, link);
+	SLIST_INSERT_HEAD(&rproc_list, rproc, link);
 
 	if (rproc->cdata->pm)
 		register_pm_driver_cb(rproc->cdata->pm, rproc, "stm32-rproc");
