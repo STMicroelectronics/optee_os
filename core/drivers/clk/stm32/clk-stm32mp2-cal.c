@@ -535,6 +535,11 @@ stm32mp2_calib_pm(enum pm_op op, unsigned int pm_hint,
 			/* Only RCC_HSIFMONCR register need to be restored */
 			stm32mp2_clk_hsi_restore_pm(clk_cal);
 
+		/* Enable HSI clock period monitor interrupt */
+		if (clk_cal->irq_cal.itr)
+			interrupt_enable(clk_cal->irq_cal.itr->chip,
+					 clk_cal->irq_cal.itr->it);
+
 		return TEE_SUCCESS;
 	}
 	/* SUSPEND */
@@ -542,6 +547,10 @@ stm32mp2_calib_pm(enum pm_op op, unsigned int pm_hint,
 		struct stm32mp2_clk_cal *clk_cal = &osc_cal_device[i];
 		struct stm32_calib_config *data = &clk_cal->data;
 
+		/* Disable HSI clock period monitor interrupt */
+		if (clk_cal->irq_cal.itr)
+			interrupt_disable(clk_cal->irq_cal.itr->chip,
+					  clk_cal->irq_cal.itr->it);
 		if (data->is_used)
 			data->init_done = false;
 	}
