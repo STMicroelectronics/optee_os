@@ -857,7 +857,7 @@
 
 					clock@84 {
 						reg = <CK_SCMI_ICN_PCIE>;
-						domain-name = "ck_icn_p_pcie";
+						domain-name = "ck_scmi_icn_pcie";
 						clocks = <&rcc CK_BUS_PCIE>;
 						flags = <SCMI_CLOCK_DEFAULT_ENABLED>;
 					};
